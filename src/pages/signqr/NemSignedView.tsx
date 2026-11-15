@@ -13,7 +13,7 @@ import type { NemAnnounceBody, NemTransferSummary, ParsedNemBundle, ParsedNemSig
 import { isDeviceOffline } from '../../lib/offline/issue';
 import { mono } from '../multisig/parts';
 
-// 「署名・連署QR」 / 「オフライントランザクション」の「読み込んで送信」: a transaction that was signed offline on NEM (KASANE's NEM
+// 「署名・連署QR」 / 「オフライントランザクション」の「読み込んで送信」: a transaction that was signed offline on NEM (IROME's NEM
 // QR, or the announce body NanoWallet makes). A transfer is read in full; any other kind (mosaic, namespace, multisig,
 // delegated harvesting, ...) is shown by its kind, signer, fee and deadline - it was signed on the device that made it, and
 // whoever announces it cannot spend anything with it.

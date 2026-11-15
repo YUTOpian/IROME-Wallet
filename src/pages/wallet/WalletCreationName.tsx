@@ -5,7 +5,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import { MIN_PASSWORD_LENGTH, passwordProblem } from '../../lib/passwordPolicy';
 import ErrorSnackbar from '../../components/ErrorSnackbar';
 import { MnemonicHelper } from '../../lib/symbol/hd';
@@ -106,7 +106,7 @@ export default function WalletCreationName() {
   );
 
   return (
-    <KasaneStage onBack={() => navigate('/wallet/new', { replace: true })} back="/wallet/new" title={t('wallet.name_title')} maxWidth={440} panel>
+    <IromeStage onBack={() => navigate('/wallet/new', { replace: true })} back="/wallet/new" title={t('wallet.name_title')} maxWidth={440} panel>
       <Box component="form" onSubmit={createWallet} noValidate sx={{ width: '100%' }}>
         <Box sx={{ mt: 3 }}>
           <ChainPicker value={selectedChain} onChange={setSelectedChain} />
@@ -170,6 +170,6 @@ export default function WalletCreationName() {
 
       </Box>
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage('')} />
-    </KasaneStage>
+    </IromeStage>
   );
 }

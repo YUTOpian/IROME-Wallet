@@ -27,17 +27,17 @@ const nanoPub = '1ee8f3b349ec693899d6601b63723017d88a8e0ea901002ceb7859a9780c11d
 ok(new KeyPair(new PrivateKey(nanoPriv)).publicKey.toString().toLowerCase() === nanoPub, 'the same private key gives the same public key as nem-sdk');
 const bmp = 'こんにちは NEM\n  日本語 é';
 const bmpNanoSig = 'c2996cdc849866d7d8c85f24b08f5009d1c8bd4aaed5ffcc3f457497421e3d750c6bf4f36a04117c7f3bbef8098924b483ee0027d093921aa632db87c2c46500';
-ok(verifyNemText(nanoPub, bmp, bmpNanoSig) === 'utf8', 'NanoWallet signature (Japanese text) verifies in KASANE');
-ok(signNemData(nanoPriv, nemMessageBytes(bmp)).toLowerCase() === bmpNanoSig, 'KASANE makes the very same signature as NanoWallet (Japanese text)');
+ok(verifyNemText(nanoPub, bmp, bmpNanoSig) === 'utf8', 'NanoWallet signature (Japanese text) verifies in IROME');
+ok(signNemData(nanoPriv, nemMessageBytes(bmp)).toLowerCase() === bmpNanoSig, 'IROME makes the very same signature as NanoWallet (Japanese text)');
 ok(verifyNemText(nanoPub, bmp + ' ', bmpNanoSig) === null, 'a changed text fails');
 
 const emoji = 'with emoji 😀';
 const emojiNanoSig = '328daee8dabc2d7a0996f8cb381f85a98ae0e2375dee95b01e1fc3349614ce7670ae19d063025fa27025fddf30fcb762e6aeef6bf7abb1159fac7fd1fb2d4300';
-ok(verifyNemText(nanoPub, emoji, emojiNanoSig) === 'nanowallet', 'NanoWallet signature with an emoji verifies in KASANE (NanoWallet encoding)');
+ok(verifyNemText(nanoPub, emoji, emojiNanoSig) === 'nanowallet', 'NanoWallet signature with an emoji verifies in IROME (NanoWallet encoding)');
 ok(signNemData(nanoPriv, nemMessageBytes(emoji)).toLowerCase() !== emojiNanoSig, 'with an emoji the two make different signatures (4-byte UTF-8 vs 3+3 bytes)');
 const kasaneEmojiSig = signNemData(nanoPriv, nemMessageBytes(emoji));
-ok(verifyNemText(nanoPub, emoji, kasaneEmojiSig) === 'utf8', 'KASANE signature with an emoji verifies as UTF-8');
-// NanoWallet verifies the hex of the signed bytes directly, so a KASANE NanoWallet-JSON is accepted there as well.
+ok(verifyNemText(nanoPub, emoji, kasaneEmojiSig) === 'utf8', 'IROME signature with an emoji verifies as UTF-8');
+// NanoWallet verifies the hex of the signed bytes directly, so a IROME NanoWallet-JSON is accepted there as well.
 const pasted = parseNemSignedMessage(JSON.stringify({ message: '7769746820656d6f6a6920eda0bdedb880', signer: nanoPub, signature: emojiNanoSig }));
 ok(pasted !== null && verifyNemText(pasted.publicKey, pasted.message, pasted.signature) === 'nanowallet', 'pasted NanoWallet JSON (emoji) -> text -> verifies');
 const pastedBmp = parseNemSignedMessage(JSON.stringify({ message: 'e38193e38293e381abe381a1e381af204e454d0a2020e697a5e69cace8aa9e20c3a9', signer: nanoPub, signature: bmpNanoSig }));

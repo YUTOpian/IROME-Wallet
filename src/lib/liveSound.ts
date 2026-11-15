@@ -7,7 +7,7 @@ import ding2SoftUrl from '../assets/ding2-soft.ogg';
 
 /**
  * 通知音の種類（表示名は i18n の settings.live_sound_theme_*）。
- * 'default' = 「KASANE チャイム」（KASANE の標準の音。保存済みの設定との互換のため、キーは default のまま）、
+ * 'default' = 「IROME チャイム」（IROME の標準の音。保存済みの設定との互換のため、キーは default のまま）、
  * 'soft' = 「ソフトベル」（やわらかい低めのベル）、
  * 'classic' = 「クラシック」（これまでの音。公式 Symbol Desktop Wallet 1.2.0 の ding.ogg、Apache-2.0）。
  * どれも2つで1組：started = 取引が始まった（ノードに通知された）とき、confirmed = 承認されたとき。

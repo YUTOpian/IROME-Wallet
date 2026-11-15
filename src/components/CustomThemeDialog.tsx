@@ -109,13 +109,13 @@ export default function CustomThemeDialog({ open, onClose, scope = 'app' }: { op
   };
 
   const downloadTheme = (theme: SavedCustomTheme) =>
-    saveTextFile(buildThemeCss(theme, displayName(theme)), `kasane-theme-${safeFileName(theme.name)}.css`, 'text/css;charset=utf-8', true);
+    saveTextFile(buildThemeCss(theme, displayName(theme)), `irome-theme-${safeFileName(theme.name)}.css`, 'text/css;charset=utf-8', true);
 
   // 機種変更などのためのバックアップ: 保存してあるテーマを、画像ごと1つのファイル（JSON）に書き出す / 読み込む。
   const exportAll = () => {
     if (themes.length === 0) return;
     const stamp = new Date().toISOString().slice(0, 10);
-    saveTextFile(buildThemeBackup(themes), `kasane-themes-${stamp}.json`, 'application/json;charset=utf-8');
+    saveTextFile(buildThemeBackup(themes), `irome-themes-${stamp}.json`, 'application/json;charset=utf-8');
     setBackupNotice({ severity: 'success', text: t('settings.custom_theme_export_done', { count: themes.length }) });
   };
   const onBackupFile = async (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -13,9 +13,9 @@ import { WalletsHelper } from '../../lib/storage';
 import { loadKnownMosaics } from '../../lib/mosaicCache';
 import { formatAtomic } from '../../lib/symbol/amount';
 import { CURRENCY_DIVISIBILITY, CURRENCY_SYMBOL } from '../../lib/symbol/constants';
-import { buildKasaneQr, networkProblem } from '../../lib/symbol/kasaneQr';
+import { buildIromeQr, networkProblem } from '../../lib/symbol/iromeQr';
 import { parseAnyInput } from '../../lib/symbol/externalPayload';
-import type { CosignRequestQr } from '../../lib/symbol/kasaneQr';
+import type { CosignRequestQr } from '../../lib/symbol/iromeQr';
 import type { ChainKey } from '../../lib/chain';
 import { getNetwork, getNetworkConfig } from '../../lib/symbol/network';
 import { summarizePayload } from '../../lib/symbol/payloadSummary';
@@ -151,7 +151,7 @@ function SymbolCosign({ onStep }: { onStep: (step: number) => void }) {
 
   const resultText = body === null
     ? ''
-    : buildKasaneQr({ kind: 'cosignature', parentHash: body.parentHash, signerPublicKey: body.signerPublicKey, signature: body.signature, version: body.version });
+    : buildIromeQr({ kind: 'cosignature', parentHash: body.parentHash, signerPublicKey: body.signerPublicKey, signature: body.signature, version: body.version });
 
   const reset = () => { setRequest(null); setSummary(null); setProblem(''); setBody(null); setLoadError(''); };
 
@@ -172,7 +172,7 @@ function SymbolCosign({ onStep }: { onStep: (step: number) => void }) {
             </SectionCard>
             <SectionCard title={t('signqr.cosignature_qr_title')}>
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>{t('offline_cosign.qr_hint')}</Typography>
-              <QrTextPanel text={resultText} file={{ text: resultText, name: `kasane-cosignature-${body.parentHash.slice(0, 8).toLowerCase()}.json` }} />
+              <QrTextPanel text={resultText} file={{ text: resultText, name: `irome-cosignature-${body.parentHash.slice(0, 8).toLowerCase()}.json` }} />
             </SectionCard>
             <Button onClick={reset} sx={{ mt: 1 }}>{t('offline_cosign.another')}</Button>
           </>

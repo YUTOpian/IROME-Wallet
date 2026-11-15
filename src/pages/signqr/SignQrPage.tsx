@@ -23,9 +23,9 @@ import { SymbolSendError, announceSigned, explorerTxUrl, getMosaicInfos } from '
 import { formatAtomic } from '../../lib/symbol/amount';
 import { CURRENCY_DIVISIBILITY, CURRENCY_SYMBOL } from '../../lib/symbol/constants';
 import { addressFromPublicKey, hexToBytes, verifySignature } from '../../lib/symbol/crypto';
-import { buildKasaneQr, networkProblem } from '../../lib/symbol/kasaneQr';
+import { buildIromeQr, networkProblem } from '../../lib/symbol/iromeQr';
 import { parseAnyInput } from '../../lib/symbol/externalPayload';
-import type { BundleQr, CosignRequestQr, CosignatureQr, ParsedKasaneQr, SignedQr, TemplateQr } from '../../lib/symbol/kasaneQr';
+import type { BundleQr, CosignRequestQr, CosignatureQr, ParsedIromeQr, SignedQr, TemplateQr } from '../../lib/symbol/iromeQr';
 import { announceCosignature, announcePartial, fetchPartialByHash, waitConfirmed } from '../../lib/symbol/multisigApi';
 import { isDeviceOffline } from '../../lib/offline/issue';
 import type { PartialItem } from '../../lib/symbol/multisigApi';
@@ -397,7 +397,7 @@ function CosignRequestView({ qr }: { qr: CosignRequestQr }) {
                 open={qrOpen}
                 title={t('signqr.cosignature_qr_title')}
                 hint={t('signqr.cosignature_qr_hint')}
-                text={buildKasaneQr({ kind: 'cosignature', parentHash: body.parentHash, signerPublicKey: body.signerPublicKey, signature: body.signature, version: body.version })}
+                text={buildIromeQr({ kind: 'cosignature', parentHash: body.parentHash, signerPublicKey: body.signerPublicKey, signature: body.signature, version: body.version })}
                 onClose={() => setQrOpen(false)}
               />
             </>
@@ -569,7 +569,7 @@ function ReaderIntro({ withAddress }: { withAddress: boolean }) {
 export function SignQrReader({ onOther, compact = false, fill = false, initialText, chain }: SignQrReaderProps) {
   const { t } = useTranslation();
   const [text, setText] = useState('');
-  const [parsed, setParsed] = useState<ParsedKasaneQr | null>(null);
+  const [parsed, setParsed] = useState<ParsedIromeQr | null>(null);
   // A transfer signed offline on NEM (it has no generation hash, so it is read on its own).
   const [nemParsed, setNemParsed] = useState<ParsedNemSigned | null>(null);
   // Several transactions signed offline on NEM, announced one after another.

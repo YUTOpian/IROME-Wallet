@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Button, Typography, IconButton } from '@mui/material';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AddIcon from '@mui/icons-material/Add';
 import WifiOffOutlinedIcon from '@mui/icons-material/WifiOffOutlined';
@@ -111,7 +111,7 @@ export default function WalletSelect() {
 
   return (
     // No top bar and no side menu on this screen. The back arrow always returns to the title (welcome) screen.
-    <KasaneStage
+    <IromeStage
       title={t('wallet.profile_select_title')}
       showBack
       onBack={() => navigate('/welcome')}
@@ -186,6 +186,6 @@ export default function WalletSelect() {
           onClick={() => navigate('/wallet/new')}
         />
       </Box>
-    </KasaneStage>
+    </IromeStage>
   );
 }

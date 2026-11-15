@@ -99,7 +99,7 @@ export function formatEntry(e: LogEntry): string {
 
 /** The text copied / downloaded: a header with the environment, then the (filtered) log. */
 export function buildReport(header: Array<[string, string]>, list: LogEntry[]): string {
-  const lines = ['KASANE Wallet diagnostics', ...header.map(([k, v]) => `${k}: ${v}`), '', ...list.map(formatEntry)];
+  const lines = ['IROME Wallet diagnostics', ...header.map(([k, v]) => `${k}: ${v}`), '', ...list.map(formatEntry)];
   return lines.join('\n');
 }
 

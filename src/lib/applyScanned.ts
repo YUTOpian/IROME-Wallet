@@ -6,7 +6,7 @@ import { useAppStore } from '../store/appStore';
 import { parseScanned } from './symbol/qr';
 import type { ScannedPayment } from './symbol/qr';
 import { isTransactionUri } from './symbol/txUri';
-import { isKasaneQr } from './symbol/kasaneQr';
+import { isIromeQr } from './symbol/iromeQr';
 import { getMosaicInfos } from './symbol/api';
 import { formatAtomic } from './symbol/amount';
 import { addressNetworkByte } from './symbol/crypto';
@@ -51,7 +51,7 @@ export async function applyScannedText(decoded: string): Promise<ApplyScannedRes
   // NEM codes (plain address / account QR / invoice QR) carry an address and optionally an XEM amount.
   const nemMode = getChain() === 'nem';
   // A signed transaction / cosignature / template QR is read on its own screen, not by the send form.
-  if (!nemMode && isKasaneQr(decoded)) return { ok: false, reason: 'signing_qr' };
+  if (!nemMode && isIromeQr(decoded)) return { ok: false, reason: 'signing_qr' };
   const parsed = nemMode ? parseNemScanned(decoded) : parseScanned(decoded);
   if (parsed === null) {
     // A transaction URI that is not a plain transfer (or has no usable data) gets its own explanation.

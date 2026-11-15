@@ -43,7 +43,7 @@ export function verifyNemSignature(publicKeyHex: string, data: Uint8Array, signa
 }
 
 /**
- * 署名付きメッセージの文章を検証する。正しい UTF-8 で署名したもの（KASANE）なら 'utf8'、NanoWallet 式の符号化
+ * 署名付きメッセージの文章を検証する。正しい UTF-8 で署名したもの（IROME）なら 'utf8'、NanoWallet 式の符号化
  * （絵文字などが UTF-16 の 1 単位ずつ 3 バイト）でだけ合うなら 'nanowallet'、どちらでも合わなければ null。
  * 日本語・英数字などの BMP の文字だけなら、2 つの符号化は同じバイト列で、'utf8' になる。
  */

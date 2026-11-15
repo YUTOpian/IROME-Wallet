@@ -1,4 +1,4 @@
-// KASANE invoice sheet: the invoice / payment-request QR (see InvoiceCard) as a printable A4 PDF with
+// IROME invoice sheet: the invoice / payment-request QR (see InvoiceCard) as a printable A4 PDF with
 // the same look as the paper wallet (lib/paperWallet.ts, whose drawing helpers it shares).
 //
 // Pure layout, like the paper wallet: no template, no embedded font - only standard PDF fonts, so
@@ -25,7 +25,7 @@ export interface InvoicePdfInput {
   message: string;
   /** PNG of the invoice QR. */
   qrPng: Uint8Array;
-  /** PNG of the KASANE hexagon mark. */
+  /** PNG of the IROME mark. */
   markPng: Uint8Array;
   createdAt: Date;
   /** When the request inside the QR stops being valid (Symbol only; NEM requests do not expire). */
@@ -67,9 +67,9 @@ export async function buildInvoicePdf(input: InvoicePdfInput): Promise<Uint8Arra
   if (input.mosaics.length === 0) throw new Error('invoice pdf: no mosaic');
 
   const pdf = await PDFDocument.create();
-  pdf.setTitle('KASANE Invoice');
-  pdf.setCreator('KASANE Wallet');
-  pdf.setProducer('KASANE Wallet');
+  pdf.setTitle('IROME Invoice');
+  pdf.setCreator('IROME Wallet');
+  pdf.setProducer('IROME Wallet');
   pdf.setCreationDate(input.createdAt);
   pdf.setModificationDate(input.createdAt);
 
@@ -94,7 +94,7 @@ export async function buildInvoicePdf(input: InvoicePdfInput): Promise<Uint8Arra
   // A NEM invoice with a mosaic besides XEM is the mosaic type of the NEM QR draft, which not every NEM wallet reads.
   const nemMosaics = chain === 'nem' && input.mosaics.some((m) => m.symbol !== 'XEM');
   const caption = chain === 'nem'
-    ? (nemMosaics ? ['NEM invoice QR (with mosaics)', 'Scan it with KASANE Wallet to pay'] : ['NEM invoice QR', 'Scan it with a NEM wallet to pay'])
+    ? (nemMosaics ? ['NEM invoice QR (with mosaics)', 'Scan it with IROME Wallet to pay'] : ['NEM invoice QR', 'Scan it with a NEM wallet to pay'])
     : ['Symbol transaction-request QR', 'Scan it with a Symbol wallet to pay'];
   const cardW = 300;
   const cardH = 34 + QR_SIZE + 6 + caption.length * 11 + 16;
@@ -143,7 +143,7 @@ export async function buildInvoicePdf(input: InvoicePdfInput): Promise<Uint8Arra
       'Whoever scans the QR pays the network fee and signs the transfer.',
     ]
     : [
-      'This request is valid for 2 hours from the time this sheet was made. After that, make a new invoice in KASANE.',
+      'This request is valid for 2 hours from the time this sheet was made. After that, make a new invoice in IROME.',
       'Whoever scans the QR pays the network fee and signs the transfer. Check the address and amount before paying.',
     ];
   notes.forEach((line, i) => text(page, line, MARGIN + 2, y + i * 11, 7.8, fonts.regular, C.muted));

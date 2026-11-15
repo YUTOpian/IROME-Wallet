@@ -4,7 +4,7 @@ import TextField from '../../components/TextField';
 import OptionSelect, { OptionItem } from '../../components/OptionSelect';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import ErrorSnackbar from '../../components/ErrorSnackbar';
 import { WalletsHelper } from '../../lib/storage';
 import { CHAINS } from '../../lib/chain';
@@ -66,7 +66,7 @@ export default function WalletLedgerNew() {
   const linkLabel = (k: LinkKind) => t(`ledger.link_${k}`);
 
   return (
-    <KasaneStage back="/wallet/new" title={t('ledger.create_title')} maxWidth={560} panel>
+    <IromeStage back="/wallet/new" title={t('ledger.create_title')} maxWidth={560} panel>
       <Box component="form" onSubmit={onSubmit} noValidate sx={{ width: '100%', mt: 2 }}>
         <Typography align="center" sx={{ mx: 2, lineHeight: 1.8 }}>
           {(t('ledger.create_message', { returnObjects: true }) as string[]).map((line, i) => (
@@ -114,6 +114,6 @@ export default function WalletLedgerNew() {
         </Box>
       </Box>
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage('')} />
-    </KasaneStage>
+    </IromeStage>
   );
 }

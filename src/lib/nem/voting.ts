@@ -24,20 +24,20 @@ import { dropZeroHolders, emptyTally, holdingAtEnd } from '../votingHoldings';
 export const POLL_TYPE_POI = 0;
 export const POLL_TYPE_WHITELIST = 1;
 /**
- * KASANE's own type: a simple poll (anyone, one account one vote, no weighting). The official NEM
+ * IROME's own type: a simple poll (anyone, one account one vote, no weighting). The official NEM
  * Wallet only knows the two types above, so it cannot show or count a poll of this type.
  */
 export const POLL_TYPE_SIMPLE = 2;
 
 /**
- * KASANE's own type: weighted by how much of a chosen mosaic each voter holds (the same calculation as
+ * IROME's own type: weighted by how much of a chosen mosaic each voter holds (the same calculation as
  * the importance-weighted poll, with the holding in place of the importance). Same value as the Symbol
  * poll of this type; the official NEM Wallet does not know it.
  */
 export const POLL_TYPE_MOSAIC = 3;
 
 /**
- * KASANE's own type: only holders of a chosen mosaic can vote (any amount; one account one vote, no weighting).
+ * IROME's own type: only holders of a chosen mosaic can vote (any amount; one account one vote, no weighting).
  * The creator chooses whether the mosaic has to be non-transferable (formData.nonTransferableOnly). Same value
  * and same shape as the Symbol poll of this type; the official NEM Wallet does not know it.
  */

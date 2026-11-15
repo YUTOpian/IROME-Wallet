@@ -95,9 +95,9 @@ export function planNemMultisigHarvest(i: NemMultisigHarvestInput): NemMultisigH
 }
 
 // --- a remote account chosen by its public key (NanoWallet's 「カスタムされた公開鍵を使用」) --------------
-// Instead of the remote account KASANE derives, the cosigner names one by its PUBLIC key: to link a remote account
+// Instead of the remote account IROME derives, the cosigner names one by its PUBLIC key: to link a remote account
 // prepared elsewhere, or - the usual reason - to deactivate the remote account another cosigner activated (that cosigner
-// reads its public key on the 「委任鍵」 tab). KASANE never holds the private key of such an account, so it cannot start or
+// reads its public key on the 「委任鍵」 tab). IROME never holds the private key of such an account, so it cannot start or
 // stop harvesting for it.
 export type NemCustomRemoteIssue = 'format' | 'multisig_itself';
 

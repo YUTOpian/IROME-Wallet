@@ -47,7 +47,7 @@ ok(all.every((e, i) => i === 0 || e.id > all[i - 1].id), 'ids keep increasing');
 
 // --- report
 const report = buildReport([['chain / network', 'symbol / mainnet']], all.slice(-2));
-ok(report.startsWith('KASANE Wallet diagnostics\nchain / network: symbol / mainnet\n\n') && report.split('\n').length === 5, 'report has a header then the lines', report);
+ok(report.startsWith('IROME Wallet diagnostics\nchain / network: symbol / mainnet\n\n') && report.split('\n').length === 5, 'report has a header then the lines', report);
 ok(/^\d\d:\d\d:\d\d\.\d{3} INFO  \[app\] line /.test(formatEntry(all[0])), 'a line is formatted with time, level and source', formatEntry(all[0]));
 
 clearLog();

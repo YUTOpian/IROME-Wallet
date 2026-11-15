@@ -1,8 +1,8 @@
 // DAO「ポイント交換」の自動連署ボット（サーバー専用）。
 //
-//   KASANE_DAO_BOT=1 npm run dao-bot
+//   IROME_DAO_BOT=1 npm run dao-bot
 //
-// サーバーで KASANE Wallet を動かすとき、同じサーバーでこのプロセスを別に起動したときだけ働く。
+// サーバーで IROME Wallet を動かすとき、同じサーバーでこのプロセスを別に起動したときだけ働く。
 // ブラウザのウォレット（src/）はこのファイルを読み込まない（ビルドにも入らない）ので、起動しなければ従来どおり、
 // 会員の交換申請は管理者が手動で連署して成立する。
 //
@@ -10,16 +10,17 @@
 // それ以外（管理者の設定変更・配布・回収など）には、何があっても連署しない。
 //
 // 設定（環境変数。鍵はこのサーバーの中だけに置く）:
-//   KASANE_DAO_BOT=1                 これが 1 のときだけ動く（無ければ何もせず終了）
-//   KASANE_DAO_BOT_KEY_FILE=/path    ボット用アカウントの秘密鍵（64 桁の 16 進）を 1 行で書いたファイル（推奨。権限は 600）
-//   KASANE_DAO_BOT_KEY=...           ファイルの代わりに、鍵そのものを環境変数で渡す
-//   KASANE_DAO_BOT_DAO=<公開鍵>[,…] 見張る DAO の ID（公開鍵）。カンマ区切りで複数可
-//   KASANE_DAO_BOT_NODE=https://…    ノード（https。同じ機械・社内ネットワークなら http も可）
-//   KASANE_DAO_BOT_NETWORK=mainnet   mainnet | testnet（既定 mainnet）
-//   KASANE_DAO_BOT_MAX_QTY=10        1 回の申請の数量の上限（省略すると制限なし）
-//   KASANE_DAO_BOT_POLL_SEC=15       見に行く間隔（秒。既定 15、最小 5）
-//   KASANE_DAO_BOT_DRY_RUN=1         判定だけして、連署は送らない（動作確認用）
+//   IROME_DAO_BOT=1                 これが 1 のときだけ動く（無ければ何もせず終了）
+//   IROME_DAO_BOT_KEY_FILE=/path    ボット用アカウントの秘密鍵（64 桁の 16 進）を 1 行で書いたファイル（推奨。権限は 600）
+//   IROME_DAO_BOT_KEY=...           ファイルの代わりに、鍵そのものを環境変数で渡す
+//   IROME_DAO_BOT_DAO=<公開鍵>[,…] 見張る DAO の ID（公開鍵）。カンマ区切りで複数可
+//   IROME_DAO_BOT_NODE=https://…    ノード（https。同じ機械・社内ネットワークなら http も可）
+//   IROME_DAO_BOT_NETWORK=mainnet   mainnet | testnet（既定 mainnet）
+//   IROME_DAO_BOT_MAX_QTY=10        1 回の申請の数量の上限（省略すると制限なし）
+//   IROME_DAO_BOT_POLL_SEC=15       見に行く間隔（秒。既定 15、最小 5）
+//   IROME_DAO_BOT_DRY_RUN=1         判定だけして、連署は送らない（動作確認用）
 import { readFileSync } from 'node:fs';
+import { withLegacyEnv } from '../legacyEnv';
 import { PrivateKey } from 'symbol-sdk';
 import { Address, KeyPair } from 'symbol-sdk/symbol';
 import { addressFromPublicKey, bytesToHex } from '../../lib/symbol/crypto';
@@ -44,22 +45,23 @@ interface Config {
   dryRun: boolean;
 }
 
-/** 設定を読む。有効にされていないとき（KASANE_DAO_BOT が 1 でないとき）は null。 */
-export function loadConfig(env: NodeJS.ProcessEnv): Config | null {
-  if (env.KASANE_DAO_BOT !== '1') return null;
+/** 設定を読む。有効にされていないとき（IROME_DAO_BOT が 1 でないとき）は null。 */
+export function loadConfig(rawEnv: NodeJS.ProcessEnv): Config | null {
+  const env = withLegacyEnv(rawEnv); // 改名前の KASANE_DAO_BOT_* も、当面は読む
+  if (env.IROME_DAO_BOT !== '1') return null;
   // ブラウザ（ウォレットの画面）では動かさない。鍵をページに持ち込まないため。
   if (typeof (globalThis as { window?: unknown }).window !== 'undefined') die('サーバー（Node.js）でだけ動かせます。');
-  const keyText = (env.KASANE_DAO_BOT_KEY_FILE ? readFileSync(env.KASANE_DAO_BOT_KEY_FILE, 'utf8') : env.KASANE_DAO_BOT_KEY ?? '').trim();
-  if (!/^[0-9a-fA-F]{64}$/.test(keyText)) die('KASANE_DAO_BOT_KEY_FILE（または KASANE_DAO_BOT_KEY）に、秘密鍵（64 桁の 16 進）を指定してください。');
-  const daoKeys = (env.KASANE_DAO_BOT_DAO ?? '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
-  if (daoKeys.length === 0 || daoKeys.some((k) => !/^[0-9A-F]{64}$/.test(k))) die('KASANE_DAO_BOT_DAO に、DAO の ID（公開鍵・64 桁の 16 進）を指定してください。');
-  const node = (env.KASANE_DAO_BOT_NODE ?? '').trim().replace(/\/+$/, '');
-  if (!node || !isAllowedNodeUrl(node)) die('KASANE_DAO_BOT_NODE に、ノードの URL（https://…）を指定してください。');
-  const network = env.KASANE_DAO_BOT_NETWORK ?? 'mainnet';
-  if (network !== 'mainnet' && network !== 'testnet') die('KASANE_DAO_BOT_NETWORK は mainnet か testnet です。');
-  const max = env.KASANE_DAO_BOT_MAX_QTY?.trim();
-  if (max && !/^[1-9][0-9]*$/.test(max)) die('KASANE_DAO_BOT_MAX_QTY は 1 以上の整数です。');
-  const poll = Number(env.KASANE_DAO_BOT_POLL_SEC ?? '15');
+  const keyText = (env.IROME_DAO_BOT_KEY_FILE ? readFileSync(env.IROME_DAO_BOT_KEY_FILE, 'utf8') : env.IROME_DAO_BOT_KEY ?? '').trim();
+  if (!/^[0-9a-fA-F]{64}$/.test(keyText)) die('IROME_DAO_BOT_KEY_FILE（または IROME_DAO_BOT_KEY）に、秘密鍵（64 桁の 16 進）を指定してください。');
+  const daoKeys = (env.IROME_DAO_BOT_DAO ?? '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+  if (daoKeys.length === 0 || daoKeys.some((k) => !/^[0-9A-F]{64}$/.test(k))) die('IROME_DAO_BOT_DAO に、DAO の ID（公開鍵・64 桁の 16 進）を指定してください。');
+  const node = (env.IROME_DAO_BOT_NODE ?? '').trim().replace(/\/+$/, '');
+  if (!node || !isAllowedNodeUrl(node)) die('IROME_DAO_BOT_NODE に、ノードの URL（https://…）を指定してください。');
+  const network = env.IROME_DAO_BOT_NETWORK ?? 'mainnet';
+  if (network !== 'mainnet' && network !== 'testnet') die('IROME_DAO_BOT_NETWORK は mainnet か testnet です。');
+  const max = env.IROME_DAO_BOT_MAX_QTY?.trim();
+  if (max && !/^[1-9][0-9]*$/.test(max)) die('IROME_DAO_BOT_MAX_QTY は 1 以上の整数です。');
+  const poll = Number(env.IROME_DAO_BOT_POLL_SEC ?? '15');
   return {
     keyPair: new KeyPair(new PrivateKey(keyText)),
     daoKeys,
@@ -67,7 +69,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config | null {
     networkByte: network === 'testnet' ? 0x98 : 0x68,
     maxQuantity: max ? BigInt(max) : null,
     pollMs: Math.max(5, Number.isFinite(poll) ? poll : 15) * 1000,
-    dryRun: env.KASANE_DAO_BOT_DRY_RUN === '1',
+    dryRun: env.IROME_DAO_BOT_DRY_RUN === '1',
   };
 }
 
@@ -138,7 +140,7 @@ async function checkCosigner(cfg: Config, rest: Rest, daoPublicKey: string): Pro
 async function main(): Promise<void> {
   const cfg = loadConfig(process.env);
   if (!cfg) {
-    log('無効です（KASANE_DAO_BOT=1 のときだけ動きます）。交換申請は、従来どおり管理者が連署します。');
+    log('無効です（IROME_DAO_BOT=1 のときだけ動きます）。交換申請は、従来どおり管理者が連署します。');
     return;
   }
   const rest = new Rest(cfg.node);

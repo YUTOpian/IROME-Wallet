@@ -4,7 +4,7 @@
 // Run: npx tsx dev-tests/sign-qr-flow.test.ts
 import { models } from 'symbol-sdk/symbol';
 import { addressFromPublicKey, facadeFor, hexToBytes, keyPairFromPrivateKey, verifySignature } from '../src/lib/symbol/crypto';
-import { buildKasaneQr, networkProblem, parseKasaneQr } from '../src/lib/symbol/kasaneQr';
+import { buildIromeQr, networkProblem, parseIromeQr } from '../src/lib/symbol/iromeQr';
 import { getNetworkConfig } from '../src/lib/symbol/network';
 import { cosignAggregateHash, signTransfer } from '../src/lib/symbol/tx';
 
@@ -22,8 +22,8 @@ const recipient = addressFromPublicKey('3'.repeat(64), cfg.networkByte);
     signerPublicKey: sender.publicKey, networkByte: cfg.networkByte, recipient,
     mosaics: [{ id: cfg.currencyMosaicId, amount: 1_000_000n }], message: 'hello', maxFee: 17600n, deadline: 123456789n,
   });
-  const text = buildKasaneQr({ kind: 'signed', payload: signed.payload, hash: signed.hash });
-  const p = parseKasaneQr(text);
+  const text = buildIromeQr({ kind: 'signed', payload: signed.payload, hash: signed.hash });
+  const p = parseIromeQr(text);
   ok(p?.qr.kind === 'signed' && networkProblem(p) === null, 'signed QR parses on its own network');
   if (p?.qr.kind === 'signed') {
     const tx = models.TransactionFactory.deserialize(hexToBytes(p.qr.payload));
@@ -42,7 +42,7 @@ const recipient = addressFromPublicKey('3'.repeat(64), cfg.networkByte);
 {
   const aggregateHash = 'AB'.repeat(32);
   const body = cosignAggregateHash(cosigner.privateKey, aggregateHash);
-  const p = parseKasaneQr(buildKasaneQr({ kind: 'cosignature', parentHash: body.parentHash, signerPublicKey: body.signerPublicKey, signature: body.signature, version: body.version }));
+  const p = parseIromeQr(buildIromeQr({ kind: 'cosignature', parentHash: body.parentHash, signerPublicKey: body.signerPublicKey, signature: body.signature, version: body.version }));
   ok(p?.qr.kind === 'cosignature', 'cosignature QR parses');
   if (p?.qr.kind === 'cosignature') {
     ok(verifySignature(p.qr.signerPublicKey, hexToBytes(p.qr.parentHash), hexToBytes(p.qr.signature)), 'cosignature verifies');

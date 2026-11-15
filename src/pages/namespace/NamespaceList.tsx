@@ -214,7 +214,7 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
               <Button variant="outlined" onClick={load}>{t('namespace.retry')}</Button>
             </Box>
           ) : shown.length === 0 ? (
-            <Typography sx={{ color: 'text.secondary', textAlign: 'center', py: 4 }}>{t('namespace.empty')}</Typography>
+            <Typography sx={(t) => ({ color: 'text.secondary', textAlign: 'center', py: 4, ...t.irome.stageText })}>{t('namespace.empty')}</Typography>
           ) : compact ? (
             <Box sx={{ display: 'grid', gap: 1.5 }}>
               {loading && <LinearProgress />}

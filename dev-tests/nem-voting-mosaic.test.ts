@@ -194,7 +194,7 @@ async function main() {
   try { await fetchPoll(bad.pollAddress); ok(false, 'mosaic poll without a valid mosaic should not load'); } catch (e) { ok((e as Error).message === 'poll_invalid', 'mosaic poll without a valid mosaic -> poll_invalid', (e as Error).message); }
   const unknown = buildPollMessages({ ...base, title: 'Type four', type: POLL_TYPE_POI, mosaicId: undefined }, creator.publicKey, NB, POLL_INDEX_ADDRESS.mainnet);
   unknown.messages.forEach((m, i) => put(m.recipient, { height: 400 + i, signer: creator.publicKey, amount: 0, message: i === 0 ? m.message.replace('"type":0', '"type":5') : m.message }));
-  try { await fetchPoll(unknown.pollAddress); ok(false, 'unknown type should not load'); } catch (e) { ok((e as Error).message === 'poll_unsupported', 'a type KASANE does not know is still unsupported', (e as Error).message); }
+  try { await fetchPoll(unknown.pollAddress); ok(false, 'unknown type should not load'); } catch (e) { ok((e as Error).message === 'poll_unsupported', 'a type IROME does not know is still unsupported', (e as Error).message); }
 
   // ---- counting: weighted by holdings, same formula as importance ----
   const opt = (name: string) => poll.optionAddresses[name];

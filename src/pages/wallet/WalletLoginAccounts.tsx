@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Checkbox, Chip, CircularProgress, Tab, Tabs, Typography, alpha } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import { getPendingImport, setPendingShownIndexes } from '../../lib/pendingImport';
 import type { ShownIndexes } from '../../lib/pendingImport';
 import { deriveAddresses, scanAccounts } from '../../lib/importScan';
@@ -126,7 +126,7 @@ export function AccountSelectView({ phrase, chain: initialChain, initialShown, b
   const gridRows = Math.ceil(total / 2);
 
   return (
-    <KasaneStage back={back} title={t('wallet.login_accounts_title')} maxWidth={1040}>
+    <IromeStage back={back} title={t('wallet.login_accounts_title')} maxWidth={1040}>
       <Box sx={{ width: '100%', flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <Typography align="center" color="text.secondary" sx={{ mx: 'auto', maxWidth: 720, lineHeight: 1.9 }}>
           {(t('wallet.login_accounts_message', { returnObjects: true }) as string[]).join('')}
@@ -241,6 +241,6 @@ export function AccountSelectView({ phrase, chain: initialChain, initialShown, b
           <Button variant="contained" color="primary" disabled={busy} onClick={next} sx={{ minWidth: 160 }}>{nextLabel ?? t('wallet.login_accounts_next')}</Button>
         </Box>
       </Box>
-    </KasaneStage>
+    </IromeStage>
   );
 }

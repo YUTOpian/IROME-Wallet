@@ -5,7 +5,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import { MIN_PASSWORD_LENGTH, passwordProblem } from '../../lib/passwordPolicy';
 import ErrorSnackbar from '../../components/ErrorSnackbar';
 import { WalletsHelper } from '../../lib/storage';
@@ -123,7 +123,7 @@ export default function WalletLoginName() {
   );
 
   return (
-    <KasaneStage back={keyImport ? '/wallet/login/import' : '/wallet/login/accounts'} title={t('wallet.login_name_title')} maxWidth={440} panel>
+    <IromeStage back={keyImport ? '/wallet/login/import' : '/wallet/login/accounts'} title={t('wallet.login_name_title')} maxWidth={440} panel>
       <Box component="form" onSubmit={onSubmit} noValidate sx={{ width: '100%', mt: 2 }}>
         <Typography align="center" sx={{ mx: 2 }}>
           {(t(keyImport ? 'wallet.keystore_name_message' : 'wallet.login_name_message', { returnObjects: true }) as string[]).map((line, i) => (
@@ -188,6 +188,6 @@ export default function WalletLoginName() {
         </Box>
       </Box>
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage('')} />
-    </KasaneStage>
+    </IromeStage>
   );
 }

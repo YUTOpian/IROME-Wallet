@@ -8,7 +8,7 @@ import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Scanner } from '@yudiel/react-qr-scanner';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import ErrorSnackbar from '../../components/ErrorSnackbar';
 import MnemonicQrPasswordDialog from '../../components/MnemonicQrPasswordDialog';
 import KeystoreImportButton from '../../components/KeystoreImportButton';
@@ -130,7 +130,7 @@ export default function WalletLoginImport() {
   };
 
   return (
-    <KasaneStage onBack={() => navigate('/wallet/new', { replace: true })} back="/wallet/new" title={t('wallet.import_title')} maxWidth={640} panel>
+    <IromeStage onBack={() => navigate('/wallet/new', { replace: true })} back="/wallet/new" title={t('wallet.import_title')} maxWidth={640} panel>
       <Box>
         <Typography align="center" sx={{ mx: 2 }}>
           {(
@@ -225,6 +225,6 @@ export default function WalletLoginImport() {
           </Box>
         </Box>
       </Dialog>
-    </KasaneStage>
+    </IromeStage>
   );
 }

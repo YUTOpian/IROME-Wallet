@@ -6,7 +6,7 @@
 // その入口で、端末がオフラインなら（または、ノードに届かなかったなら）送らずに、署名済みのトランザクションを
 // QRコードにして画面に出す。あとで、オンラインの端末の「オフライントランザクション」の「読み込んで送信」で読み込んで送る。
 //
-// ここで作る QR の形式（KASANE の QR、lib/symbol/kasaneQr.ts と lib/nem/offline.ts）:
+// ここで作る QR の形式（IROME の QR、lib/symbol/iromeQr.ts と lib/nem/offline.ts）:
 //   1つだけの Symbol トランザクション … `signed`（これまでの「署名・連署QR」と同じ）
 //   1つだけの連署                     … `cosignature`
 //   複数の Symbol トランザクション    … `bundle`（ロック → bonded、ハーベスト開始のリンク → 委任リクエストなど、送る順）
@@ -15,8 +15,8 @@
 //
 // 投げるエラー（OfflineIssued）は「送れなかった」ことを呼び出し側に伝えるためのもの。画面は、これを失敗として
 // 扱って構わない（送信後の処理に進まない）。QR は、同時に出る確認画面（OfflineIssueDialog）にある。
-import { buildKasaneQr } from '../symbol/kasaneQr';
-import type { BundleRole } from '../symbol/kasaneQr';
+import { buildIromeQr } from '../symbol/iromeQr';
+import type { BundleRole } from '../symbol/iromeQr';
 import { getNetworkConfig } from '../symbol/network';
 import { buildNemBundleQr, buildNemSignedQr } from '../nem/offline';
 import { getNemNetworkConfig } from '../nem/network';
@@ -73,15 +73,15 @@ export function issueSymbolTransactions(txs: SymbolTxToIssue[], reason: OfflineI
   const parts: IssuePart[] = txs.map((x) => ({ kind: 'symbol_tx', role: x.role ?? 'tx', payload: x.payload, hash: x.hash }));
   const single = txs.length === 1 && txs[0].role === undefined;
   const text = single
-    ? buildKasaneQr({ kind: 'signed', payload: txs[0].payload, hash: txs[0].hash })
-    : buildKasaneQr({ kind: 'bundle', items: txs.map((x) => ({ role: x.role ?? 'tx', payload: x.payload, hash: x.hash })) });
+    ? buildIromeQr({ kind: 'signed', payload: txs[0].payload, hash: txs[0].hash })
+    : buildIromeQr({ kind: 'bundle', items: txs.map((x) => ({ role: x.role ?? 'tx', payload: x.payload, hash: x.hash })) });
   return show('symbol', cfg.label, parts, text, reason);
 }
 
 /** 連署（親アグリゲートのハッシュへの署名）を、送らずにQRにして、OfflineIssued を投げる。 */
 export function issueSymbolCosignature(body: { parentHash: string; signerPublicKey: string; signature: string; version: string }, reason: OfflineIssue['reason'] = reasonNow()): never {
   const cfg = getNetworkConfig();
-  const text = buildKasaneQr({ kind: 'cosignature', parentHash: body.parentHash, signerPublicKey: body.signerPublicKey, signature: body.signature, version: body.version });
+  const text = buildIromeQr({ kind: 'cosignature', parentHash: body.parentHash, signerPublicKey: body.signerPublicKey, signature: body.signature, version: body.version });
   return show('symbol', cfg.label, [{ kind: 'symbol_cosignature', ...body }], text, reason);
 }
 

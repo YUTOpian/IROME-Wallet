@@ -62,7 +62,7 @@ export interface CustomThemeData {
   root: CustomValues;
   chains: Partial<Record<CustomChainKey, CustomValues>>;
   images?: CustomImages; // 画像は、すべてのチェーンで共通
-  tabTitle?: string; // ブラウザのタブの表示名（すべてのチェーンで共通。無ければ「KASANE Wallet」のまま）
+  tabTitle?: string; // ブラウザのタブの表示名（すべてのチェーンで共通。無ければ「IROME Wallet」のまま）
 }
 
 /** 保存してあるカスタムテーマ。id は、保存してあるものの中で決まる（選ぶ・消す・置き換えるときの目印）。 */
@@ -139,8 +139,8 @@ export interface ImageSlot {
 const icon = (key: ImageKey, css: string, ja: string, en: string): ImageSlot => ({ key, css, kind: 'icon', maxW: 96, maxH: 96, maxChars: 60_000, ja: `サイドバーのアイコン：${ja}`, en: `Side menu icon: ${en}` });
 
 export const IMAGE_SLOTS: ImageSlot[] = [
-  { key: 'logoMark', css: '--kasane-image-logo-mark', kind: 'logo', maxW: 640, maxH: 560, maxChars: 300_000, ja: 'ロゴ（六角形のマーク）：スタート画面・ダイアログ', en: 'Logo mark (the hexagon): start screen, dialogs' },
-  { key: 'logoWordmark', css: '--kasane-image-logo-wordmark', kind: 'wordmark', maxW: 1200, maxH: 300, maxChars: 300_000, ja: 'ロゴ（KASANE の文字）：スタート画面・サイドメニュー', en: 'Logo wordmark (the KASANE letters): start screen, side menu' },
+  { key: 'logoMark', css: '--kasane-image-logo-mark', kind: 'logo', maxW: 640, maxH: 560, maxChars: 300_000, ja: 'ロゴ（マーク）：スタート画面・ダイアログ', en: 'Logo mark: start screen, dialogs' },
+  { key: 'logoWordmark', css: '--kasane-image-logo-wordmark', kind: 'wordmark', maxW: 1200, maxH: 300, maxChars: 300_000, ja: 'ロゴ（IROME の文字）：スタート画面・サイドメニュー', en: 'Logo wordmark (the IROME letters): start screen, side menu' },
   { key: 'background', css: '--kasane-image-background', kind: 'background', maxW: 1600, maxH: 1600, maxChars: 700_000, ja: '背景の画像', en: 'Background image' },
   { key: 'hero', css: '--kasane-image-hero', kind: 'hero', maxW: 1200, maxH: 900, maxChars: 500_000, ja: '残高カードの画像', en: 'Balance card image' },
   { key: 'tabIcon', css: '--kasane-image-tab-icon', kind: 'tab', maxW: 128, maxH: 128, maxChars: 60_000, ja: 'ブラウザのタブのロゴ（ファビコン）', en: 'Browser tab logo (favicon)' },
@@ -724,7 +724,7 @@ export function buildThemeCss(theme: CustomThemeData, title: string): string {
 function buildCss(values: CustomValues, title: string, images: CustomImages, chains: CustomThemeData['chains'], tabTitle?: string): string {
   const lines: string[] = [];
   lines.push('/*');
-  lines.push(`  KASANE Wallet カスタムテーマ / Custom theme — ${title}`);
+  lines.push(`  IROME Wallet カスタムテーマ / Custom theme — ${title}`);
   lines.push('');
   lines.push('  この CSS を編集して、ウォレットの 設定 > テーマ > カスタムテーマ からアップロードしてください。');
   lines.push('  このファイルは UTF-8 です。保存するときも UTF-8 にしてください（Shift_JIS でも読み込めます）。');
@@ -749,7 +749,7 @@ function buildCss(values: CustomValues, title: string, images: CustomImages, cha
   }
   // ブラウザのタブの表示名：設定してあれば変数として、なければ説明だけをコメントで書く。
   lines.push('');
-  lines.push('  /* ブラウザのタブの表示名（40文字まで。書かないと「KASANE Wallet」） | Browser tab title (up to 40 characters; default: "KASANE Wallet") */');
+  lines.push('  /* ブラウザのタブの表示名（40文字まで。書かないと「IROME Wallet」） | Browser tab title (up to 40 characters; default: "IROME Wallet") */');
   const safeTitle = tabTitle !== undefined ? normalizeTabTitle(tabTitle) : null; // 書き出す前にもう一度確かめる（CSS を壊す文字を入れないため）
   lines.push(safeTitle !== null ? `  ${TAB_TITLE_CSS}: "${safeTitle}";` : `  /* ${TAB_TITLE_CSS}: "My Wallet"; */`);
   // 画像：設定してあるものは変数として、ないものは、名前と説明だけをコメントで書く。

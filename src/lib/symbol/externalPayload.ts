@@ -1,4 +1,4 @@
-// Reads what other Symbol tools hand over, so it can be used in 「署名・連署QR」 / 「オフライン連署」 like KASANE's own QR:
+// Reads what other Symbol tools hand over, so it can be used in 「署名・連署QR」 / 「オフライン連署」 like IROME's own QR:
 //   - a serialized transaction as plain hex (symbol-cli's "Payload", symbol-sdk's `tx.serialize()`, a REST payload),
 //     with or without 0x, spaces or line breaks, or pasted together with its "Payload:" label
 //   - JSON that holds it: `{"payload":"<hex>"}` (the REST announce body; symbol-cli / SDK / wallet exports also
@@ -11,8 +11,8 @@
 import { models } from 'symbol-sdk/symbol';
 import { facadeFor, hexToBytes, isSupportedNetworkByte } from './crypto';
 import { TX_TYPE_AGGREGATE_BONDED } from './constants';
-import type { ParsedKasaneQr } from './kasaneQr';
-import { parseKasaneQr } from './kasaneQr';
+import type { ParsedIromeQr } from './iromeQr';
+import { parseIromeQr } from './iromeQr';
 import { getNetworkConfig } from './network';
 
 const PAYLOAD_KEYS = ['payload', 'transactionPayload', 'serializedTransaction', 'signedTransaction', 'transaction'];
@@ -38,7 +38,7 @@ function findPayload(value: unknown, depth = 0): string | null {
   return null;
 }
 
-function fromPayload(hex: string): ParsedKasaneQr | null {
+function fromPayload(hex: string): ParsedIromeQr | null {
   let tx: ReturnType<typeof models.TransactionFactory.deserialize>;
   let networkByte: number;
   let type: number;
@@ -68,7 +68,7 @@ function fromPayload(hex: string): ParsedKasaneQr | null {
 }
 
 /** Reads a payload, a JSON that holds one, a cosignature body or a hash. null when it is none of these. */
-export function parseExternalPayload(text: string): ParsedKasaneQr | null {
+export function parseExternalPayload(text: string): ParsedIromeQr | null {
   const trimmed = text.trim();
   if (trimmed === '') return null;
   const cfg = getNetworkConfig();
@@ -86,7 +86,7 @@ export function parseExternalPayload(text: string): ParsedKasaneQr | null {
     const d = first as Record<string, unknown> | null;
     if (d !== null && typeof d === 'object' && typeof d.parentHash === 'string' && typeof d.signature === 'string' && typeof d.signerPublicKey === 'string') {
       // The REST announce body of a cosignature names no network: it is taken to be this one (the signature check is on the hash).
-      return parseKasaneQr(JSON.stringify({
+      return parseIromeQr(JSON.stringify({
         kasane: 1,
         kind: 'cosignature',
         network_id: cfg.networkByte,
@@ -110,7 +110,7 @@ export function parseExternalPayload(text: string): ParsedKasaneQr | null {
   return null;
 }
 
-/** KASANE's own QR / JSON first, then what other Symbol tools produce. */
-export function parseAnyInput(text: string): ParsedKasaneQr | null {
-  return parseKasaneQr(text) ?? parseExternalPayload(text);
+/** IROME's own QR / JSON first, then what other Symbol tools produce. */
+export function parseAnyInput(text: string): ParsedIromeQr | null {
+  return parseIromeQr(text) ?? parseExternalPayload(text);
 }

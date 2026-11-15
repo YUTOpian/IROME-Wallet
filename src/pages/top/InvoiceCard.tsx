@@ -141,7 +141,7 @@ export default function InvoiceCard({ address }: Props) {
     }
   };
 
-  // 「PDFで保存」: the same invoice as a KASANE-designed A4 sheet. The QR is made again right now so its
+  // 「PDFで保存」: the same invoice as a IROME-designed A4 sheet. The QR is made again right now so its
   // 2 hour validity (printed on the sheet) starts when the sheet is made.
   const onDownloadPdf = async () => {
     if (pdfBusy || qr === '') return;

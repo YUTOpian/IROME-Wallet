@@ -27,12 +27,12 @@ import { sha3_256 } from '@noble/hashes/sha3.js';
 /** 集計の種類: アカウントの重要度で重み付けする／登録したアドレスの票だけ数える／簡易投票（だれでも、1 アカウント 1 票、重み付けなし）。 */
 export const POLL_TYPE_POI = 0;
 export const POLL_TYPE_WHITELIST = 1;
-/** KASANE の独自の種類（公式の NEM ウォレットの投票にはない）。 */
+/** IROME の独自の種類（公式の NEM ウォレットの投票にはない）。 */
 export const POLL_TYPE_SIMPLE = 2;
-/** KASANE の独自の種類: 指定したモザイクの保有量で重み付けする（Symbol のみ）。 */
+/** IROME の独自の種類: 指定したモザイクの保有量で重み付けする（Symbol のみ）。 */
 export const POLL_TYPE_MOSAIC = 3;
 /**
- * KASANE の独自の種類: 指定したモザイクを持っているアカウントだけが投票できる（量は問わない。1 アカウント 1 票、重み付けなし）。
+ * IROME の独自の種類: 指定したモザイクを持っているアカウントだけが投票できる（量は問わない。1 アカウント 1 票、重み付けなし）。
  * 「移転できないモザイクのみ」にするかどうかは、投票を作る人が選ぶ（formData の nonTransferableOnly）。
  * NEM の投票にも、同じ値・同じ形の種類がある。
  */
@@ -50,6 +50,7 @@ export const isMosaicIdHex = (id: unknown): id is string => typeof id === 'strin
 export const normalizeMosaicId = (id: string | undefined): string => (id ?? '').trim().toUpperCase();
 
 /** 索引のアドレスを作る文字列（変えると、別の索引になる）。 */
+// NOTE: keep the "KASANE" seed text as is - it derives the poll index account (renaming the app must not move it).
 export const POLL_INDEX_SEED = 'KASANE Symbol poll index v1';
 
 /** 平文メッセージの上限（バイト）。種別バイトは含まない（lib/symbol/tx.ts の MAX_MESSAGE_BYTES と同じ値）。 */

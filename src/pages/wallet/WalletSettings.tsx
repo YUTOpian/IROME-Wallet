@@ -10,7 +10,7 @@ import LoginOutlinedIcon from '@mui/icons-material/LoginOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import ChoiceCard, { choiceGridSx } from '../../components/ChoiceCard';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import ChangePasswordDialog from '../../components/ChangePasswordDialog';
 import OfficialProfileExportButton from '../../components/OfficialProfileExportButton';
 import PasswordDialog from '../../components/PasswordDialog';
@@ -145,7 +145,7 @@ export default function WalletSettings() {
   };
 
   return (
-    <KasaneStage onBack={goBack} title={t('wallet.settings_title')} maxWidth={760}>
+    <IromeStage onBack={goBack} title={t('wallet.settings_title')} maxWidth={760}>
       {loaded && watchOnly && watchChain && (
         <Typography variant="body2" align="center" color="text.secondary" sx={{ mt: 1 }}>{t('watch.badge')} · {watchChain}</Typography>
       )}
@@ -212,6 +212,6 @@ export default function WalletSettings() {
         onClose={() => setPasswordChanged(false)}
         message={t('wallet.change_password_done')}
       />
-    </KasaneStage>
+    </IromeStage>
   );
 }

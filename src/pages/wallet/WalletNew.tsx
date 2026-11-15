@@ -7,7 +7,7 @@ import UsbOutlinedIcon from '@mui/icons-material/UsbOutlined';
 import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import ChoiceCard, { choiceGridSx } from '../../components/ChoiceCard';
 import OfficialProfileImportDialog from '../../components/OfficialProfileImportDialog';
 import { useSssAccount } from '../../hooks/useSssAccount';
@@ -26,7 +26,7 @@ export default function WalletNew() {
   const sssLinked = useSssAccount().state === 'ready';
 
   return (
-    <KasaneStage onBack={() => navigate('/wallet/select', { replace: true })} back="/wallet/select" title={t('wallet.new_heading')} maxWidth={sssLinked ? 1100 : 900}>
+    <IromeStage onBack={() => navigate('/wallet/select', { replace: true })} back="/wallet/select" title={t('wallet.new_heading')} maxWidth={sssLinked ? 1100 : 900}>
       <Typography variant="body2" align="center" color="text.secondary" sx={{ mx: 1, mt: { xs: 1, md: 2 }, lineHeight: 1.8, fontSize: { md: 16 } }}>
         {t('wallet.new_choice_message')}
       </Typography>
@@ -72,13 +72,13 @@ export default function WalletNew() {
         )}
       </Box>
 
-      {/* Symbol 公式ウォレットのプロファイルを読み込む（公式ウォレット ⇔ KASANE のプロファイル互換） */}
+      {/* Symbol 公式ウォレットのプロファイルを読み込む（公式ウォレット ⇔ IROME のプロファイル互換） */}
       <Typography variant="body2" align="center" sx={{ mx: 1, mb: 2, fontSize: { md: 15 } }}>
         <MuiLink component="button" type="button" underline="always" onClick={() => setOfficialOpen(true)} sx={{ verticalAlign: 'baseline' }}>
           {t('wallet.official_import_link')}
         </MuiLink>
       </Typography>
       <OfficialProfileImportDialog open={officialOpen} onClose={() => setOfficialOpen(false)} />
-    </KasaneStage>
+    </IromeStage>
   );
 }

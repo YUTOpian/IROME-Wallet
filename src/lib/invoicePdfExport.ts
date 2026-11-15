@@ -31,7 +31,7 @@ export async function createInvoicePdf(source: InvoicePdfSource, now: Date = new
     createdAt: now,
     expiresAt: chain === 'symbol' ? new Date(now.getTime() + Number(INVOICE_LIFETIME_MS)) : undefined,
   });
-  return { bytes, filename: `kasane-invoice-${now.toISOString().slice(0, 10).replace(/-/g, '')}.pdf` };
+  return { bytes, filename: `irome-invoice-${now.toISOString().slice(0, 10).replace(/-/g, '')}.pdf` };
 }
 
 export async function downloadInvoicePdf(source: InvoicePdfSource): Promise<void> {

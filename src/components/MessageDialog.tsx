@@ -1,6 +1,6 @@
 import { Dialog, Box, Typography, Button, DialogActions } from '@mui/material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineOutlined';
-import { KasaneMark } from './kasane/KasaneLogo';
+import { IromeMark } from './irome/IromeLogo';
 
 interface MessageDialogProps {
   open: boolean;
@@ -37,11 +37,11 @@ export default function MessageDialog({ open, title, texts, onClose, onCancel, s
 
   return (
     <Dialog open={open} onClose={handleDialogClose}>
-      <Box sx={{ bgcolor: variant === 'error' ? 'error.main' : (t) => t.kasane.ink, width: '100%', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Box sx={{ bgcolor: variant === 'error' ? 'error.main' : (t) => t.irome.ink, width: '100%', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {variant === 'error' ? (
-          <ErrorOutlineIcon sx={{ width: 36, height: 36, color: (t) => t.kasane.ink }} />
+          <ErrorOutlineIcon sx={{ width: 36, height: 36, color: (t) => t.irome.ink }} />
         ) : (
-          <KasaneMark size={52} />
+          <IromeMark size={52} />
         )}
       </Box>
       <Box sx={{ bgcolor: 'background.paper', p: 3 }}>

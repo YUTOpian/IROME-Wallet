@@ -10,7 +10,7 @@ import { findNewOfficialProfiles } from '../lib/officialProfile/detect';
 import type { OfficialFound } from '../lib/officialProfile/detect';
 import type { OfficialData } from '../lib/officialProfile/format';
 import {
-  importOpenedProfile, isKasanePasswordUsable, KASANE_MAX_PASSWORD_BYTES, KASANE_MIN_PASSWORD, listOfficialProfiles, openOfficialProfile,
+  importOpenedProfile, isIromePasswordUsable, IROME_MAX_PASSWORD_BYTES, IROME_MIN_PASSWORD, listOfficialProfiles, openOfficialProfile,
 } from '../lib/officialProfile/convert';
 import type { OfficialProfileSummary, OpenedProfile } from '../lib/officialProfile/convert';
 
@@ -37,9 +37,9 @@ function presetOf(auto: OfficialAutoFound | undefined) {
 }
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
-// Symbol 公式ウォレットのプロファイル（localStorage の profiles / accounts）を読み込んで、KASANE のプロファイルにする。
+// Symbol 公式ウォレットのプロファイル（localStorage の profiles / accounts）を読み込んで、IROME のプロファイルにする。
 // 1) データを貼り付ける／ファイルを選ぶ／（同じ場所にあれば）このブラウザから探す  2) プロファイルを選んで公式のパスワードで開く
-// 3) 内容を確認して読み込む（公式のパスワードが KASANE の条件に合わないときは、新しいパスワードを決める）。
+// 3) 内容を確認して読み込む（公式のパスワードが IROME の条件に合わないときは、新しいパスワードを決める）。
 export default function OfficialProfileImportDialog({ open, onClose, auto }: { open: boolean; onClose: () => void; auto?: OfficialAutoFound }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -61,8 +61,8 @@ export default function OfficialProfileImportDialog({ open, onClose, auto }: { o
   const [note, setNote] = useState('');
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
-  // このブラウザ（KASANE と同じアドレス）にある、まだ KASANE に無い公式ウォレットのプロファイル。
-  // KASANE から削除したものも、ブラウザに残っていれば、ここにまた出る。
+  // このブラウザ（IROME と同じアドレス）にある、まだ IROME に無い公式ウォレットのプロファイル。
+  // IROME から削除したものも、ブラウザに残っていれば、ここにまた出る。
   const [here, setHere] = useState<OfficialFound | null>(null);
 
   useEffect(() => {
@@ -161,13 +161,13 @@ export default function OfficialProfileImportDialog({ open, onClose, auto }: { o
     setBusy(false);
   };
 
-  const sameUsable = isKasanePasswordUsable(officialPassword);
+  const sameUsable = isIromePasswordUsable(officialPassword);
   const onImport = async () => {
     if (!opened || busy) return;
     setError('');
     let password = officialPassword;
     if (!sameUsable) {
-      if (!isKasanePasswordUsable(newPassword)) { setError(t('wallet.official_import_new_password_hint', { min: KASANE_MIN_PASSWORD, max: KASANE_MAX_PASSWORD_BYTES })); return; }
+      if (!isIromePasswordUsable(newPassword)) { setError(t('wallet.official_import_new_password_hint', { min: IROME_MIN_PASSWORD, max: IROME_MAX_PASSWORD_BYTES })); return; }
       if (newPassword !== confirm) { setError(t('common.password_mismatch')); return; }
       password = newPassword;
     }
@@ -286,7 +286,7 @@ export default function OfficialProfileImportDialog({ open, onClose, auto }: { o
               <Typography sx={{ fontSize: 13, color: 'text.secondary', mt: 2 }}>{t('wallet.official_import_same_password')}</Typography>
             ) : (
               <Box sx={{ mt: 2 }}>
-                <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: 1.5 }}>{t('wallet.official_import_new_password_hint', { min: KASANE_MIN_PASSWORD, max: KASANE_MAX_PASSWORD_BYTES })}</Typography>
+                <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: 1.5 }}>{t('wallet.official_import_new_password_hint', { min: IROME_MIN_PASSWORD, max: IROME_MAX_PASSWORD_BYTES })}</Typography>
                 <TextField fullWidth type="password" autoComplete="new-password" label={t('wallet.official_import_new_password_label')} value={newPassword} onChange={(e) => { setNewPassword(e.target.value); setError(''); }} sx={{ mb: 2 }} />
                 <TextField fullWidth type="password" autoComplete="new-password" label={t('wallet.official_import_new_password_confirm')} value={confirm} onChange={(e) => { setConfirm(e.target.value); setError(''); }} />
               </Box>

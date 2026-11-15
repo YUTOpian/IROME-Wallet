@@ -3,8 +3,8 @@
 //
 // What is carried is exactly what NIS1's POST /transaction/announce takes, `{ "data": "<hex>", "signature": "<hex>" }`
 // (`data` is the serialized transaction, which holds the signer's public key). That body is also what NanoWallet's
-// offline transaction holds, so it can be read here as it is. KASANE's own QR wraps it in the same envelope as its Symbol
-// QR codes (lib/symbol/kasaneQr.ts), with its own kind, so a scanner can tell it from a Symbol one and refuse another network:
+// offline transaction holds, so it can be read here as it is. IROME's own QR wraps it in the same envelope as its Symbol
+// QR codes (lib/symbol/iromeQr.ts), with its own kind, so a scanner can tell it from a Symbol one and refuse another network:
 //   { "kasane": 1, "kind": "nem_signed", "network_id": 104, "data": { "data": "<hex>", "signature": "<hex>" } }
 //
 // Nothing here is trusted. `readNemTransfer` reads what the transaction does from the bytes themselves (never from the
@@ -18,7 +18,7 @@ export const NEM_SIGNED_QR_KIND = 'nem_signed';
 export const NEM_BUNDLE_QR_KIND = 'nem_bundle';
 /** The most transactions one bundle may hold (a poll sends one transfer per voter-facing message). */
 export const NEM_BUNDLE_MAX_ITEMS = 64;
-const KASANE_QR_VERSION = 1;
+const IROME_QR_VERSION = 1;
 
 const HEX = /^[0-9a-fA-F]+$/;
 const SIGNATURE_HEX_LENGTH = 128;
@@ -49,14 +49,14 @@ function asBody(value: unknown): NemAnnounceBody | null {
   return { data: data.toUpperCase(), signature: signature.toUpperCase() };
 }
 
-/** The signed transaction (the JSON body signNemTransfer returns) as KASANE's QR text. */
+/** The signed transaction (the JSON body signNemTransfer returns) as IROME's QR text. */
 export function buildNemSignedQr(announceBody: string, networkByte: number): string {
   const body = asBody(JSON.parse(announceBody));
   if (body === null) throw new Error('nem offline: not a signed transaction');
-  return JSON.stringify({ kasane: KASANE_QR_VERSION, kind: NEM_SIGNED_QR_KIND, network_id: networkByte, data: body });
+  return JSON.stringify({ kasane: IROME_QR_VERSION, kind: NEM_SIGNED_QR_KIND, network_id: networkByte, data: body });
 }
 
-/** Several signed transactions as KASANE's NEM bundle QR text (they are announced in this order). */
+/** Several signed transactions as IROME's NEM bundle QR text (they are announced in this order). */
 export function buildNemBundleQr(bodies: Array<{ data: string; signature: string }>, networkByte: number): string {
   if (bodies.length === 0 || bodies.length > NEM_BUNDLE_MAX_ITEMS) throw new Error('nem offline: bad number of transactions');
   const items = bodies.map((b) => {
@@ -64,7 +64,7 @@ export function buildNemBundleQr(bodies: Array<{ data: string; signature: string
     if (body === null) throw new Error('nem offline: not a signed transaction');
     return body;
   });
-  return JSON.stringify({ kasane: KASANE_QR_VERSION, kind: NEM_BUNDLE_QR_KIND, network_id: networkByte, data: { items } });
+  return JSON.stringify({ kasane: IROME_QR_VERSION, kind: NEM_BUNDLE_QR_KIND, network_id: networkByte, data: { items } });
 }
 
 export interface ParsedNemBundle {
@@ -72,7 +72,7 @@ export interface ParsedNemBundle {
   networkId: number | null;
 }
 
-/** KASANE's NEM bundle QR. null when it is not one or any item is malformed. */
+/** IROME's NEM bundle QR. null when it is not one or any item is malformed. */
 export function parseNemBundle(text: string): ParsedNemBundle | null {
   const t = text.trim();
   if (!t.startsWith('{')) return null;
@@ -84,7 +84,7 @@ export function parseNemBundle(text: string): ParsedNemBundle | null {
   }
   if (json === null || typeof json !== 'object') return null;
   const j = json as { kasane?: unknown; kind?: unknown; network_id?: unknown; data?: unknown };
-  if (j.kasane !== KASANE_QR_VERSION || j.kind !== NEM_BUNDLE_QR_KIND) return null;
+  if (j.kasane !== IROME_QR_VERSION || j.kind !== NEM_BUNDLE_QR_KIND) return null;
   const d = j.data as { items?: unknown } | null;
   if (d === null || typeof d !== 'object' || !Array.isArray(d.items) || d.items.length === 0 || d.items.length > NEM_BUNDLE_MAX_ITEMS) return null;
   const items: NemAnnounceBody[] = [];
@@ -102,7 +102,7 @@ export interface ParsedNemSigned {
   networkId: number | null;
 }
 
-/** KASANE's NEM QR, or a bare announce body (`{"data","signature"}`, e.g. from NanoWallet). null when it is neither. */
+/** IROME's NEM QR, or a bare announce body (`{"data","signature"}`, e.g. from NanoWallet). null when it is neither. */
 export function parseNemSigned(text: string): ParsedNemSigned | null {
   const t = text.trim();
   if (!t.startsWith('{')) return null;
@@ -115,7 +115,7 @@ export function parseNemSigned(text: string): ParsedNemSigned | null {
   if (json === null || typeof json !== 'object') return null;
   const j = json as { kasane?: unknown; kind?: unknown; network_id?: unknown; data?: unknown };
   if (j.kasane !== undefined) {
-    if (j.kasane !== KASANE_QR_VERSION || j.kind !== NEM_SIGNED_QR_KIND) return null;
+    if (j.kasane !== IROME_QR_VERSION || j.kind !== NEM_SIGNED_QR_KIND) return null;
     const body = asBody(j.data);
     return body ? { body, networkId: typeof j.network_id === 'number' ? j.network_id : null } : null;
   }

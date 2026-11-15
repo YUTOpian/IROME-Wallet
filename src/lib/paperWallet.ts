@@ -1,4 +1,4 @@
-// KASANE paper wallet: builds the printable A4 PDF (recovery phrase or private key + QR codes).
+// IROME paper wallet: builds the printable A4 PDF (recovery phrase or private key + QR codes).
 //
 // This module is pure - it only lays out a page with pdf-lib from data the caller hands over
 // (see paperWalletExport.ts for where that data comes from). No PDF template and no embedded
@@ -42,12 +42,12 @@ export interface PaperWalletInput {
   secretQrPng?: Uint8Array;
   /** PNG of the public QR (address / contact). */
   publicQrPng: Uint8Array;
-  /** PNG of the KASANE hexagon mark (transparent background). */
+  /** PNG of the IROME mark (transparent background). */
   markPng: Uint8Array;
   createdAt: Date;
 }
 
-// ---- KASANE palette (same values as theme/kasaneTheme.ts) ----
+// ---- IROME palette (same values as theme/iromeTheme.ts) ----
 export const C = {
   coral: '#FA7268',
   pink: '#E58AAE',
@@ -128,7 +128,7 @@ export function box(page: PDFPage, x: number, top: number, w: number, h: number,
   });
 }
 
-/** Fills a rounded rectangle with the KASANE gradient (horizontal) by clipping thin strips. */
+/** Fills a rounded rectangle with the IROME gradient (horizontal) by clipping thin strips. */
 export function gradientBox(page: PDFPage, x: number, top: number, w: number, h: number, radius: number, stops = GRADIENT) {
   const r = Math.min(radius, w / 2, h / 2);
   const k = r * 0.5523;
@@ -201,7 +201,7 @@ export function formatAddress(address: string): string {
   return (address.replace(/-/g, '').match(/.{1,6}/g) ?? []).join('-');
 }
 
-// The KASANE wordmark (same strokes as components/kasane/KasaneLogo.tsx), viewBox -8 -8 856 166.
+// The IROME wordmark (same strokes as components/irome/IromeLogo.tsx), viewBox -8 -8 856 166.
 const WORDMARK = [
   'M 8 0 V 150', 'M 122 2 L 10 80', 'M 38 62 L 126 150', // K
   'M 140 150 L 217 0 L 294 150 M 172 108 H 262', // A
@@ -223,7 +223,7 @@ export function wordmark(page: PDFPage, x: number, top: number, width: number, c
 }
 
 // ---- page sections ----
-/** The page header of every KASANE PDF: dark card with the mark, wordmark, a subtitle and the chain / network pill. */
+/** The page header of every IROME PDF: dark card with the mark, wordmark, a subtitle and the chain / network pill. */
 export function drawHeader(page: PDFPage, mark: Awaited<ReturnType<PDFDocument['embedPng']>>, f: Fonts, subtitle: string, pillLabel: string) {
   const top = MARGIN;
   const h = HEADER_H;
@@ -342,17 +342,17 @@ function restoreInfo(input: PaperWalletInput): string[] {
       : ['Import the private key in any NEM wallet, then check that the address matches this sheet.'];
   }
   return input.chain === 'symbol'
-    ? ['Enter the words in order in any Symbol wallet that supports BIP39 (KASANE, Symbol Wallet ...). Wallets that read Symbol mnemonic QR codes can also scan the SECRET QR. Check that the address matches this sheet.']
+    ? ['Enter the words in order in any Symbol wallet that supports BIP39 (IROME, Symbol Wallet ...). Wallets that read Symbol mnemonic QR codes can also scan the SECRET QR. Check that the address matches this sheet.']
     : ['Enter the words in order in any NEM wallet that supports BIP39 and the path above. NEM has no standard recovery-phrase QR, so none is printed. Check that the address matches this sheet.'];
 }
 
-/** The footer of every KASANE PDF: gradient rule, generated-on-device note and the KASANE tag. */
+/** The footer of every IROME PDF: gradient rule, generated-on-device note and the IROME tag. */
 export function drawFooter(page: PDFPage, f: Fonts, createdAt: Date) {
   const footerTop = PAGE_H - MARGIN - 10;
   gradientBox(page, MARGIN, footerTop - 10, CONTENT_W, 2, 1, GRADIENT);
   const date = createdAt.toISOString().slice(0, 10);
-  text(page, `Generated locally on this device by KASANE Wallet  -  ${date}`, MARGIN, footerTop, 7.6, f.regular, C.muted);
-  const tagline = 'KASANE';
+  text(page, `Generated locally on this device by IROME Wallet  -  ${date}`, MARGIN, footerTop, 7.6, f.regular, C.muted);
+  const tagline = 'IROME';
   const tw = spacedWidth(tagline, 7.6, f.bold, 2.4);
   spaced(page, tagline, MARGIN + CONTENT_W - tw, footerTop, 7.6, f.bold, C.muted, 2.4);
 }
@@ -368,9 +368,9 @@ export async function buildPaperWalletPdf(input: PaperWalletInput): Promise<Uint
   if (input.kind === 'key' && !input.privateKey) throw new Error('paper wallet: no private key');
 
   const pdf = await PDFDocument.create();
-  pdf.setTitle('KASANE Paper Wallet');
-  pdf.setCreator('KASANE Wallet');
-  pdf.setProducer('KASANE Wallet');
+  pdf.setTitle('IROME Paper Wallet');
+  pdf.setCreator('IROME Wallet');
+  pdf.setProducer('IROME Wallet');
   pdf.setCreationDate(input.createdAt);
   pdf.setModificationDate(input.createdAt);
 

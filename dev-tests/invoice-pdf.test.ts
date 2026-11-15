@@ -13,7 +13,7 @@ function check(name: string, ok: boolean, detail = '') {
 }
 
 const PIXEL = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'));
-const MARK = new Uint8Array(readFileSync(new URL('../src/assets/kasane_mark.png', import.meta.url)));
+const MARK = new Uint8Array(readFileSync(new URL('../src/assets/irome_mark.png', import.meta.url)));
 const base: InvoicePdfInput = {
   network: 'mainnet',
   recipient: 'NBCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFG',

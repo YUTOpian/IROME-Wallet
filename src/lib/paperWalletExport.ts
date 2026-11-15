@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import { QRCodeCanvas } from 'qrcode.react';
-import markUrl from '../assets/kasane_mark.png';
+import markUrl from '../assets/irome_mark.png';
 import { Environment } from './environment';
 import { getChain } from './chain';
 import type { ChainKey } from './chain';
@@ -64,7 +64,7 @@ export async function qrToPng(value: string, opts: { level?: 'L' | 'M' | 'Q' | '
   }
 }
 
-/** The KASANE mark is bundled as an asset - a data: URL in the single-file build. */
+/** The IROME mark is bundled as an asset - a data: URL in the single-file build. */
 export async function loadMark(): Promise<Uint8Array> {
   const match = /^data:[^;,]*;base64,(.*)$/.exec(markUrl);
   if (match) {
@@ -154,14 +154,14 @@ export async function createPaperWalletPdf(source: PaperWalletSource, now: Date 
       address,
       publicKey,
       secretQrPng: chain === 'symbol' ? await qrToPng(symbolQr(QR_TYPE_ACCOUNT, { privateKey })) : undefined,
-      publicQrPng: await qrToPng(chain === 'nem' ? buildNemAddressQr(address) : symbolQr(QR_TYPE_CONTACT, { name: 'KASANE account', publicKey })),
+      publicQrPng: await qrToPng(chain === 'nem' ? buildNemAddressQr(address) : symbolQr(QR_TYPE_CONTACT, { name: 'IROME account', publicKey })),
       markPng,
       createdAt: now,
     };
   }
 
   const bytes = await buildPaperWalletPdf(input);
-  const filename = `kasane-paper-wallet-${input.chain}-${source.kind === 'mnemonic' ? 'phrase' : 'key'}-${stamp(now)}.pdf`;
+  const filename = `irome-paper-wallet-${input.chain}-${source.kind === 'mnemonic' ? 'phrase' : 'key'}-${stamp(now)}.pdf`;
   return { bytes, filename };
 }
 

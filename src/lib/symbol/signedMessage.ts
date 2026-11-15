@@ -6,17 +6,17 @@
 // このファイルは SDK を使わない（形式の検査と、共有用 JSON の組み立て・読み取りだけ）。署名と検証そのものは
 // lib/symbol/crypto.ts の signData / verifySignature。
 //
-// 共有用のテキスト（QR にもできる）は KASANE の封筒に入れた JSON:
+// 共有用のテキスト（QR にもできる）は IROME の封筒に入れた JSON:
 //   { "kasane": 1, "kind": "symbol_signed_message", "data": { "message": "...", "publicKey": "<64 hex>", "signature": "<128 hex>" } }
 // 他のツールが出す `{"message","publicKey","signature"}` だけの JSON も読める。
 //
-// NEM との取り違えを防ぐ: NEM の署名付きメッセージ（KASANE の封筒 `nem_signed_message`、NanoWallet 形式の
+// NEM との取り違えを防ぐ: NEM の署名付きメッセージ（IROME の封筒 `nem_signed_message`、NanoWallet 形式の
 // `{"message","signer","signature"}`）を貼られたときは、読めないと言うだけでなく「NEM のものです」と教えられるよう
 // detectOtherChainSignedMessage で見分ける。同じ秘密鍵でも NEM と Symbol では公開鍵が違う（署名方式が違う）ので、
 // NEM の署名を Symbol の検証に通しても必ず合わない。
 export const SYMBOL_SIGNED_MESSAGE_KIND = 'symbol_signed_message';
 const NEM_SIGNED_MESSAGE_KIND = 'nem_signed_message';
-const KASANE_QR_VERSION = 1;
+const IROME_QR_VERSION = 1;
 
 /** 署名の対象はメッセージの UTF-8 バイト列（改行・空白も 1 文字ずつ含む）。 */
 export function symbolMessageBytes(message: string): Uint8Array {
@@ -40,7 +40,7 @@ export interface SymbolSignedMessage {
 export function buildSymbolSignedMessage(m: SymbolSignedMessage): string {
   if (!isSymbolPublicKeyHex(m.publicKey) || !isSymbolSignatureHex(m.signature)) throw new Error('symbol signed message: bad key or signature');
   return JSON.stringify({
-    kasane: KASANE_QR_VERSION,
+    kasane: IROME_QR_VERSION,
     kind: SYMBOL_SIGNED_MESSAGE_KIND,
     data: { message: m.message, publicKey: m.publicKey.trim().toUpperCase(), signature: m.signature.trim().toUpperCase() },
   });
@@ -58,7 +58,7 @@ function parseObject(text: string): Record<string, unknown> | null {
 }
 
 /**
- * KASANE の封筒、または `{"message","publicKey","signature"}`。どちらでもなければ null。
+ * IROME の封筒、または `{"message","publicKey","signature"}`。どちらでもなければ null。
  * NEM の封筒・NanoWallet 形式（`signer` があって `publicKey` がない）は読まない（detectOtherChainSignedMessage で見分ける）。
  */
 export function parseSymbolSignedMessage(text: string): SymbolSignedMessage | null {
@@ -66,7 +66,7 @@ export function parseSymbolSignedMessage(text: string): SymbolSignedMessage | nu
   if (d === null) return null;
   let from: SymbolSignedMessage['from'] = 'plain';
   if (d.kasane !== undefined) {
-    if (d.kasane !== KASANE_QR_VERSION || d.kind !== SYMBOL_SIGNED_MESSAGE_KIND || d.data === null || typeof d.data !== 'object') return null;
+    if (d.kasane !== IROME_QR_VERSION || d.kind !== SYMBOL_SIGNED_MESSAGE_KIND || d.data === null || typeof d.data !== 'object') return null;
     d = d.data as Record<string, unknown>;
     from = 'kasane';
   }
@@ -76,7 +76,7 @@ export function parseSymbolSignedMessage(text: string): SymbolSignedMessage | nu
 }
 
 /**
- * 貼られたテキストが、NEM の署名付きメッセージ（KASANE の封筒、または NanoWallet 形式）なら 'nem'。そうでなければ null。
+ * 貼られたテキストが、NEM の署名付きメッセージ（IROME の封筒、または NanoWallet 形式）なら 'nem'。そうでなければ null。
  * Symbol の検証画面が「読めません」の代わりに「NEM のものです」と案内するために使う。
  */
 export function detectOtherChainSignedMessage(text: string): 'nem' | null {

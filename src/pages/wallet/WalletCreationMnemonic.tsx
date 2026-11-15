@@ -4,7 +4,7 @@ import { Box, Grid, Card, Typography, Checkbox, FormControlLabel, Button } from 
 import { useTranslation } from 'react-i18next';
 import { alpha } from '@mui/material/styles';
 import { getPendingCreation } from '../../lib/pendingCreation';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import MnemonicQuiz from '../../components/MnemonicQuiz';
 import MnemonicCopyButton from '../../components/MnemonicCopyButton';
 import PaperWalletButton from '../../components/PaperWalletButton';
@@ -44,19 +44,19 @@ export default function WalletCreationMnemonic() {
 
   if (stage === 'verify') {
     return (
-      <KasaneStage title={t('wallet.mnemonic_quiz_title')} onBack={() => { setQuizRound((n) => n + 1); setStage('show'); }} maxWidth={560}>
+      <IromeStage title={t('wallet.mnemonic_quiz_title')} onBack={() => { setQuizRound((n) => n + 1); setStage('show'); }} maxWidth={560}>
         <MnemonicQuiz
           key={quizRound}
           words={words}
           onPass={goToAccounts}
           onReview={() => { setQuizRound((n) => n + 1); setStage('show'); }}
         />
-      </KasaneStage>
+      </IromeStage>
     );
   }
 
   return (
-    <KasaneStage title={t('wallet.mnemonic_title')} onBack={backToName} back="/wallet/creation/name" maxWidth={560}>
+    <IromeStage title={t('wallet.mnemonic_title')} onBack={backToName} back="/wallet/creation/name" maxWidth={560}>
       <Box sx={{ mb: 5 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 2, gap: 1 }}>
           <Box component="img" src={cautionIcon} sx={{ width: 16, height: 16 }} />
@@ -99,6 +99,6 @@ export default function WalletCreationMnemonic() {
           {t('wallet.mnemonic_next_verify')}
         </Button>
       </Box>
-    </KasaneStage>
+    </IromeStage>
   );
 }

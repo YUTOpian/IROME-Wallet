@@ -121,7 +121,7 @@ throwsMsg(() => assemble(buildPollMessages({ ...base, title: 'rule text' }, crea
 throwsMsg(() => assemble(buildPollMessages({ ...base, title: 'no mosaic' }, creator.publicKey, ad), (m) => m.replace(SOUL, 'NOPE')), 'poll_invalid', 'a holder poll without a valid mosaic is not read');
 const w = assemble(buildPollMessages({ ...base, title: 'weighted with flag', type: POLL_TYPE_MOSAIC, mosaicId: COIN }, creator.publicKey, ad), (m) => m.replace('"multiple":false', '"multiple":false,"nonTransferableOnly":true'));
 ok(w.nonTransferableOnly === false, 'the rule belongs to holder polls only: the weighted type ignores it');
-throwsMsg(() => assemble(buildPollMessages({ ...base, title: 'five' }, creator.publicKey, ad), (m) => m.replace('"type":4', '"type":5')), 'poll_unsupported', 'a type KASANE does not know is still unsupported');
+throwsMsg(() => assemble(buildPollMessages({ ...base, title: 'five' }, creator.publicKey, ad), (m) => m.replace('"type":4', '"type":5')), 'poll_unsupported', 'a type IROME does not know is still unsupported');
 
 // --- is a mosaic transferable --------------------------------------------------------------
 eq([await fetchMosaicTransferable(SOUL), await fetchMosaicTransferable(COIN.toLowerCase()), await fetchMosaicTransferable(XYM)], [false, true, true], 'transferable flag: soul = no, coin = yes (id case ignored), XYM = yes');

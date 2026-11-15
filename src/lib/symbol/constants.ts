@@ -1,6 +1,6 @@
 // 'mijin' is mijin v2 (Catapult): a private-chain product whose parameters (generation hash, epoch,
 // currency mosaic, nodes) differ per deployment, so they are not fixed here - the person enters a node
-// and KASANE reads them from it (see lib/symbol/mijin.ts). Symbol chain only; NEM has no mijin v2.
+// and IROME reads them from it (see lib/symbol/mijin.ts). Symbol chain only; NEM has no mijin v2.
 export type SymbolNetwork = 'mainnet' | 'testnet' | 'mijin';
 export type PublicNetwork = Exclude<SymbolNetwork, 'mijin'>;
 

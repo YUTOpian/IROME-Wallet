@@ -33,12 +33,12 @@ export default function ChoiceCard({ icon: Icon, title, desc, hint, hintFloating
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         px: { xs: 2, md: 2.5 }, py: { xs: 2.5, sm: 3.5, md: 5 }, gap: { xs: 1, md: 1.5 }, minHeight: { md: 250 }, height: '100%', boxSizing: 'border-box',
         bgcolor: 'background.paper', borderRadius: { xs: '20px', md: '24px' }, border: 2, borderStyle: dashed ? 'dashed' : 'solid',
-        borderColor: selected ? (t) => t.kasane.accent : (t) => t.kasane.line,
-        boxShadow: (t) => t.kasane.cardShadow,
+        borderColor: selected ? (t) => t.irome.accent : (t) => t.irome.line,
+        boxShadow: (t) => t.irome.cardShadow,
         transition: 'box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease',
-        '&:hover': { boxShadow: (t) => t.kasane.cardShadowHover, borderColor: (t) => t.kasane.accent },
+        '&:hover': { boxShadow: (t) => t.irome.cardShadowHover, borderColor: (t) => t.irome.accent },
         '&:active': { transform: 'scale(0.99)' },
-        '&:focus-visible': { boxShadow: (t) => `0 0 0 3px ${t.kasane.accent}` },
+        '&:focus-visible': { boxShadow: (t) => `0 0 0 3px ${t.irome.accent}` },
       }}
     >
       {action && <Box onClick={(e) => e.stopPropagation()} sx={{ position: 'absolute', top: { xs: 6, md: 12 }, left: { xs: 8, md: 14 } }}>{action}</Box>}

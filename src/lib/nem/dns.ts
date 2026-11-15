@@ -29,7 +29,7 @@ const bytesToHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padSta
 const NAME_PART = /^[a-z0-9][a-z0-9_-]*$/;
 
 /**
- * 入力（"kasane"、"Kasane.nem"、"a.b" など）を NEM のネームスペース名にそろえる。小文字にし、末尾の ".nem"（DNS の
+ * 入力（"kasane"、"Irome.nem"、"a.b" など）を NEM のネームスペース名にそろえる。小文字にし、末尾の ".nem"（DNS の
  * 表示用の名前）を取る。ルートは 16 文字まで、サブは 64 文字まで、深さは 3 まで。形が違えば null。
  */
 export function normalizeNemDnsName(input: string): string | null {

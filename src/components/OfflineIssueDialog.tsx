@@ -82,7 +82,7 @@ function IssueBody({ issue }: { issue: OfflineIssue }) {
   const chainName = issue.chain === 'nem' ? 'NEM' : 'Symbol';
   // 読み取れるまでは、「読み込み中」の行を件数ぶん出す。
   const rows: Array<PartInfo | null> = infos ?? issue.parts.map(() => null);
-  const fileName = `kasane-offline-${issue.chain}-${new Date(issue.createdAt).toISOString().replace(/[-:T]/g, '').slice(0, 14)}.json`;
+  const fileName = `irome-offline-${issue.chain}-${new Date(issue.createdAt).toISOString().replace(/[-:T]/g, '').slice(0, 14)}.json`;
 
   return (
     <>

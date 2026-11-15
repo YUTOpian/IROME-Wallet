@@ -47,8 +47,8 @@ eq(precheckScriptFile('big.js', MAX_SCRIPT_BYTES), null, 'precheck: exactly the 
 eq((checkScriptFile('big.js', MAX_SCRIPT_BYTES + 1, 'x') as { problem?: string }).problem, 'too_big', 'too big');
 
 // --- 保存名・MIME ---
-eq(scriptFileName('ts', new Date(2026, 9, 31, 9, 5, 7)), 'kasane-console-20261031-090507.ts', 'save name (ts)');
-eq(scriptFileName('js', new Date(2026, 0, 2, 13, 14, 15)), 'kasane-console-20260102-131415.js', 'save name (js)');
+eq(scriptFileName('ts', new Date(2026, 9, 31, 9, 5, 7)), 'irome-console-20261031-090507.ts', 'save name (ts)');
+eq(scriptFileName('js', new Date(2026, 0, 2, 13, 14, 15)), 'irome-console-20260102-131415.js', 'save name (js)');
 eq(scriptMimeType('ts'), 'text/plain', 'ts mime is text/plain');
 eq(scriptMimeType('js'), 'text/javascript', 'js mime');
 

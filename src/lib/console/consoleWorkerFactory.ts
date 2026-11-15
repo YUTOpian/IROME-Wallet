@@ -2,4 +2,4 @@
 // ここだけが `?worker&inline` を import する（テストは Node で動くので、consoleRunner.ts には import させない）。
 import ConsoleWorker from './consoleWorker?worker&inline';
 
-export const spawnConsoleWorker = (): Worker => new ConsoleWorker({ name: 'kasane-console' });
+export const spawnConsoleWorker = (): Worker => new ConsoleWorker({ name: 'irome-console' });

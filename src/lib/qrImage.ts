@@ -1,4 +1,4 @@
-// Reading a QR code out of an image file (a screenshot, or a QR picture saved from KASANE's own QR dialog),
+// Reading a QR code out of an image file (a screenshot, or a QR picture saved from IROME's own QR dialog),
 // and saving a QR canvas as a PNG. The decoder is the same zxing build the camera scanner uses.
 import { BarcodeDetector } from 'barcode-detector/ponyfill';
 

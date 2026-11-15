@@ -10,7 +10,7 @@ interface PaperWalletButtonProps {
   source: PaperWalletSource | null;
 }
 
-// "Download paper wallet": a KASANE-designed A4 PDF with the recovery phrase / private key, the
+// "Download paper wallet": a IROME-designed A4 PDF with the recovery phrase / private key, the
 // matching QR codes and the account's address, built on this device (see lib/paperWallet.ts).
 export default function PaperWalletButton({ source }: PaperWalletButtonProps) {
   const { t } = useTranslation();

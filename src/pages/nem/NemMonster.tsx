@@ -67,7 +67,7 @@ const shortHash = (hash: string) => `${hash.slice(0, 8)}…${hash.slice(-6)}`;
 
 // 「NEMonster」: 自分専用の宛先へ 0 XEM（Symbol は 0 XYM）を送るたびに、そのトランザクションのハッシュから
 // モンスターが1匹生まれる収集ゲーム。NEM は公式 NEM Nano Wallet の NEMonster と同じ仕組み。
-// Symbol には公式版が無いので、同じ作り（自分専用の宛先・ハッシュから姿を決める）の KASANE 版。
+// Symbol には公式版が無いので、同じ作り（自分専用の宛先・ハッシュから姿を決める）の IROME 版。
 export default function NemMonster() {
   const { t } = useTranslation();
   const network = useAppStore((s) => s.network);

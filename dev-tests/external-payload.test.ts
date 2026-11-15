@@ -1,7 +1,7 @@
 // Payloads from other Symbol tools (symbol-cli, SDKs, REST): plain hex, labelled hex, JSON bodies, cosignature
 // bodies, a bare hash. Run: npx tsx dev-tests/external-payload.test.ts
 import { addressFromPublicKey, keyPairFromPrivateKey } from '../src/lib/symbol/crypto';
-import { networkProblem } from '../src/lib/symbol/kasaneQr';
+import { networkProblem } from '../src/lib/symbol/iromeQr';
 import { parseAnyInput, parseExternalPayload } from '../src/lib/symbol/externalPayload';
 import { getNetworkConfig } from '../src/lib/symbol/network';
 import { cosignAggregateHash, signMultisigAggregate, signTransfer } from '../src/lib/symbol/tx';

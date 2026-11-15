@@ -15,7 +15,7 @@ export interface WltSource {
 }
 
 // "Export wallet file (.wlt)": the NEM wallet file of the official NEM wallet, so the account can be read back
-// there. The private key is sealed with a password chosen here (separate from the KASANE wallet password).
+// there. The private key is sealed with a password chosen here (separate from the IROME wallet password).
 // Built on this device (see lib/nem/wlt.ts) - NEM accounts only.
 export default function WltButton({ source }: { source: WltSource | null }) {
   const { t } = useTranslation();

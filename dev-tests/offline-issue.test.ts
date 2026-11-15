@@ -1,6 +1,6 @@
 // オフライントランザクション: QR の形式（Symbol の bundle、NEM の bundle）と、「ノードに届かなかった」判定。SDK を使わない部分。
 // Run: npx tsx dev-tests/offline-issue.test.ts
-import { buildKasaneQr, parseKasaneQr } from '../src/lib/symbol/kasaneQr';
+import { buildIromeQr, parseIromeQr } from '../src/lib/symbol/iromeQr';
 import { buildNemBundleQr, buildNemSignedQr, parseNemBundle, parseNemSigned } from '../src/lib/nem/offline';
 import { isNetworkFailure } from '../src/lib/offline/detect';
 
@@ -11,8 +11,8 @@ const H1 = 'A'.repeat(64), H2 = 'B'.repeat(64);
 const P1 = 'AB'.repeat(200), P2 = 'CD'.repeat(300);
 
 // --- Symbol bundle: lock then bonded -------------------------------------------------------------------------------------
-const text = buildKasaneQr({ kind: 'bundle', items: [{ role: 'lock', payload: P1.toLowerCase(), hash: H1.toLowerCase() }, { role: 'bonded', payload: P2, hash: H2 }] });
-const parsed = parseKasaneQr(text);
+const text = buildIromeQr({ kind: 'bundle', items: [{ role: 'lock', payload: P1.toLowerCase(), hash: H1.toLowerCase() }, { role: 'bonded', payload: P2, hash: H2 }] });
+const parsed = parseIromeQr(text);
 ok(parsed !== null && parsed.qr.kind === 'bundle', 'bundle is read back');
 if (parsed && parsed.qr.kind === 'bundle') {
   ok(parsed.qr.items.length === 2, 'two items');
@@ -22,7 +22,7 @@ if (parsed && parsed.qr.kind === 'bundle') {
 ok(parsed !== null && parsed.networkId !== null && parsed.chainId !== null, 'the network is named');
 
 const bad = (mutate: (j: { data: { items: Array<Record<string, unknown>> } }) => void) => {
-  const j = JSON.parse(text); mutate(j); return parseKasaneQr(JSON.stringify(j));
+  const j = JSON.parse(text); mutate(j); return parseIromeQr(JSON.stringify(j));
 };
 ok(bad((j) => { j.data.items[0].role = 'x'; }) === null, 'unknown role is refused');
 ok(bad((j) => { j.data.items[0].hash = 'zz'; }) === null, 'bad hash is refused');
@@ -31,7 +31,7 @@ ok(bad((j) => { j.data.items = []; }) === null, 'empty bundle is refused');
 ok(bad((j) => { j.data.items = Array.from({ length: 17 }, () => ({ role: 'tx', payload: P1, hash: H1 })); }) === null, 'too many items are refused');
 
 // A single transaction stays a plain `signed` QR (older readers keep working).
-const single = parseKasaneQr(buildKasaneQr({ kind: 'signed', payload: P1, hash: H1 }));
+const single = parseIromeQr(buildIromeQr({ kind: 'signed', payload: P1, hash: H1 }));
 ok(single !== null && single.qr.kind === 'signed', 'single stays signed');
 
 // --- NEM -----------------------------------------------------------------------------------------------------------------

@@ -39,12 +39,12 @@ ok(normalizeNemDnsName('r.' + 'a'.repeat(64)) !== null && normalizeNemDnsName('r
 ok(nemDnsDisplayName('kasane') === 'kasane.nem', 'display name');
 
 // --- the message
-const rec = { ...emptyNemDnsRecord(), ip1: 'example.com', organization: 'KASANE inc.', other: 'say "hi"\n日本語' };
+const rec = { ...emptyNemDnsRecord(), ip1: 'example.com', organization: 'IROME inc.', other: 'say "hi"\n日本語' };
 const msg = buildNemDnsMessage(rec);
-ok(msg === '{"dns":"yes","ip1":"example.com","organization":"KASANE inc.","other":"say \\"hi\\"\\n日本語"}', 'message: empty fields are left out, text is escaped', msg);
+ok(msg === '{"dns":"yes","ip1":"example.com","organization":"IROME inc.","other":"say \\"hi\\"\\n日本語"}', 'message: empty fields are left out, text is escaped', msg);
 ok(msg.startsWith('{"dns":"yes"'), 'dns:yes comes first, as NanoWallet writes it');
 const back = parseNemDnsMessage(msg);
-ok(back !== null && back.ip1 === 'example.com' && back.organization === 'KASANE inc.' && back.other === 'say "hi"\n日本語' && back.phone === '', 'message round trip', back);
+ok(back !== null && back.ip1 === 'example.com' && back.organization === 'IROME inc.' && back.other === 'say "hi"\n日本語' && back.phone === '', 'message round trip', back);
 ok(buildNemDnsMessage({ ...emptyNemDnsRecord(), ip1: '  x.example  ' }) === '{"dns":"yes","ip1":"x.example"}', 'values are trimmed');
 ok(buildNemDnsMessage(emptyNemDnsRecord()) === '{"dns":"yes"}', 'an empty record is just the marker');
 ok(nemDnsMessageBytes(rec) === new TextEncoder().encode(msg).length && nemDnsMessageBytes(rec) > msg.length, 'size is in bytes (UTF-8)');

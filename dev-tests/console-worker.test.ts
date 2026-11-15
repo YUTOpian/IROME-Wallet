@@ -19,7 +19,7 @@ function ok(cond: boolean, what: string, extra?: unknown) { checks++; if (!cond)
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 // --- 本物の consoleWorker.ts を、Node で動く1つのファイルにまとめる ---
-const dir = mkdtempSync(join(tmpdir(), 'kasane-worker-'));
+const dir = mkdtempSync(join(tmpdir(), 'irome-worker-'));
 const out = join(dir, 'worker.cjs');
 await build({
   entryPoints: [fileURLToPath(new URL('../src/lib/console/consoleWorker.ts', import.meta.url))],

@@ -163,7 +163,7 @@ export default function AddressBookPanel({ switcher }: { picking?: boolean; swit
     const url = URL.createObjectURL(new Blob([exportJson()], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `kasane-address-book-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `irome-address-book-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();

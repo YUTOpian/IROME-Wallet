@@ -17,7 +17,7 @@ import { CURRENCY_DIVISIBILITY, CURRENCY_SYMBOL } from '../../lib/symbol/constan
 import { addressFromPublicKey, decodeAddress, normalizeAddress } from '../../lib/symbol/crypto';
 import { aggregateSize, signAggregate } from '../../lib/symbol/aggregate';
 import type { AggregateItem, AggregateSigner } from '../../lib/symbol/aggregate';
-import { buildKasaneQr } from '../../lib/symbol/kasaneQr';
+import { buildIromeQr } from '../../lib/symbol/iromeQr';
 import { getNetwork, getNetworkConfig } from '../../lib/symbol/network';
 import { BONDED_LIFETIME_MS, DEFAULT_HASH_LOCK_AMOUNT, HASH_LOCK_DURATION_BLOCKS, HASH_LOCK_SIZE, MAX_MESSAGE_BYTES, MAX_MULTISIG_COSIGNERS, messageByteLength, signHashLock, signTransfer, transferSize } from '../../lib/symbol/tx';
 import { FEE_SPEEDS, multipliersFromStats } from '../../lib/symbol/feeSpeed';
@@ -230,7 +230,7 @@ export default function OfflineSignPage() {
         });
         setResult({
           // The lock first: the aggregate is announced once the lock is confirmed.
-          text: buildKasaneQr({ kind: 'bundle', items: [{ role: 'lock', payload: lock.payload, hash: lock.hash }, { role: 'bonded', payload: aggregate.payload, hash: aggregate.hash }] }),
+          text: buildIromeQr({ kind: 'bundle', items: [{ role: 'lock', payload: lock.payload, hash: lock.hash }, { role: 'bonded', payload: aggregate.payload, hash: aggregate.hash }] }),
           hash: aggregate.hash,
           deadlineMs: Number(epochNow + BONDED_LIFETIME_MS) + cfg.epochAdjustment * 1000,
           feeText: xym(aggregate.fee),
@@ -248,7 +248,7 @@ export default function OfflineSignPage() {
         deadline,
       });
       setResult({
-        text: buildKasaneQr({ kind: 'signed', payload: signed.payload, hash: signed.hash }),
+        text: buildIromeQr({ kind: 'signed', payload: signed.payload, hash: signed.hash }),
         hash: signed.hash,
         deadlineMs: Number(deadline) + cfg.epochAdjustment * 1000,
         feeText: `${formatAtomic(fee, CURRENCY_DIVISIBILITY)} ${CURRENCY_SYMBOL}`,
@@ -419,7 +419,7 @@ export default function OfflineSignPage() {
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>{t('offline.qr_hint')}</Typography>
               <QrTextPanel
                 text={result.text}
-                file={{ text: result.text, name: `kasane-${result.multisig ? 'multisig-request' : 'signed'}-${result.hash.slice(0, 8).toLowerCase()}.json` }}
+                file={{ text: result.text, name: `irome-${result.multisig ? 'multisig-request' : 'signed'}-${result.hash.slice(0, 8).toLowerCase()}.json` }}
                 note={t('signqr.export_note', { time: new Date(result.deadlineMs).toLocaleString() })}
               />
             </SectionCard>

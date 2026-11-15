@@ -27,7 +27,7 @@ import { useSigningAccounts } from './signingAccounts';
 // rules (there is no fee multiplier on NEM), the deadline comes from this device's clock, and the message is plain (an
 // encrypted one needs the recipient's public key from the chain). The mosaics to choose from are the ones this account
 // was seen to hold while online (lib/mosaicCache.ts), with the supply and divisibility the fee needs, plus XEM.
-// The result is the body of POST /transaction/announce, as KASANE's NEM QR, which 「署名・連署QR」 reads on a PC that is online.
+// The result is the body of POST /transaction/announce, as IROME's NEM QR, which 「署名・連署QR」 reads on a PC that is online.
 // "In the name of a multisig account" makes a request for the other cosignatories instead: a multisig transaction (type 0x1004) that the
 // chosen cosigner signs and that wraps the transfer (signed by nobody). The multisig account's public key cannot be looked up offline, so it
 // is typed in; the mosaics offered are the ones remembered for the multisig account's address. 「トランザクションに連署」 reads the result.
@@ -335,7 +335,7 @@ export default function OfflineNemTransfer({ onDone }: { onDone: (done: boolean)
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>{t('offline.qr_hint')}</Typography>
             <QrTextPanel
               text={result.text}
-              file={{ text: result.text, name: `kasane-nem-${result.multisig ? 'multisig-request' : 'signed'}-${Date.now().toString(36)}.json` }}
+              file={{ text: result.text, name: `irome-nem-${result.multisig ? 'multisig-request' : 'signed'}-${Date.now().toString(36)}.json` }}
               note={t('signqr.export_note', { time: new Date(result.deadlineMs).toLocaleString() })}
             />
           </SectionCard>

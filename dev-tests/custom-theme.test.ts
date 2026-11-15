@@ -1,11 +1,11 @@
-// カスタムテーマ（theme/customTheme.ts と kasaneTheme.ts の 'custom'）。
+// カスタムテーマ（theme/customTheme.ts と iromeTheme.ts の 'custom'）。
 // ・ひな形の CSS が、そのまま読み込めて、元の見た目に戻ること（4つのテーマ × 4つのチェーン）
 // ・危ない CSS（@import・url()・ほかのプロパティ・変なフォント・巨大なファイル）が、値として入らないこと
 // ・チェーンごとの上書き、保存データの再検証、テーマへの反映
 // 実行: npx tsx dev-tests/custom-theme.test.ts（通信なし）
 import { IMAGE_SLOTS, MAX_CSS_BYTES, MAX_ALL_IMAGE_CHARS, MAX_CUSTOM_THEMES, MAX_TOTAL_IMAGE_CHARS, VAR_SPECS, buildTemplateCss, buildThemeCss, imageCharsOf, sanitizeSavedThemes, decodeCssBytes, normalizeColor, normalizeFont, parseCustomThemeCss, resolveCustomValues, sanitizeCustomTheme, themesForLocalStorage } from '../src/theme/customTheme';
 import { fitInside } from '../src/theme/imageProcessing';
-import { createKasaneTheme } from '../src/theme/kasaneTheme';
+import { createIromeTheme } from '../src/theme/iromeTheme';
 import type { ThemeMode } from '../src/store/appStore';
 
 let failed = 0;
@@ -16,15 +16,15 @@ function check(name: string, ok: boolean, detail = '') {
 const codes = (css: string) => parseCustomThemeCss(css).warnings.map((w) => w.code);
 
 // --- 1. ひな形 → 読み込み → 同じ見た目 --------------------------------------------------------
-const modes: ThemeMode[] = ['dark', 'light', 'business', 'blossom'];
+const modes: ThemeMode[] = ['dark', 'light', 'business', 'blossom', 'irome'];
 const chains = ['symbol', 'nem', 'mijin', 'base'] as const;
 for (const mode of modes) {
   for (const chain of chains) {
-    const look = createKasaneTheme(mode, chain).kasane.look;
+    const look = createIromeTheme(mode, chain).irome.look;
     const css = buildTemplateCss(look, `${mode}/${chain}`);
     const parsed = parseCustomThemeCss(css);
     check(`template ${mode}/${chain}: every variable is read, no warnings`, parsed.applied === VAR_SPECS.length && parsed.warnings.length === 0, JSON.stringify(parsed.warnings.slice(0, 3)));
-    const again = createKasaneTheme('custom', chain, parsed.theme).kasane.look;
+    const again = createIromeTheme('custom', chain, parsed.theme).irome.look;
     const same = VAR_SPECS.every((spec) => {
       const a = look[spec.key];
       const b = again[spec.key];
@@ -102,7 +102,7 @@ check('warnings carry the line number', parseCustomThemeCss(':root {\n  --kasane
   check('a chain block overrides only that chain', resolveCustomValues(r.theme!, 'nem').accent === '#00ff00' && resolveCustomValues(r.theme!, 'symbol').accent === '#ff0000');
   check('mode is read in :root only', resolveCustomValues(r.theme!, 'nem').mode === 'light' && r.warnings.some((w) => w.code === 'mode_root_only'));
   check('unknown chain selector is refused', r.warnings.some((w) => w.code === 'selector'));
-  check('the chain override reaches the theme', createKasaneTheme('custom', 'nem', r.theme).kasane.accent === '#00ff00' && createKasaneTheme('custom', 'symbol', r.theme).kasane.accent === '#ff0000');
+  check('the chain override reaches the theme', createIromeTheme('custom', 'nem', r.theme).irome.accent === '#00ff00' && createIromeTheme('custom', 'symbol', r.theme).irome.accent === '#ff0000');
 }
 
 // --- 6. 保存データの再検証 --------------------------------------------------------------------------------
@@ -115,25 +115,25 @@ check('warnings carry the line number', parseCustomThemeCss(':root {\n  --kasane
 
 // --- 7. テーマへの反映 ----------------------------------------------------------------------------------------
 {
-  const dark = createKasaneTheme('dark', 'symbol');
-  const none = createKasaneTheme('custom', 'symbol', null);
-  check("'custom' without data is the dark theme", none.kasane.bg === dark.kasane.bg && none.palette.mode === 'dark');
+  const dark = createIromeTheme('dark', 'symbol');
+  const none = createIromeTheme('custom', 'symbol', null);
+  check("'custom' without data is the dark theme", none.irome.bg === dark.irome.bg && none.palette.mode === 'dark');
   const r = parseCustomThemeCss(`:root { --kasane-mode: light; --kasane-bg: #112233; --kasane-text: #010203; --kasane-radius: 4px;
     --kasane-button-radius: 2px; --kasane-font: "Georgia", serif; --kasane-gradient-start: #ff0000; --kasane-gradient-end: #0000ff;
     --kasane-menu-top: #101010; --kasane-menu-text: #eeeeee; --kasane-hero-start: #333333; --kasane-error: #aa0000 }`);
-  const th = createKasaneTheme('custom', 'symbol', r.theme);
+  const th = createIromeTheme('custom', 'symbol', r.theme);
   check('mode light', th.palette.mode === 'light');
   check('background / text', th.palette.background.default === '#112233' && th.palette.text.primary === '#010203');
-  check('card radius and shape', th.kasane.cardRadius === 4 && th.shape.borderRadius === 3);
+  check('card radius and shape', th.irome.cardRadius === 4 && th.shape.borderRadius === 3);
   check('font', th.typography.fontFamily === '"Georgia", serif');
-  check('gradient uses the new ends', th.kasane.gradient.includes('#ff0000') && th.kasane.gradient.includes('#0000ff'));
-  check('menu', th.kasane.menu.panel.includes('#101010') && th.kasane.menu.text === '#eeeeee');
-  check('hero', th.kasane.hero.includes('#333333'));
+  check('gradient uses the new ends', th.irome.gradient.includes('#ff0000') && th.irome.gradient.includes('#0000ff'));
+  check('menu', th.irome.menu.panel.includes('#101010') && th.irome.menu.text === '#eeeeee');
+  check('hero', th.irome.hero.includes('#333333'));
   check('error colour', th.palette.error.main === '#aa0000');
   check('button radius', JSON.stringify(th.components?.MuiButton?.styleOverrides ?? {}).includes('"borderRadius":2'));
-  check('look reports what was set', th.kasane.look.bg === '#112233' && th.kasane.look.radius === 4 && th.kasane.look.menuTop === '#101010');
-  const sparse = createKasaneTheme('custom', 'symbol', parseCustomThemeCss(':root { --kasane-accent: #abcdef }').theme);
-  check('an unset variable keeps the standard of the base brightness', sparse.kasane.bg === dark.kasane.bg && sparse.kasane.accent === '#abcdef');
+  check('look reports what was set', th.irome.look.bg === '#112233' && th.irome.look.radius === 4 && th.irome.look.menuTop === '#101010');
+  const sparse = createIromeTheme('custom', 'symbol', parseCustomThemeCss(':root { --kasane-accent: #abcdef }').theme);
+  check('an unset variable keeps the standard of the base brightness', sparse.irome.bg === dark.irome.bg && sparse.irome.accent === '#abcdef');
 }
 
 // --- 8. 文字コード --------------------------------------------------------------------------------------------
@@ -145,7 +145,7 @@ check('warnings carry the line number', parseCustomThemeCss(':root {\n  --kasane
   const withBom = new Uint8Array([0xef, 0xbb, 0xbf, ...utf8]);
   check('UTF-8 with BOM: the BOM is dropped by the decoder', decodeCssBytes(withBom).startsWith('/*'));
   check('Shift_JIS bytes are decoded', decodeCssBytes(new Uint8Array([0x82, 0xa0, 0x82, 0xa2])) === 'あい');
-  const tpl = buildTemplateCss(createKasaneTheme('dark', 'symbol').kasane.look, 'x');
+  const tpl = buildTemplateCss(createIromeTheme('dark', 'symbol').irome.look, 'x');
   check('the template says it is UTF-8', tpl.includes('UTF-8'));
   check('a Shift_JIS-saved template still reads', parseCustomThemeCss(decodeCssBytes(new Uint8Array([...new TextEncoder().encode(':root { --kasane-accent: #123456 } /* '), 0x82, 0xa0, ...new TextEncoder().encode(' */')]))).theme?.root.accent === '#123456');
 }
@@ -204,12 +204,12 @@ check('background-dim over 1 is refused', parseCustomThemeCss(':root { --kasane-
   check('old --kasane-image-nav-about CSS is read as the Links icon', css.theme.images?.navLinks === PNG && css.warnings.length === 0, JSON.stringify(css.warnings));
   const both = sanitizeCustomTheme({ images: { navLinks: JPG, navAbout: PNG } });
   check('the new key wins when both are present', both?.images?.navLinks === JPG);
-  check('the template uses the new variable name only', !buildTemplateCss(createKasaneTheme('dark', 'symbol').kasane.look, 'x').includes('nav-about'));
+  check('the template uses the new variable name only', !buildTemplateCss(createIromeTheme('dark', 'symbol').irome.look, 'x').includes('nav-about'));
 }
 
 // ひな形
 {
-  const look = createKasaneTheme('dark', 'symbol').kasane.look;
+  const look = createIromeTheme('dark', 'symbol').irome.look;
   const blank = buildTemplateCss(look, 'x');
   check('the template names every image slot (as comments)', IMAGE_SLOTS.every((slot) => blank.includes(slot.css)));
   check('the blank template sets no image', parseCustomThemeCss(blank).theme?.images === undefined);
@@ -222,13 +222,13 @@ check('background-dim over 1 is refused', parseCustomThemeCss(':root { --kasane-
 // テーマへの反映
 {
   const r = parseCustomThemeCss(imgCss(`--kasane-image-background: url("${JPG}"); --kasane-image-hero: url("${JPG}"); --kasane-image-nav-home: url("${PNG}"); --kasane-image-logo-mark: url("${PNG}"); --kasane-background-dim: 0.6; --kasane-hero-dim: 0.1`));
-  const th = createKasaneTheme('custom', 'symbol', r.theme);
-  check('the background image is in the page background', th.kasane.stageBg.includes(JPG) && th.kasane.stageBg.includes('0.6'));
-  check('the balance card image is under the card text', th.kasane.hero.includes(JPG) && th.kasane.hero.includes('rgba(0,0,0,0.1)') && th.kasane.hero.includes('linear-gradient(135deg'));
-  check('logo and icon images reach the tokens', th.kasane.images.navHome === PNG && th.kasane.images.logoMark === PNG);
-  const plain = createKasaneTheme('dark', 'symbol', r.theme);
-  check('images show only in the custom theme', Object.keys(plain.kasane.images).length === 0 && !plain.kasane.stageBg.includes('data:'));
-  check('no custom image: the stage is the usual gradient', !createKasaneTheme('custom', 'symbol', parseCustomThemeCss(':root { --kasane-accent: #123456 }').theme).kasane.stageBg.includes('url('));
+  const th = createIromeTheme('custom', 'symbol', r.theme);
+  check('the background image is in the page background', th.irome.stageBg.includes(JPG) && th.irome.stageBg.includes('0.6'));
+  check('the balance card image is under the card text', th.irome.hero.includes(JPG) && th.irome.hero.includes('rgba(0,0,0,0.1)') && th.irome.hero.includes('linear-gradient(135deg'));
+  check('logo and icon images reach the tokens', th.irome.images.navHome === PNG && th.irome.images.logoMark === PNG);
+  const plain = createIromeTheme('dark', 'symbol', r.theme);
+  check('images show only in the custom theme', Object.keys(plain.irome.images).length === 0 && !plain.irome.stageBg.includes('data:'));
+  check('no custom image: the stage is the usual gradient', !createIromeTheme('custom', 'symbol', parseCustomThemeCss(':root { --kasane-accent: #123456 }').theme).irome.stageBg.includes('url('));
 }
 
 // 画像の大きさ
@@ -267,7 +267,7 @@ check('fitInside keeps at least 1px', fitInside(10000, 1, 96, 96).h === 1);
   check('an unset value is not frozen to one chain\'s default', resolveCustomValues(back.theme!, 'mijin').bg === undefined);
 }
 {
-  const dark = createKasaneTheme('dark', 'symbol').kasane.look;
+  const dark = createIromeTheme('dark', 'symbol').irome.look;
   const tpl = buildTemplateCss(dark, 'x');
   check('the template (dark) has no chain block and writes every variable', !/:root\[data-chain='\w+'\]\s*\{/.test(tpl.replace(/\/\*[\s\S]*?\*\//g, '')) && VAR_SPECS.every((s) => tpl.includes(s.css + ':')));
 }

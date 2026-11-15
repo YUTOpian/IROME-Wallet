@@ -124,7 +124,7 @@ function SignPanel() {
             <>
               <Alert severity="success" sx={{ mb: 2 }}>{t('signmsg.signed_note')}</Alert>
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>{t('signmsg.share_hint')}</Typography>
-              <QrTextPanel text={result.share} file={{ text: result.share, name: `kasane-symbol-signed-message-${result.signature.slice(0, 8).toLowerCase()}.json` }} />
+              <QrTextPanel text={result.share} file={{ text: result.share, name: `irome-symbol-signed-message-${result.signature.slice(0, 8).toLowerCase()}.json` }} />
             </>
           )}
         </SectionCard>

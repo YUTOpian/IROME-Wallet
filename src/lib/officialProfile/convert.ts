@@ -1,5 +1,5 @@
-// Symbol 公式ウォレットのプロファイル ⇔ KASANE のプロファイル の変換。
-// 形式そのものの読み書きは format.ts。ここは「パスワードで開く」「KASANE に保存する」「KASANE から作る」。
+// Symbol 公式ウォレットのプロファイル ⇔ IROME のプロファイル の変換。
+// 形式そのものの読み書きは format.ts。ここは「パスワードで開く」「IROME に保存する」「IROME から作る」。
 import { MIN_PASSWORD_LENGTH, passwordProblem } from '../passwordPolicy';
 import { compareAccounts, PinCodeHelper, Wallet, WalletsHelper } from '../storage';
 import { profileAccounts } from '../accounts';
@@ -20,14 +20,14 @@ import {
 } from './format';
 import type { OfficialAccount, OfficialData, OfficialExport, OfficialProfile } from './format';
 
-// KASANE のパスワードの決まり（bcrypt は 72 バイトまで）。
-export const KASANE_MIN_PASSWORD = MIN_PASSWORD_LENGTH;
-export const KASANE_MAX_PASSWORD_BYTES = 72;
+// IROME のパスワードの決まり（bcrypt は 72 バイトまで）。
+export const IROME_MIN_PASSWORD = MIN_PASSWORD_LENGTH;
+export const IROME_MAX_PASSWORD_BYTES = 72;
 // 1つのプロファイルに事前に導出しておくインデックスの上限（これを超えるものは秘密鍵のアカウントとして持ち込む）。
 const MAX_DERIVED_INDEX_COUNT = 200;
 
-export function isKasanePasswordUsable(password: string): boolean {
-  return passwordProblem(password) === null && new TextEncoder().encode(password).length <= KASANE_MAX_PASSWORD_BYTES;
+export function isIromePasswordUsable(password: string): boolean {
+  return passwordProblem(password) === null && new TextEncoder().encode(password).length <= IROME_MAX_PASSWORD_BYTES;
 }
 
 // --- listing -------------------------------------------------------------------------------
@@ -53,7 +53,7 @@ function accountsOf(data: OfficialData, profile: OfficialProfile): OfficialAccou
 }
 
 /**
- * KASANE にすでにある Symbol の公開鍵（大文字）。1つのアカウントは、メインネット用（m/44'/4343'）の鍵と、
+ * IROME にすでにある Symbol の公開鍵（大文字）。1つのアカウントは、メインネット用（m/44'/4343'）の鍵と、
  * 公式互換のテストネット用（m/44'/1'）の鍵の両方を持ち、テストネット表示中は publicKey がテストネット用に差し替わっている。
  * どちらの鍵で公式のプロファイルが入っていても「すでにある」と分かるよう、3つとも集める。
  */
@@ -68,7 +68,7 @@ export async function existingSymbolPublicKeys(): Promise<Set<string>> {
   return keys;
 }
 
-/** 公式のプロファイルにあるアカウントの公開鍵（パスワード無しで読める）。KASANE にすでにあるかの判定に使う。 */
+/** 公式のプロファイルにあるアカウントの公開鍵（パスワード無しで読める）。IROME にすでにあるかの判定に使う。 */
 export function officialPublicKeys(data: OfficialData, profileName: string): string[] {
   const profile = data.profiles[profileName];
   if (!profile) return [];
@@ -167,8 +167,8 @@ export async function openOfficialProfile(data: OfficialData, profileName: strin
     if (seen.has(pair.publicKey)) continue;
     seen.add(pair.publicKey);
 
-    // ニーモニックの m/44'/<コイン種別>'/n'/0'/0' から導出できる鍵なら、KASANE でもインデックス n のアカウントとして扱える。
-    // コイン種別は、メインネットが 4343、テストネットが 1（公式ウォレットと同じ。KASANE も新しいプロファイルはテストネットで 1 を使う）。
+    // ニーモニックの m/44'/<コイン種別>'/n'/0'/0' から導出できる鍵なら、IROME でもインデックス n のアカウントとして扱える。
+    // コイン種別は、メインネットが 4343、テストネットが 1（公式ウォレットと同じ。IROME も新しいプロファイルはテストネットで 1 を使う）。
     let index: number | null = null;
     const parsed = parseOfficialPath(account.path);
     const coinType = profile.networkType === OFFICIAL_NETWORK_TYPE.testnet ? SYMBOL_TESTNET_COIN_TYPE : SYMBOL_MAINNET_COIN_TYPE;
@@ -182,9 +182,9 @@ export async function openOfficialProfile(data: OfficialData, profileName: strin
   return { ok: true, profile: { profileName, network: networkOf(profile), mnemonic, mnemonicUnreadable, accounts, skipped } };
 }
 
-// --- import (memory → KASANE) ----------------------------------------------------------------
+// --- import (memory → IROME) ----------------------------------------------------------------
 
-/** 公式ウォレットの既定名（"Seed Account 1" など）は、KASANE の「インデックス N」表示に任せる。 */
+/** 公式ウォレットの既定名（"Seed Account 1" など）は、IROME の「インデックス N」表示に任せる。 */
 function cleanAccountName(name: string): string {
   const trimmed = name.trim();
   return /^Seed Account \d+$/.test(trimmed) ? '' : trimmed;
@@ -194,11 +194,11 @@ export type ImportResult =
   | { status: 'imported'; activeId: string; accountCount: number; keptMnemonic: boolean }
   | { status: 'duplicate'; names: string[] };
 
-/** 開いたプロファイルを、KASANE のプロファイルとして保存する。`password` は KASANE 側のパスワード（公式と同じでよい）。 */
+/** 開いたプロファイルを、IROME のプロファイルとして保存する。`password` は IROME 側のパスワード（公式と同じでよい）。 */
 export async function importOpenedProfile(opened: OpenedProfile, password: string): Promise<ImportResult> {
-  if (!isKasanePasswordUsable(password)) throw new Error('password-invalid');
+  if (!isIromePasswordUsable(password)) throw new Error('password-invalid');
 
-  // すでに KASANE にある鍵は、重複してプロファイルを作らない。
+  // すでに IROME にある鍵は、重複してプロファイルを作らない。
   const existing = await existingSymbolPublicKeys();
   const duplicates = opened.accounts.filter((a) => existing.has(a.publicKey));
   if (duplicates.length > 0) return { status: 'duplicate', names: duplicates.map((a) => a.name) };
@@ -216,7 +216,7 @@ export async function importOpenedProfile(opened: OpenedProfile, password: strin
   let wallets: Wallet[];
   let keptMnemonic = false;
   if (opened.mnemonic !== null && derived.length > 0) {
-    // ふつうの KASANE のプロファイルと同じ作り方（Symbol と NEM の 0..N-1 を導出）。公式ウォレットにあったインデックスを表示にする。
+    // ふつうの IROME のプロファイルと同じ作り方（Symbol と NEM の 0..N-1 を導出）。公式ウォレットにあったインデックスを表示にする。
     const count = Math.min(Math.max(PROFILE_ACCOUNT_COUNT, Math.max(...derived.map((a) => a.index as number)) + 1), MAX_DERIVED_INDEX_COUNT);
     const byIndex = new Map(derived.map((a) => [a.index as number, a]));
     const first = byIndex.get(0);
@@ -257,7 +257,7 @@ export async function importOpenedProfile(opened: OpenedProfile, password: strin
   return { status: 'imported', activeId, accountCount: opened.accounts.length, keptMnemonic };
 }
 
-// --- export (KASANE → official) --------------------------------------------------------------
+// --- export (IROME → official) --------------------------------------------------------------
 
 export type ExportResult =
   | {
@@ -279,9 +279,9 @@ function randomAccountId(): string {
 }
 
 /**
- * KASANE のプロファイル（Symbol のアカウント）を、公式ウォレットが読める形にする。パスワードは公式ウォレットでもそのまま使える。
+ * IROME のプロファイル（Symbol のアカウント）を、公式ウォレットが読める形にする。パスワードは公式ウォレットでもそのまま使える。
  * メインネットでニーモニックがあるときは、公式の「ニーモニックから作ったプロファイル」と同じ形（seed ＋ 導出パス）にする。
- * テストネットは、公式ウォレットはコイン種別 1、KASANE の古いプロファイルは 4343 でニーモニックからの導出が違う。KASANE が公式互換の
+ * テストネットは、公式ウォレットはコイン種別 1、IROME の古いプロファイルは 4343 でニーモニックからの導出が違う。IROME が公式互換の
  * テストネット鍵（コイン種別 1）を使っているアカウントはニーモニックからの導出として、それ以外は秘密鍵のアカウントとして書き出す。
  */
 export async function exportProfileToOfficial(profileWalletId: string, password: string): Promise<ExportResult> {
@@ -303,7 +303,7 @@ export async function exportProfileToOfficial(profileWalletId: string, password:
   const matchesOfficialDerivation = (w: Wallet) => w.accountIndex !== null && !w.ledger && !w.sss && (mainnet || w.usesTestnetKeys);
   const withSeed = mnemonic !== null && wallets.some((w) => !w.hidden && matchesOfficialDerivation(w));
 
-  const profileName = wallets[0].name.trim() || 'KASANE';
+  const profileName = wallets[0].name.trim() || 'IROME';
   const accounts: OfficialAccount[] = [];
   let skippedCount = 0;
   for (const wallet of wallets.filter((w) => !w.hidden)) {
@@ -319,7 +319,7 @@ export async function exportProfileToOfficial(profileWalletId: string, password:
     };
     if (wallet.sss) { skippedCount += 1; continue; } // SSS Extension のアカウントは公式ウォレットに無い
     if (wallet.ledger) {
-      // 公式ウォレットの Ledger のパスはメインネット m/44'/4343'…、テストネット m/44'/1'…。KASANE は 4343 だけなのでメインネットのみ。
+      // 公式ウォレットの Ledger のパスはメインネット m/44'/4343'…、テストネット m/44'/1'…。IROME は 4343 だけなのでメインネットのみ。
       if (!mainnet || !indexed) { skippedCount += 1; continue; }
       accounts.push({ ...base, type: OFFICIAL_ACCOUNT_TYPE.LEDGER, encryptedPrivateKey: '', path: symbolPath(wallet.accountIndex as number) });
       continue;

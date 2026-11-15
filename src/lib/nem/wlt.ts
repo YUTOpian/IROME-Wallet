@@ -6,7 +6,7 @@
 // The private key of the primary account is sealed with a password the same way nem-sdk does it:
 //   key = Keccak-256 applied 20 times to the UTF-8 password (the result of one round is the input of the next)
 //   cipher text = AES-256-CBC (PKCS#7) of the 32 private-key bytes, with a random 16-byte IV
-// network is 104 (mainnet) or -104 (testnet); the official wallet also knows 96 (mijin), which KASANE does not.
+// network is 104 (mainnet) or -104 (testnet); the official wallet also knows 96 (mijin), which IROME does not.
 //
 // Everything here is a pure function: nothing is stored or uploaded. See docs/FEATURES.md (ウォレットファイル).
 import { keccak_256 } from '@noble/hashes/sha3.js';

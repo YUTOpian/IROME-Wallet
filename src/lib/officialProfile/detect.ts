@@ -1,4 +1,4 @@
-// このブラウザ（KASANE と同じアドレス）に Symbol 公式ウォレットのプロファイルがあるかを探す。
+// このブラウザ（IROME と同じアドレス）に Symbol 公式ウォレットのプロファイルがあるかを探す。
 // 公式ウォレットは localStorage の `profiles` / `accounts` に持っている。ブラウザはアドレス（ドメイン）ごとにデータを分けるので、
 // 公式ウォレットが別のアドレスで動いているときは、ここからは見えない（その場合は「読み込み」から貼り付け／ファイルで）。
 // 見つけても、秘密鍵は公式ウォレットのパスワードで暗号化されているので、パスワード無しでは開けない。
@@ -35,14 +35,14 @@ const entryOf = (profileName: string, firstKey: string) => `${profileName}|${fir
 export interface OfficialFound {
   /** 読み込み画面に渡せる形の、公式ウォレットのデータ（JSON の文字列）。 */
   text: string;
-  /** まだ KASANE に無く、「聞かない」にもしていないプロファイル。 */
+  /** まだ IROME に無く、「聞かない」にもしていないプロファイル。 */
   profiles: OfficialProfileSummary[];
 }
 
 /**
- * KASANE にまだ無い公式ウォレットのプロファイルを探す。無い・読めないときは null（エラーにはしない）。
+ * IROME にまだ無い公式ウォレットのプロファイルを探す。無い・読めないときは null（エラーにはしない）。
  * 起動時の自動の確認は「今後は聞かない」を守る。手動の読み込み画面は、ignoreDismissed で「聞かない」にしたものも出す
- * （KASANE から削除したあとでも、ブラウザに残っている限り、また読み込めるように）。
+ * （IROME から削除したあとでも、ブラウザに残っている限り、また読み込めるように）。
  */
 export async function findNewOfficialProfiles(opts: { ignoreDismissed?: boolean } = {}): Promise<OfficialFound | null> {
   try {
@@ -50,7 +50,7 @@ export async function findNewOfficialProfiles(opts: { ignoreDismissed?: boolean 
     if (text === null) return null;
     const data = parseOfficialData(text);
     const silenced = new Set(opts.ignoreDismissed ? [] : dismissedEntries());
-    // すでに KASANE にある鍵を含むプロファイルは、読み込み済みとみなす（読み込みも、重複する鍵があると断る）。
+    // すでに IROME にある鍵を含むプロファイルは、読み込み済みとみなす（読み込みも、重複する鍵があると断る）。
     const existing = await existingSymbolPublicKeys();
     const profiles = listOfficialProfiles(data).filter((p) => {
       if (p.accountCount === 0) return false;

@@ -250,5 +250,5 @@ export async function readKeystore(text: string, password = ''): Promise<Keystor
 /** A file name that tells accounts apart without revealing more than the public address. */
 export function keystoreFilename(account: Pick<KeystoreAccount, 'chain' | 'address'>, encrypted: boolean, now: Date = new Date()): string {
   const day = now.toISOString().slice(0, 10).replace(/-/g, '');
-  return `kasane-${encrypted ? 'keystore' : 'keypair'}-${account.chain}-${account.address.slice(0, 6)}-${day}.json`;
+  return `irome-${encrypted ? 'keystore' : 'keypair'}-${account.chain}-${account.address.slice(0, 6)}-${day}.json`;
 }

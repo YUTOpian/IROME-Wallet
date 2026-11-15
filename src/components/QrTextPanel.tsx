@@ -5,7 +5,7 @@ import { QRCodeCanvas, QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { downloadCanvasPng } from '../lib/qrImage';
 import { saveTextFile } from '../lib/saveTextFile';
-import { KASANE_QR_MAX_LENGTH } from '../lib/symbol/kasaneQr';
+import { IROME_QR_MAX_LENGTH } from '../lib/symbol/iromeQr';
 
 interface Props {
   text: string; // what the QR code holds (also shown, and copied, as text)
@@ -33,14 +33,14 @@ export default function QrTextPanel({ text, note, file, qrSize = 240, imageButto
     if (!canvas) return;
     setSaveError(false);
     try {
-      await downloadCanvasPng(canvas, imageName ?? `kasane-qr-${Date.now()}.png`);
+      await downloadCanvasPng(canvas, imageName ?? `irome-qr-${Date.now()}.png`);
     } catch (e) {
       console.error('Failed to save the QR image', e);
       setSaveError(true);
     }
   };
 
-  const hasQr = text.length <= KASANE_QR_MAX_LENGTH;
+  const hasQr = text.length <= IROME_QR_MAX_LENGTH;
 
   const onCopy = async () => {
     try {

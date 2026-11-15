@@ -21,7 +21,7 @@ export function setNetwork(network: SymbolNetwork) {
   listeners.forEach((l) => l());
 }
 
-// What KASANE learned from the person's mijin v2 node (null = not set up yet).
+// What IROME learned from the person's mijin v2 node (null = not set up yet).
 export interface MijinParams {
   networkByte: number;
   generationHash: string;

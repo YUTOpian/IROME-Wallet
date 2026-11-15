@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import App from './App.tsx'
 import EmbeddedBrowserGate from './components/EmbeddedBrowserGate'
-import { useKasaneTheme } from './theme/useKasaneTheme'
+import { useIromeTheme } from './theme/useIromeTheme'
 import { useEffectiveTheme } from './theme/useThemeChoices'
 import { alpha } from '@mui/material/styles'
 import { resolveDesign } from './theme/designScope'
@@ -39,7 +39,7 @@ document.documentElement.dataset.ui = Environment.isMobile() ? 'mobile' : 'deskt
   setCustomNode('mijin', customNodes.mijin ?? '');
 }
 
-// Builds the KASANE MUI theme from the dark / white choice in 設定 > テーマ and the selected chain
+// Builds the IROME MUI theme from the dark / white choice in 設定 > テーマ and the selected chain
 // (Symbol / NEM) and the network (mijin v2 has its own look), all persisted in the app store,
 // and mirrors it onto <html> so index.css, the browser's colour-scheme (scrollbars, form
 // controls) and the mobile browser chrome (theme-color) follow it too.
@@ -55,7 +55,7 @@ function ThemedApp() {
   // The theme of the open profile (if it has its own) applies inside the wallet; the start-screen group keeps the common one.
   const effective = useEffectiveTheme(pathname);
   const { mode, chain } = resolveDesign(pathname, effective.mode, storedChain, storedNetwork);
-  const theme = useKasaneTheme(mode, chain, effective.customId);
+  const theme = useIromeTheme(mode, chain, effective.customId);
   // The browser tab's logo and title follow the common カスタムテーマ (設定 > テーマ), whichever screen or profile is open.
   const commonMode = useAppStore((s) => s.themeMode);
   const commonCustom = useAppStore(selectActiveCustomTheme);
@@ -76,25 +76,25 @@ function ThemedApp() {
     // カスタムテーマ is the dark or white look underneath, so index.css's data-theme follows the base brightness.
     root.dataset.theme = custom ? theme.palette.mode : mode;
     root.dataset.chain = chain;
-    root.style.colorScheme = (custom ? theme.palette.mode === 'dark' : mode === 'dark') ? 'dark' : 'light'; // ビジネス is a light scheme
+    root.style.colorScheme = (custom ? theme.palette.mode === 'dark' : mode === 'dark' || mode === 'yoi') ? 'dark' : 'light'; // the other themes are light schemes
     // The plain-HTML colours of index.css (headings, <code>) follow the person's colours too.
     const vars: Record<string, string | null> = custom
       ? {
-          '--bg': theme.kasane.bg,
+          '--bg': theme.irome.bg,
           '--text': theme.palette.text.secondary,
           '--text-h': theme.palette.text.primary,
-          '--border': theme.kasane.line,
-          '--code-bg': alpha(theme.kasane.accent, 0.14),
-          '--accent': theme.kasane.accent,
-          '--accent-bg': alpha(theme.kasane.accent, 0.1),
-          '--accent-border': alpha(theme.kasane.accent, 0.5),
+          '--border': theme.irome.line,
+          '--code-bg': alpha(theme.irome.accent, 0.14),
+          '--accent': theme.irome.accent,
+          '--accent-bg': alpha(theme.irome.accent, 0.1),
+          '--accent-border': alpha(theme.irome.accent, 0.5),
         }
       : { '--bg': null, '--text': null, '--text-h': null, '--border': null, '--code-bg': null, '--accent': null, '--accent-bg': null, '--accent-border': null };
     for (const [name, value] of Object.entries(vars)) {
       if (value === null) root.style.removeProperty(name);
       else root.style.setProperty(name, value);
     }
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.kasane.bg);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.irome.bg);
   }, [mode, chain, theme]);
   return (
     <ThemeProvider theme={theme}>

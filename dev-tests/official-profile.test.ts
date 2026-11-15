@@ -3,8 +3,8 @@
 //  1. 暗号・パスワードハッシュが公式ウォレット（symbol-sdk Crypto / SHA3-512）と同じ形式か
 //     （公式ウォレットに同梱の crypto-js と SDK の Crypto.encrypt を実際に動かして作った暗号文を、そのまま読めるか）
 //  2. 公式の localStorage の形（profiles / accounts）を読めるか
-//  3. 公式 → KASANE（開く・取り込む・重複・パスワードが短いとき・秘密鍵だけ・テストネット）
-//  4. KASANE → 公式（書き出して読み戻すと、同じ鍵になる）
+//  3. 公式 → IROME（開く・取り込む・重複・パスワードが短いとき・秘密鍵だけ・テストネット）
+//  4. IROME → 公式（書き出して読み戻すと、同じ鍵になる）
 const mem = new Map<string, string>();
 (globalThis as any).localStorage = {
   getItem: (k: string) => (mem.has(k) ? mem.get(k)! : null),
@@ -95,7 +95,7 @@ for (const [label, input, code] of [['empty', '  ', 'empty'], ['not json', 'abc'
 const summary = convert.listOfficialProfiles(data)[0];
 check('list: name / mainnet / 4 accounts / has seed', summary.profileName === 'Official1' && summary.network === 'mainnet' && summary.accountCount === 4 && summary.hasSeed);
 
-// ---- 3. official -> KASANE -----------------------------------------------------------------
+// ---- 3. official -> IROME -----------------------------------------------------------------
 check('open: wrong password is refused', ((await convert.openOfficialProfile(data, 'Official1', 'nope-nope-nope')) as { ok: boolean }).ok === false);
 const opened = await convert.openOfficialProfile(data, 'Official1', PASSWORD);
 if (!opened.ok) throw new Error('open failed');
@@ -119,13 +119,13 @@ check('import: the profile password is saved', await PinCodeHelper.check(byIndex
 check('import: active account is index 0', (await WalletsHelper.getActive('symbol'))?.id === byIndex(0).id);
 check('import: importing the same profile again is refused', (await convert.importOpenedProfile(o, PASSWORD)).status === 'duplicate');
 
-// short official password -> KASANE needs another one, and the secrets are re-encrypted with it
+// short official password -> IROME needs another one, and the secrets are re-encrypted with it
 mem.clear();
 const shortText = await officialDataset({ name: 'Short', password: 'abc123', withSeed: false });
 const shortData = format.parseOfficialData(shortText);
 const shortOpen = await convert.openOfficialProfile(shortData, 'Short', 'abc123');
 if (!shortOpen.ok) throw new Error('open short failed');
-check('short password: not usable as a KASANE password', !convert.isKasanePasswordUsable('abc123') && convert.isKasanePasswordUsable(PASSWORD));
+check('short password: not usable as a IROME password', !convert.isIromePasswordUsable('abc123') && convert.isIromePasswordUsable(PASSWORD));
 let threw = false;
 try { await convert.importOpenedProfile(shortOpen.profile, 'abc123'); } catch { threw = true; }
 check('short password: importing with it is refused', threw);
@@ -142,7 +142,7 @@ const testOpen = await convert.openOfficialProfile(format.parseOfficialData(test
 if (!testOpen.ok) throw new Error('open testnet failed');
 check('testnet path (coin type 1) with keys that do not match the phrase: every account is imported as a key, none is "derived"', testOpen.profile.network === 'testnet' && testOpen.profile.accounts.every((a) => a.kind === 'imported'));
 
-// ---- 4. KASANE -> official -> KASANE --------------------------------------------------------
+// ---- 4. IROME -> official -> IROME --------------------------------------------------------
 mem.clear();
 const accounts = profileAccounts(PHRASE);
 const made = await WalletsHelper.createProfileWithMnemonic('MyProfile', PHRASE, PASSWORD, accounts, 'Main');
@@ -169,7 +169,7 @@ const script = format.officialConsoleScript(exported.data);
 check('export: JSON file reads back', Object.keys(format.parseOfficialData(json).profiles).join() === 'MyProfile');
 check('export: console script merges into existing data (no overwrite of the lists)', script.includes("localStorage.setItem('profiles'") && script.includes('同じ名前のプロファイルがあるので'));
 
-// Back into an empty KASANE: same accounts.
+// Back into an empty IROME: same accounts.
 mem.clear();
 const back = await convert.openOfficialProfile(format.parseOfficialData(json), 'MyProfile', PASSWORD);
 if (!back.ok) throw new Error('re-open failed');
@@ -198,10 +198,10 @@ const open5 = await convert.openOfficialProfile(format.parseOfficialData(found1.
 if (!open5.ok) throw new Error('open failed');
 await convert.importOpenedProfile(open5.profile, PASSWORD);
 check('detect: not offered again once it has been imported', (await detect.findNewOfficialProfiles()) === null);
-// Delete the imported profile from KASANE: as long as the browser still has the official profile, it can be imported again.
+// Delete the imported profile from IROME: as long as the browser still has the official profile, it can be imported again.
 const importedWallet = (await WalletsHelper.gets()).find((w) => w.chain === 'symbol')!;
 await WalletsHelper.delete(importedWallet.id);
-check('delete: the imported profile is gone from KASANE', (await WalletsHelper.gets()).length === 0);
+check('delete: the imported profile is gone from IROME', (await WalletsHelper.gets()).length === 0);
 check('delete: the browser still has it, so it is offered again', (await detect.findNewOfficialProfiles())?.profiles.map((x) => x.profileName).join() === 'Found1');
 detect.dismissOfficialProfiles(found1.text, ['Found1']);
 check('delete: even after "don\'t ask again", the manual import still lists it', (await detect.findNewOfficialProfiles()) === null && (await detect.findNewOfficialProfiles({ ignoreDismissed: true }))?.profiles.length === 1);

@@ -31,13 +31,14 @@ export type { AppLanguage };
 // Home from the address book picker / the send confirmation screen shows the same section.
 export type HomePanel = 'mosaics' | 'invoice' | 'send' | 'apostille' | 'history' | 'network' | null;
 
-// Colour scheme of the whole app. 'dark' (the KASANE stage, the default), 'light' (white), 'business'
-// (a flat, calm look made for work; see theme/kasaneTheme.ts), 'blossom' or 'custom' (the person's own CSS, see theme/customTheme.ts).
-export type ThemeMode = 'dark' | 'light' | 'business' | 'blossom' | 'custom';
+// Colour scheme of the whole app. 'dark' (the IROME stage, the default), 'light' (white),
+// 'blossom', 'irome' (色目: the colourful five-colour theme, the same for Symbol and NEM) or 'custom' (the person's own CSS, see theme/customTheme.ts).
+export type ThemeMode = 'dark' | 'light' | 'blossom' | 'irome' | 'yoi' | 'custom';
+// 'yoi' (宵 🌙): 以前のダーク（くすんだ紫がかった炭色の背景に、ライム寄りのクリーム色の文字）。'dark' は Symbolダーク。
 
 /** テーマの「選択」を表す文字列として正しいか（組み込みの4つ、または 'custom:<id>'）。 */
 export function isValidThemeChoice(choice: string): boolean {
-  if (choice === 'dark' || choice === 'light' || choice === 'business' || choice === 'blossom') return true;
+  if (choice === 'dark' || choice === 'light' || choice === 'blossom' || choice === 'irome' || choice === 'yoi') return true;
   return choice.startsWith('custom:') && choice.length > 'custom:'.length && choice.length <= 64;
 }
 
@@ -64,7 +65,7 @@ interface AppState {
   // カスタムテーマ: up to 10 themes read from the person's uploaded CSS (checked and normalised), and the one that 'custom' shows.
   customThemes: SavedCustomTheme[];
   customThemeId: string | null;
-  // プロファイルごとのテーマ: プロファイルのキー（Wallet.profileKey）→ テーマの選択（'dark' | 'light' | 'business' | 'blossom' | 'custom:<id>'）。
+  // プロファイルごとのテーマ: プロファイルのキー（Wallet.profileKey）→ テーマの選択（'dark' | 'light' | 'blossom' | 'irome' | 'custom:<id>'）。
   // 無いプロファイルは、共通のテーマ（themeMode / customThemeId = スタート画面・プロファイル選択画面のテーマ）に合わせる。
   profileThemes: Record<string, string>;
   // いま開いているプロファイルのキー（画面の移動のたびに main.tsx が保存先から読み直す。テーマを選ぶために持っておく）。
@@ -92,7 +93,7 @@ interface AppState {
   liveTick: number;
   // Play the sounds for new transactions (the one for a new transaction and the one for a confirmed one together; on by default).
   liveSound: boolean;
-  // Which sounds: the new KASANE ones ('default') or the former ones ('classic').
+  // Which sounds: the new IROME ones ('default') or the former ones ('classic').
   liveSoundTheme: LiveSoundTheme;
   // Symbol: also list the transactions of the multisig accounts this wallet cosigns in 履歴 (off by default).
   showMultisigHistory: boolean;
@@ -166,7 +167,7 @@ export const useAppStore = create<AppState>()(
       symbolNodeLists: { mainnet: [], testnet: [], mijin: [] },
       autoSwitchNode: true,
       language: 'ja',
-      themeMode: 'dark', // KASANE is a dark design; people who already picked a mode keep it
+      themeMode: 'irome', // 初期テーマは「色目」。すでにテーマを選んだ人は、その選択のまま
       customThemes: [],
       customThemeId: null,
       profileThemes: {},
@@ -318,7 +319,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'vintage-symbol-wallet-app-store',
-      // v2: the default theme became dark (KASANE). Saved v1 data still holds the old default
+      // v2: the default theme became dark (IROME). Saved v1 data still holds the old default
       // ('light'), so move it to dark once; the choice in 設定 > テーマ is kept from then on.
       // v3: the 'mijin' network (mijin v2 / Catapult) was added next to mainnet / testnet.
       version: 3,
@@ -360,7 +361,8 @@ export const useAppStore = create<AppState>()(
           profileThemes,
           // 保存が無い・壊れている場合は、新しい音（既定）。
           liveSoundTheme: isLiveSoundTheme(saved.liveSoundTheme) ? saved.liveSoundTheme : DEFAULT_LIVE_SOUND_THEME,
-          themeMode: saved.themeMode === 'custom' && customThemes.length === 0 ? 'dark' : (saved.themeMode ?? current.themeMode),
+          // 廃止した「シンプル」（'business'）を選んでいた人は「色目」に移す。
+          themeMode: (saved.themeMode as string) === 'business' ? 'irome' : saved.themeMode === 'custom' && customThemes.length === 0 ? 'dark' : (saved.themeMode ?? current.themeMode),
           symbolNodeLists: {
             mainnet: toList(lists.mainnet),
             testnet: toList(lists.testnet),

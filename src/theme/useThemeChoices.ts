@@ -3,14 +3,14 @@ import { selectActiveCustomTheme, useAppStore } from '../store/appStore';
 import type { ThemeMode } from '../store/appStore';
 import { isOnboardingPath } from './designScope';
 
-// The themes a person can pick from (設定 > テーマ, the start screen, the profile screen): the four built-in ones,
-// then every saved カスタムテーマ by name. A choice is a plain string: 'dark' | 'light' | 'business' | 'blossom' | 'custom:<id>'.
+// The themes a person can pick from (設定 > テーマ, the start screen, the profile screen): the five built-in ones (色目 first, as it is the default; then 宵, さくら, Symbolダーク, NEMホワイト),
+// then every saved カスタムテーマ by name. A choice is a plain string: 'dark' | 'light' | 'blossom' | 'irome' | 'yoi' | 'custom:<id>'.
 //
 // テーマの設定は2か所ある:
 //   ・共通のテーマ（themeMode / customThemeId）… スタート画面・プロファイル選択画面など、プロファイルを開く前の画面。
 //     プロファイルが自分のテーマを持っていなければ、プロファイルの中もこれに合わせる。
 //   ・プロファイルのテーマ（profileThemes）… そのプロファイルを開いている間だけ使う。
-const BUILTIN: ThemeMode[] = ['dark', 'light', 'business', 'blossom'];
+const BUILTIN: ThemeMode[] = ['irome', 'yoi', 'blossom', 'dark', 'light']; // 順番: 色目（初期テーマ）、宵、さくら、Symbolダーク、NEMホワイト
 
 export function useThemeChoices(): { code: string; label: string }[] {
   const { t } = useTranslation();

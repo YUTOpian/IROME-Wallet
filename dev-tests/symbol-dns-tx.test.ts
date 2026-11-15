@@ -41,7 +41,7 @@ ok(symbolDnsPointer('kasane2', MAIN.networkByte).address !== main.address, 'anot
 ok(symbolDnsPointer('alice.bob', MAIN.networkByte).namespace === 'alice.bob', 'a sub-namespace has its own pointer');
 
 // --- a transfer that carries a record, and the record read back the way the node would hand it over
-const record = { ...emptyNemDnsRecord(), ip1: 'example.com', organization: 'KASANE', email: 'info@example.com', other: '日本語のメモ' };
+const record = { ...emptyNemDnsRecord(), ip1: 'example.com', organization: 'IROME', email: 'info@example.com', other: '日本語のメモ' };
 const text = buildNemDnsMessage(record);
 const bytes = new TextEncoder().encode(text);
 const field = symbolMessageField(bytes);

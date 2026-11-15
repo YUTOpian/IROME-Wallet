@@ -2,7 +2,7 @@
 // recomputed from the bytes, and the cosignature verifies. A hash-only request and a tampered request are refused.
 // Run: npx tsx dev-tests/offline-cosign.test.ts
 import { addressFromPublicKey, hexToBytes, keyPairFromPrivateKey, verifySignature } from '../src/lib/symbol/crypto';
-import { buildKasaneQr, networkProblem, parseKasaneQr } from '../src/lib/symbol/kasaneQr';
+import { buildIromeQr, networkProblem, parseIromeQr } from '../src/lib/symbol/iromeQr';
 import { getNetworkConfig } from '../src/lib/symbol/network';
 import { summarizePayload } from '../src/lib/symbol/payloadSummary';
 import { cosignAggregateHash, signMultisigAggregate } from '../src/lib/symbol/tx';
@@ -28,8 +28,8 @@ const signed = signMultisigAggregate(initiator.privateKey, cfg.generationHash, {
 });
 
 (async () => {
-  const text = buildKasaneQr({ kind: 'cosign_request', hash: signed.hash, payload: signed.payload });
-  const parsed = parseKasaneQr(text);
+  const text = buildIromeQr({ kind: 'cosign_request', hash: signed.hash, payload: signed.payload });
+  const parsed = parseIromeQr(text);
   ok(parsed?.qr.kind === 'cosign_request' && networkProblem(parsed) === null, 'request with the aggregate parses');
   if (parsed?.qr.kind !== 'cosign_request' || !parsed.qr.payload) return;
 
@@ -53,7 +53,7 @@ const signed = signMultisigAggregate(initiator.privateKey, cfg.generationHash, {
   // the cosignature signs the recomputed hash
   const body = cosignAggregateHash(cosigner.privateKey, s.hash);
   ok(verifySignature(body.signerPublicKey, hexToBytes(s.hash), hexToBytes(body.signature)), 'cosignature verifies against the recomputed hash');
-  const back = parseKasaneQr(buildKasaneQr({ kind: 'cosignature', ...body }));
+  const back = parseIromeQr(buildIromeQr({ kind: 'cosignature', ...body }));
   ok(back?.qr.kind === 'cosignature' && networkProblem(back) === null, 'cosignature QR parses for the online PC');
 
   // an aggregate's hash does not cover its inner transactions, so swapped content must be caught by the contents check
@@ -68,7 +68,7 @@ const signed = signMultisigAggregate(initiator.privateKey, cfg.generationHash, {
   ok(sw.hash === s.hash && !sw.contentsMatchHash, 'swapped inner content keeps the hash but is flagged', { same: sw.hash === s.hash, match: sw.contentsMatchHash });
 
   // hash-only request still parses (the screen refuses it because there is nothing to check)
-  const hashOnly = parseKasaneQr(buildKasaneQr({ kind: 'cosign_request', hash: signed.hash }));
+  const hashOnly = parseIromeQr(buildIromeQr({ kind: 'cosign_request', hash: signed.hash }));
   ok(hashOnly?.qr.kind === 'cosign_request' && !hashOnly.qr.payload, 'hash-only request has no payload');
   ok(networkCalls === 0, 'still no network call');
 

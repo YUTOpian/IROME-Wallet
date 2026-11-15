@@ -41,10 +41,10 @@ check('derivePassSha matches nem-sdk (x6000, brain)', Buffer.from(derivePassSha(
 check('derivePassSha: non-ASCII password', Buffer.from(derivePassSha('パスワード🔑', 20)).toString('hex') === sdkDerive('パスワード🔑', 20));
 
 // 2. a file made here
-const text = buildWlt({ name: 'KASANE test', privateKey: PRIVATE_KEY, publicKey: pair.publicKey, networkByte: 0x68 }, PASSWORD);
+const text = buildWlt({ name: 'IROME test', privateKey: PRIVATE_KEY, publicKey: pair.publicKey, networkByte: 0x68 }, PASSWORD);
 const json = JSON.parse(Buffer.from(text, 'base64').toString('utf8'));
 const acc = json.accounts['0'];
-check('made: Base64 of JSON with name and accounts[0]', json.name === 'KASANE test' && acc !== undefined);
+check('made: Base64 of JSON with name and accounts[0]', json.name === 'IROME test' && acc !== undefined);
 check('made: official fields (algo pass:enc, brain false, label Primary, network 104)', acc.algo === 'pass:enc' && acc.brain === false && acc.label === 'Primary' && acc.network === 104);
 check('made: address is the key\'s mainnet address', acc.address === nemAddressFromPublicKey(pair.publicKey, 0x68) && acc.address.startsWith('N'));
 check('made: cipher text is 48 bytes, iv 16 bytes (hex)', /^[0-9a-f]{96}$/.test(acc.encrypted) && /^[0-9a-f]{32}$/.test(acc.iv));
@@ -55,7 +55,7 @@ check('made: private key is not in the file', !text.includes(PRIVATE_KEY) && !Bu
   const plain = CryptoJS.AES.decrypt({ ciphertext: CryptoJS.enc.Hex.parse(acc.encrypted) } as CryptoJS.lib.CipherParams, key, { iv: CryptoJS.enc.Hex.parse(acc.iv) });
   check('made: nem-sdk decrypts it to the same private key', CryptoJS.enc.Hex.stringify(plain).toUpperCase() === PRIVATE_KEY);
 }
-check('made: reads back with the right password', (() => { const r = openWlt(parseWlt(text), PASSWORD); return r.privateKey === PRIVATE_KEY && r.publicKey === pair.publicKey && r.name === 'KASANE test' && r.networkByte === 0x68; })());
+check('made: reads back with the right password', (() => { const r = openWlt(parseWlt(text), PASSWORD); return r.privateKey === PRIVATE_KEY && r.publicKey === pair.publicKey && r.name === 'IROME test' && r.networkByte === 0x68; })());
 check('made: wrong password is refused', throws(() => openWlt(parseWlt(text), 'wrong password!')) === 'wrong_password');
 check('made: empty password is refused', throws(() => openWlt(parseWlt(text), '')) === 'wrong_password');
 check('made: two files of one key differ (random iv)', buildWlt({ name: 'a', privateKey: PRIVATE_KEY, publicKey: pair.publicKey, networkByte: 0x68 }, PASSWORD) !== text);

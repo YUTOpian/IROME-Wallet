@@ -17,7 +17,7 @@ import { Box, Typography } from '@mui/material';
 // edge, rather than the Balance one sitting 16px further right than the others.
 export default function CardRibbon({ text, bgcolor, icon, sx }: { text: string; bgcolor: string; icon: ReactNode; sx?: SxProps<Theme> }) {
   return (
-    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, bgcolor, color: (t) => (t.palette.mode === 'dark' ? t.kasane.ink : '#FFFFFF'), borderRadius: 999, px: 1.5, py: 0.5, ml: 2, mt: 2, ...sx }}>
+    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, bgcolor, color: (t) => (t.palette.mode === 'dark' ? t.irome.ink : '#FFFFFF'), borderRadius: 999, px: 1.5, py: 0.5, ml: 2, mt: 2, ...sx }}>
       {icon}
       <Typography sx={{ color: 'inherit', fontWeight: 'bold', fontSize: '0.8rem', lineHeight: 1 }}>{text}</Typography>
     </Box>

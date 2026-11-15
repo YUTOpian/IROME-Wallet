@@ -1,7 +1,7 @@
 // コンソールに「.js / .ts のファイルを読み込む」「いまのコードをファイルに保存する」ための小さな部品と、エラーの整形。通信なし。
 //   - checkScriptFile: 読み込む前の検査（拡張子・大きさ・空・バイナリ・.d.ts・JSX）。通らなければ、理由のコードを返す（文言は画面側で翻訳する）。
 //   - scriptLangFromName: 拡張子から実行する言語（.ts / .mts / .cts → ts、.js / .mjs / .cjs → js）。
-//   - scriptFileName: 保存するときのファイル名（kasane-console-20261031-120000.ts など）。
+//   - scriptFileName: 保存するときのファイル名（irome-console-20261031-120000.ts など）。
 //   - describeConsoleError: エラーを、画面に出す文字にする。構文エラーは、行・桁と、その行の中身、桁の位置の ^ を付ける。
 //     ファイル名があれば「name:行:桁」の形にする。Node.js 用の書き方（require など）で落ちたときは、ひとこと添える。
 // 読み込んだコードは、ふつうの入力と同じく、いったん入力欄に入れてから動かす（自動では動かさない。署名は、いつもどおり確認が入る）。
@@ -62,7 +62,7 @@ const two = (n: number): string => String(n).padStart(2, '0');
 export function scriptFileName(lang: ConsoleLang, now: Date = new Date()): string {
   const day = `${now.getFullYear()}${two(now.getMonth() + 1)}${two(now.getDate())}`;
   const time = `${two(now.getHours())}${two(now.getMinutes())}${two(now.getSeconds())}`;
-  return `kasane-console-${day}-${time}.${lang}`;
+  return `irome-console-${day}-${time}.${lang}`;
 }
 
 /** 保存するときの MIME タイプ（.ts は、動画の MIME と取り違えられないよう text/plain にする）。 */

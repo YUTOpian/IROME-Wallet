@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Box, Button, Checkbox, FormControlLabel, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import KasaneStage from './kasane/KasaneStage';
+import IromeStage from './irome/IromeStage';
 import OfficialProfileExportButton from './OfficialProfileExportButton';
 import { DisclaimerBox } from './Disclaimer';
 
@@ -24,7 +24,7 @@ export default function SafeStorageNotice({ onDone, onBack, exportWalletId }: Pr
   const points = t('wallet.safe_points', { returnObjects: true }) as string[];
 
   return (
-    <KasaneStage showBack={false} title={t('wallet.safe_title')} maxWidth={560}>
+    <IromeStage showBack={false} title={t('wallet.safe_title')} maxWidth={560}>
       <Box sx={{ mt: 2, px: 1 }}>
         <Box component="ul" sx={{ m: 0, pl: 3, lineHeight: 1.9 }}>
           {points.map((line, i) => (
@@ -62,6 +62,6 @@ export default function SafeStorageNotice({ onDone, onBack, exportWalletId }: Pr
           </Button>
         </Box>
       </Box>
-    </KasaneStage>
+    </IromeStage>
   );
 }

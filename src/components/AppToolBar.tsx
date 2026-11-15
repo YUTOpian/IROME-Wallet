@@ -17,7 +17,7 @@ interface AppToolBarProps {
   // from the bottom nav, where a redundant back arrow at the top just adds noise.
   showBack?: boolean;
   // Optional override for the back arrow's color (a CSS color, e.g. a hex string) - for
-  // screens that want a colour other than the KASANE bar's own. Omit to keep the default look.
+  // screens that want a colour other than the IROME bar's own. Omit to keep the default look.
   backColor?: string;
 }
 

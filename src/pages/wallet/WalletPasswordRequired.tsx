@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import PasswordDialog from '../../components/PasswordDialog';
 import { WalletsHelper } from '../../lib/storage';
 import cautionIcon from '../../assets/icon_caution.png';
@@ -35,7 +35,7 @@ export default function WalletPasswordRequired() {
   };
 
   return (
-    <KasaneStage showBack={false} title={t('wallet.password_required_title')} maxWidth={520}>
+    <IromeStage showBack={false} title={t('wallet.password_required_title')} maxWidth={520}>
       <Box sx={{ mb: 5, mx: 2, mt: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
           <Box component="img" src={cautionIcon} sx={{ width: 16, height: 16 }} />
@@ -56,6 +56,6 @@ export default function WalletPasswordRequired() {
         onCancel={() => {}}
         onPass={onPass}
       />
-    </KasaneStage>
+    </IromeStage>
   );
 }

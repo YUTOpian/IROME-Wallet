@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Box, Typography, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import { WalletsHelper } from '../../lib/storage';
 
 export default function WalletCreationNew() {
@@ -18,7 +18,7 @@ export default function WalletCreationNew() {
   }, []);
 
   return (
-    <KasaneStage showBack={false} title={t('wallet.create_title')}>
+    <IromeStage showBack={false} title={t('wallet.create_title')}>
       <Box sx={{ lineHeight: 1.9 }}>
         <Typography align="center">
           {t('wallet.create_message_0')}<br />{t('wallet.create_message_1')}<br />{t('wallet.create_message_2')}
@@ -32,6 +32,6 @@ export default function WalletCreationNew() {
           <Button variant="contained" color="primary" onClick={() => navigate('/wallet/creation/end')}>OK</Button>
         </Box>
       </Box>
-    </KasaneStage>
+    </IromeStage>
   );
 }

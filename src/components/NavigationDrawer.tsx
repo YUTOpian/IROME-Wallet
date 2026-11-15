@@ -21,7 +21,7 @@ import { CHAIN_LOGOS, chainLogo } from '../lib/chainIcons';
 import { CHAINS, CHAIN_ORDER } from '../lib/chain';
 import type { ChainKey } from '../lib/chain';
 import type { SymbolNetwork } from '../lib/symbol/constants';
-import { KasaneWordmark } from './kasane/KasaneLogo';
+import { IromeWordmark } from './irome/IromeLogo';
 import { AccountNavIcon, AggregateNavIcon, HarvestNavIcon, MetadataNavIcon, MosaicNavIcon, MultisigNavIcon, NamespaceNavIcon } from './NavIcons';
 import type { ImageKey } from '../theme/customTheme';
 import { WalletsHelper } from '../lib/storage';
@@ -78,10 +78,10 @@ export default function NavigationDrawer({ expanded, onToggle, mobile = false }:
   const sssLocked = sssProfile && sssReady;
   const viewOnly = pureWatchOnly || sssLocked;
   const theme = useTheme();
-  // Panel colours follow the chain (Symbol: warm KASANE, NEM: cool KASANE) and the light / dark scheme.
-  const M = theme.kasane.menu;
-  // Text / icons of the active entry sit on the gradient (or, in ビジネス, frosted) pill.
-  const INK = M.activeText ?? theme.kasane.onGradient;
+  // Panel colours follow the chain (Symbol: warm IROME, NEM: cool IROME) and the light / dark scheme.
+  const M = theme.irome.menu;
+  // Text / icons of the active entry sit on the gradient (or, in NEMホワイト, white) pill.
+  const INK = M.activeText ?? theme.irome.onGradient;
   const ACTIVE_BG = M.activeGradient;
   const [chainMenuAnchor, setChainMenuAnchor] = useState<HTMLElement | null>(null);
   // 「もっと見る」: Symbol / NEM のテストネットを出す。
@@ -111,7 +111,7 @@ export default function NavigationDrawer({ expanded, onToggle, mobile = false }:
 
   const iconSx = { color: 'inherit', fontSize: 28 };
   // カスタムテーマで、サイドメニューのアイコンを画像に替えていれば、その画像を（32px の枠に収めて）使う。
-  const navImages = theme.kasane.images;
+  const navImages = theme.irome.images;
   const navIcon = (key: ImageKey, fallback: ReactNode): ReactNode =>
     navImages[key] ? <Box component="img" src={navImages[key]} alt="" sx={{ display: 'block', width: 30, height: 30, objectFit: 'contain' }} /> : fallback;
   const items: ({ id?: 'home' | 'account' | 'service' | 'settings'; title: string; icon: ReactNode; active: boolean; action: () => void } | null)[] = [
@@ -252,7 +252,7 @@ export default function NavigationDrawer({ expanded, onToggle, mobile = false }:
               </IconButton>
             </Box>
             <Box aria-hidden={!showLabels} sx={{ flexShrink: 0, pointerEvents: 'none', ...labelFadeSx(showLabels) }}>
-              <KasaneWordmark width={104} color={TEXT} />
+              <IromeWordmark width={104} color={TEXT} />
             </Box>
           </Box>
           {/* The whole row (logo + "Symbol Mainnet") is one button that opens the picker. In the rail only the logo

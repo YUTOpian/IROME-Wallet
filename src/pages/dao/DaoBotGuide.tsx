@@ -6,7 +6,7 @@ import { SectionCard, mono } from '../multisig/parts';
 import { useDao } from './daoUi';
 
 // 「自動連署ボット」の案内（管理者だけに出す）。ボットはこのウォレットの画面からは動かせない。
-// サーバーで KASANE Wallet を動かしているとき、同じサーバーでコマンドを実行して動かす（詳しくは docs/DAO.md）。
+// サーバーで IROME Wallet を動かしているとき、同じサーバーでコマンドを実行して動かす（詳しくは docs/DAO.md）。
 // この画面でできるのは、ボット用アカウントを管理者（連署者）に加えるところまで。ボットが動いているかは、ここでは分からない。
 export default function DaoBotGuide({ onAddAdmin }: { onAddAdmin: () => void }) {
   const { t } = useTranslation();
@@ -17,12 +17,12 @@ export default function DaoBotGuide({ onAddAdmin }: { onAddAdmin: () => void }) 
   if (!isAdmin || (network !== 'mainnet' && network !== 'testnet')) return null;
 
   const env = [
-    'KASANE_DAO_BOT=1',
-    `KASANE_DAO_BOT_DAO=${dao.id}`,
-    `KASANE_DAO_BOT_NETWORK=${network}`,
-    'KASANE_DAO_BOT_NODE=https://<node>',
-    'KASANE_DAO_BOT_KEY_FILE=/etc/kasane/dao-bot.key',
-    'KASANE_DAO_BOT_DRY_RUN=1',
+    'IROME_DAO_BOT=1',
+    `IROME_DAO_BOT_DAO=${dao.id}`,
+    `IROME_DAO_BOT_NETWORK=${network}`,
+    'IROME_DAO_BOT_NODE=https://<node>',
+    'IROME_DAO_BOT_KEY_FILE=/etc/irome/dao-bot.key',
+    'IROME_DAO_BOT_DRY_RUN=1',
     'npm run dao-bot',
   ].join('\n');
   const copy = () => {

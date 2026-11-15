@@ -15,7 +15,7 @@ const COMMON = new Set([
   'welcome1234', 'letmein123', 'letmein1234', 'admin12345', 'administrator', 'abc1234567', 'abcd123456',
   '1q2w3e4r5t', '1qaz2wsx3edc', '1234qwer56', 'monkey1234', 'dragon1234', 'football123', 'baseball123',
   'sunshine123', 'princess123', 'trustno111', 'changeme123', 'symbol1234', 'symbolwallet', 'nemwallet12',
-  'kasane1234', 'kasanewallet', 'xymxymxymxym', 'xemxemxemxem', 'mnemonic123',
+  'kasane1234', 'kasanewallet', 'irome1234', 'iromewallet', 'xymxymxymxym', 'xemxemxemxem', 'mnemonic123',
 ]);
 
 const SEQUENCES = ['0123456789', '9876543210', 'abcdefghijklmnopqrstuvwxyz', 'zyxwvutsrqponmlkjihgfedcba',

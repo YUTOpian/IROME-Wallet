@@ -3,7 +3,7 @@
  * 元は AngularJS + Bootstrap 3 + font-awesome で、スタイルは NanoWallet の src/sass/_new.scss の
  * `.optin-page` まわり。ここではその値をそのまま使い、使っていた Bootstrap 3 の部品
  * （container / row / col-md-* / form-control / input-group / btn）だけを .optin-root の中に書き直している。
- * 外のアプリ（KASANE）のスタイルには触らない。
+ * 外のアプリ（IROME）のスタイルには触らない。
  */
 .optin-root {
   position: fixed;

@@ -29,7 +29,7 @@ ok(bare !== null && bare.message === 'hi', 'a bare {message, publicKey, signatur
 ok(parseNemSignedMessage(JSON.stringify({ message: 'hi', publicKey: 'AA', signature: sig })) === null, 'a bad public key is refused');
 ok(parseNemSignedMessage(JSON.stringify({ message: 'hi', publicKey: pub, signature: 'AA' })) === null, 'a bad signature is refused');
 ok(parseNemSignedMessage(JSON.stringify({ message: 5, publicKey: pub, signature: sig })) === null, 'a message that is not text is refused');
-ok(parseNemSignedMessage(JSON.stringify({ kasane: 1, kind: 'nem_signed', data: { message: 'x', publicKey: pub, signature: sig } })) === null, 'another KASANE kind is not a signed message');
+ok(parseNemSignedMessage(JSON.stringify({ kasane: 1, kind: 'nem_signed', data: { message: 'x', publicKey: pub, signature: sig } })) === null, 'another IROME kind is not a signed message');
 ok(parseNemSignedMessage('not json') === null && parseNemSignedMessage('') === null && parseNemSignedMessage('[1]') === null, 'garbage');
 throws(() => buildNemSignedMessage({ message: 'x', publicKey: 'AA', signature: sig }), 'cannot build with a bad key');
 
@@ -39,7 +39,7 @@ const nanoHex = (m: string) => nemBytesToHex(nemNanoMessageBytes(m));
 ok(nanoHex('hello 123\n abc') === '68656c6c6f203132330a20616263', 'Nano encoding: ASCII');
 ok(nanoHex('こんにちは NEM\n  日本語 é') === 'e38193e38293e381abe381a1e381af204e454d0a2020e697a5e69cace8aa9e20c3a9', 'Nano encoding: Japanese / accents = real UTF-8');
 ok(nanoHex('with emoji 😀') === '7769746820656d6f6a6920eda0bdedb880', 'Nano encoding: an emoji is two 3-byte units (not 4-byte UTF-8)');
-ok(nemBytesToHex(nemMessageBytes('😀')) === 'f09f9880', 'KASANE (real UTF-8) keeps the emoji as 4 bytes');
+ok(nemBytesToHex(nemMessageBytes('😀')) === 'f09f9880', 'IROME (real UTF-8) keeps the emoji as 4 bytes');
 ok(nemBytesToHex(nemNanoMessageBytes('こんにちは')) === nemBytesToHex(nemMessageBytes('こんにちは')), 'BMP text: both encodings are the same bytes');
 
 ok(nemHexToText('e38193e38293e381abe381a1e381af204e454d0a2020e697a5e69cace8aa9e20c3a9') === 'こんにちは NEM\n  日本語 é', 'hex -> text (UTF-8)');
@@ -63,7 +63,7 @@ const nanoOut = JSON.parse(buildNanoWalletSignedMessage({ publicKey: pub.toUpper
 ok(Object.keys(nanoOut).join() === 'message,signer,signature', 'NanoWallet JSON keys and order');
 ok(nanoOut.message === '68656c6c6f' && nanoOut.signer === pub && nanoOut.signature === sig, 'NanoWallet JSON: hex message, lower-case key and signature', nanoOut);
 const rt = parseNemSignedMessage(buildNanoWalletSignedMessage({ publicKey: pub, signature: sig }, nemMessageBytes('こんにちは\n 😀')));
-ok(rt?.message === 'こんにちは\n 😀', 'KASANE -> NanoWallet JSON -> KASANE keeps the text (even with an emoji)', rt);
+ok(rt?.message === 'こんにちは\n 😀', 'IROME -> NanoWallet JSON -> IROME keeps the text (even with an emoji)', rt);
 throws(() => buildNanoWalletSignedMessage({ publicKey: 'AA', signature: sig }, nemMessageBytes('x')), 'cannot build a NanoWallet JSON with a bad key');
 
 console.log(fails === 0 ? `ALL OK (${checks} checks)` : `${fails} FAILED of ${checks}`);

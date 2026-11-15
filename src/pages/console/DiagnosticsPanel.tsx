@@ -52,7 +52,7 @@ export default function DiagnosticsPanel({ visible = true }: { visible?: boolean
   };
   const download = async () => {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    saveTextFile(report(), `kasane-diagnostics-${stamp}.txt`, 'text/plain')
+    saveTextFile(report(), `irome-diagnostics-${stamp}.txt`, 'text/plain')
   };
 
   // 接続を確認: finds / tests the node of the selected chain and asks it for the chain height; every step is logged.

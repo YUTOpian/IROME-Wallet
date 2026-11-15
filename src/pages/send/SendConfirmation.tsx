@@ -22,7 +22,7 @@ import { parseWatchAddress } from '../../lib/watchAddress';
 import { WalletsHelper } from '../../lib/storage';
 import { getMosaicInfos, quoteFee, sendTransfer, signTransferForExport, SymbolSendError } from '../../lib/symbol/api';
 import { isOfflineIssued } from '../../lib/offline/issue';
-import { buildKasaneQr } from '../../lib/symbol/kasaneQr';
+import { buildIromeQr } from '../../lib/symbol/iromeQr';
 import { formatAtomic, parseDecimal } from '../../lib/symbol/amount';
 import { chainMeta } from '../../lib/chain';
 import { activeNetworkByte, activeNetworkLabel, currencyDivisibility, currencySymbol, nativeAssetId, prettyChainAddress } from '../../lib/chainApi';
@@ -282,7 +282,7 @@ export default function SendConfirmation() {
           encrypt,
           feeSpeed,
         });
-        setExported({ text: buildKasaneQr({ kind: 'signed', payload: signed.payload, hash: signed.hash }), deadlineMs: signed.deadlineMs });
+        setExported({ text: buildIromeQr({ kind: 'signed', payload: signed.payload, hash: signed.hash }), deadlineMs: signed.deadlineMs });
         return;
       } else {
         await sendTransfer({

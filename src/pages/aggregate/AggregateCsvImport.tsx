@@ -107,7 +107,7 @@ export default function AggregateCsvImport({ ctx, full, onAdd }: Props) {
   const downloadSample = () => {
     const comments = t('aggregate.csv_sample_comments', { returnObjects: true }) as string[];
     // The BOM makes Excel (and Windows Notepad) read the file as UTF-8.
-    saveTextFile(buildSampleCsv(ctx.address, network.currencyMosaicId, comments), 'kasane-aggregate-sample.csv', 'text/csv;charset=utf-8', true);
+    saveTextFile(buildSampleCsv(ctx.address, network.currencyMosaicId, comments), 'irome-aggregate-sample.csv', 'text/csv;charset=utf-8', true);
   };
 
   const problemText = (p: CsvProblem) => t(p.key, p.params);

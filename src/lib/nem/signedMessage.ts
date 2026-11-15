@@ -5,7 +5,7 @@
 // このファイルは SDK を使わない（形式の検査と、共有用 JSON の組み立て・読み取りだけ）。署名と検証そのものは
 // lib/nem/crypto.ts の signNemData / verifyNemSignature。
 //
-// 共有用のテキスト（QR にもできる）は KASANE の封筒に入れた JSON:
+// 共有用のテキスト（QR にもできる）は IROME の封筒に入れた JSON:
 //   { "kasane": 1, "kind": "nem_signed_message", "data": { "message": "...", "publicKey": "<64 hex>", "signature": "<128 hex>" } }
 // 他のツールが出す `{"message","publicKey","signature"}` だけの JSON も読める。
 //
@@ -15,7 +15,7 @@
 //   署名の中身（Ed25519 / Keccak-512 でバイト列に署名）は同じ。違いは、絵文字などサロゲートペアの文字を NanoWallet が
 //   UTF-16 の 1 単位ずつ 3 バイトに符号化する点（正しい UTF-8 では 4 バイト）。検証では両方の符号化を試す。
 export const NEM_SIGNED_MESSAGE_KIND = 'nem_signed_message';
-const KASANE_QR_VERSION = 1;
+const IROME_QR_VERSION = 1;
 
 /** 署名の対象はメッセージの UTF-8 バイト列（改行・空白も 1 文字ずつ含む）。 */
 export function nemMessageBytes(message: string): Uint8Array {
@@ -94,7 +94,7 @@ export interface NemSignedMessage {
 export function buildNemSignedMessage(m: NemSignedMessage): string {
   if (!isNemPublicKeyHex(m.publicKey) || !isNemSignatureHex(m.signature)) throw new Error('nem signed message: bad key or signature');
   return JSON.stringify({
-    kasane: KASANE_QR_VERSION,
+    kasane: IROME_QR_VERSION,
     kind: NEM_SIGNED_MESSAGE_KIND,
     data: { message: m.message, publicKey: m.publicKey.trim().toUpperCase(), signature: m.signature.trim().toUpperCase() },
   });
@@ -102,7 +102,7 @@ export function buildNemSignedMessage(m: NemSignedMessage): string {
 
 /**
  * NanoWallet と同じ形式の共有 JSON: { message: <署名したバイト列の16進>, signer: <公開鍵>, signature: <署名> }。
- * bytes は署名したバイト列（KASANE なら UTF-8、NanoWallet 式なら nemNanoMessageBytes）。これを 16 進にして message に入れるので、
+ * bytes は署名したバイト列（IROME なら UTF-8、NanoWallet 式なら nemNanoMessageBytes）。これを 16 進にして message に入れるので、
  * NanoWallet 側は署名をそのまま検証できる。
  */
 export function buildNanoWalletSignedMessage(m: { publicKey: string; signature: string }, bytes: Uint8Array): string {
@@ -111,7 +111,7 @@ export function buildNanoWalletSignedMessage(m: { publicKey: string; signature: 
 }
 
 /**
- * KASANE の封筒、`{"message","publicKey","signature"}`、または NanoWallet の `{"message"(16進),"signer","signature"}`。
+ * IROME の封筒、`{"message","publicKey","signature"}`、または NanoWallet の `{"message"(16進),"signer","signature"}`。
  * どれでもなければ null。NanoWallet 形式（`publicKey` がなく `signer` がある）で message が 16 進なら、文章に戻して返す。
  */
 export function parseNemSignedMessage(text: string): NemSignedMessage | null {
@@ -127,7 +127,7 @@ export function parseNemSignedMessage(text: string): NemSignedMessage | null {
   let d = json as Record<string, unknown>;
   let from: NemSignedMessage['from'] = 'plain';
   if (d.kasane !== undefined) {
-    if (d.kasane !== KASANE_QR_VERSION || d.kind !== NEM_SIGNED_MESSAGE_KIND || d.data === null || typeof d.data !== 'object') return null;
+    if (d.kasane !== IROME_QR_VERSION || d.kind !== NEM_SIGNED_MESSAGE_KIND || d.data === null || typeof d.data !== 'object') return null;
     d = d.data as Record<string, unknown>;
     from = 'kasane';
   }

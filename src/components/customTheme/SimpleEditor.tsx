@@ -4,7 +4,7 @@ import OptionSelect, { OptionItem } from '../OptionSelect';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useTranslation } from 'react-i18next';
-import { createKasaneTheme } from '../../theme/kasaneTheme';
+import { createIromeTheme } from '../../theme/iromeTheme';
 import { MAX_TAB_TITLE_LENGTH, MAX_TOTAL_IMAGE_CHARS, imageCharsOf, normalizeTabTitle } from '../../theme/customTheme';
 import type { CustomMode, LookValues, SavedCustomTheme } from '../../theme/customTheme';
 import { COLOR_ITEMS, colorOfItem, isItemSet, resetColor, setColor, setTabTitle, setValues } from '../../theme/themeDraft';
@@ -32,7 +32,7 @@ export default function SimpleEditor({ ed, themes, update, hideLogos = false }: 
   const { t } = useTranslation();
   const picker = useImagePicker(ed, themes, update);
   const mode: CustomMode = ed.root.mode ?? 'dark';
-  const defaults: LookValues = createKasaneTheme(mode, 'symbol').kasane.look; // the standard colours of this base: what a colour shows until it is changed
+  const defaults: LookValues = createIromeTheme(mode, 'symbol').irome.look; // the standard colours of this base: what a colour shows until it is changed
   const value = <K extends keyof LookValues>(key: K): LookValues[K] => (ed.root[key] ?? defaults[key]) as LookValues[K];
   const round = Number(value('buttonRadius')) >= 999;
   const usage = Math.round((imageCharsOf({ images: ed.images }) / MAX_TOTAL_IMAGE_CHARS) * 100);
@@ -95,7 +95,7 @@ export default function SimpleEditor({ ed, themes, update, hideLogos = false }: 
             {imageSlotsOf(['tabIcon']).map((slot) => <ImageRow key={slot.key} slot={slot} ed={ed} picker={picker} />)}
             <TextField
               size="small" fullWidth sx={{ mt: 1 }}
-              label={t('settings.custom_theme_tab_title_label')} placeholder="KASANE Wallet"
+              label={t('settings.custom_theme_tab_title_label')} placeholder="IROME Wallet"
               value={ed.tabTitle}
               onChange={(e) => update((cur) => setTabTitle(cur, e.target.value.slice(0, MAX_TAB_TITLE_LENGTH)))}
               error={ed.tabTitle.trim() !== '' && normalizeTabTitle(ed.tabTitle) === null}

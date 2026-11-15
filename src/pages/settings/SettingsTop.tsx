@@ -222,7 +222,7 @@ export default function SettingsTop() {
     { text: t('wallet.disclaimer_title'), secondary: '', action: () => setShowDisclaimer(true) },
     // Both chains listen for new transactions (Symbol: WebSocket, NEM: polling). One switch for the sounds: the new-transaction sound and the confirmed sound play together or not at all.
     { text: t('settings.live_sound'), secondary: t(liveSound ? 'settings.on' : 'settings.off'), action: () => setLiveSound(!liveSound) },
-    // Which sounds: the new KASANE ones or the classic ones (the former sounds).
+    // Which sounds: the new IROME ones or the classic ones (the former sounds).
     { text: t('settings.live_sound_theme'), secondary: t(`settings.live_sound_theme_${liveSoundTheme}`), action: () => setShowSoundDialog(true) },
     // テストネットのときだけ：使い終わったテストXYM / テストXEM を全額返還する。
     ...(network === 'testnet' && !watchOnly ? [

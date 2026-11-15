@@ -3,8 +3,9 @@ import { Box, Button, CircularProgress, Typography } from '@mui/material';
 import { keyframes } from '@mui/system';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { KASANE } from '../theme/kasaneTheme';
-import { KasaneMark, KasaneWordmark, KasaneWalletWord } from '../components/kasane/KasaneLogo';
+import { IROME_LOGO } from '../theme/iromeTheme';
+import { IromeMark, IromeWordmark, IromeWalletWord } from '../components/irome/IromeLogo';
+import { BrushYokoso } from '../components/irome/BrushLogo';
 import { LanguageThemeButtons, pillButtonSx } from '../components/LanguageThemeControls';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import OfficialProfileImportDialog from '../components/OfficialProfileImportDialog';
@@ -13,7 +14,7 @@ import { dismissOfficialProfiles, findNewOfficialProfiles } from '../lib/officia
 import type { OfficialFound } from '../lib/officialProfile/detect';
 
 // アプリを一番最初に起動したとき、またはウォレットが1件も無いときに表示するウェルカム画面。
-// KASANEのロゴ（六角形に重なった屋根）をそのまま主役にした、くすんだ紫グレーの舞台。
+// IROMEのロゴ（五色に重なった襟）をそのまま主役にした、くすんだ紫グレーの舞台。
 // ここでの唯一のアクションは「GET STARTED」で、ウォレット選択画面（/wallet/select）へ進む。
 // GET STARTEDの下に、言語ボタン・テーマボタン・免責事項を横に並べる。言語とテーマは押すと選択メニューが開く（SettingsTop.tsxと同じstoreを使う）。
 const glow = keyframes`0%, 100% { opacity: 0.35; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.06); }`;
@@ -21,7 +22,8 @@ const reducedMotion = '@media (prefers-reduced-motion: reduce)';
 
 export default function Welcome() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n: i18nInst } = useTranslation();
+  const isJa = (i18nInst.language ?? '').startsWith('ja');
   // このブラウザに Symbol 公式ウォレットのプロファイルがあるかは、起動時ではなく GET STARTED を押したときに確かめる。
   // 見つかればパスワード入力のポップアップを出し、閉じたあとにプロファイル選択画面へ進む。見つからなければそのまま進む。
   const [found, setFound] = useState<OfficialFound | null>(null);
@@ -49,7 +51,7 @@ export default function Welcome() {
       sx={{
         position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         minHeight: '100svh', width: '100%', boxSizing: 'border-box', color: 'text.primary', textAlign: 'center',
-        px: 3, py: { xs: 5, md: 8 }, overflow: 'hidden', background: (t) => t.kasane.stageBg,
+        px: 3, py: { xs: 5, md: 8 }, overflow: 'hidden', background: (t) => t.irome.stageBg,
       }}
     >
       {/* スマホは縦1列。デスクトップ（900px以上）は、左にロゴ・右に文言とボタンの2カラム。 */}
@@ -67,29 +69,37 @@ export default function Welcome() {
               aria-hidden
               sx={{
                 position: 'absolute', inset: { xs: -40, md: -70 }, borderRadius: '50%',
-                background: `radial-gradient(circle, ${KASANE.pink}66 0%, ${KASANE.lavender}22 45%, transparent 70%)`,
+                background: `radial-gradient(circle, ${IROME_LOGO.pink}66 0%, ${IROME_LOGO.lavender}22 45%, transparent 70%)`,
                 animation: `${glow} 5s ease-in-out infinite`, [reducedMotion]: { animation: 'none' },
               }}
             />
             <Box sx={{ position: 'relative', width: { xs: 'min(230px, 58vw)', md: 340 } }}>
-              <Box sx={{ display: { xs: 'block', md: 'none' } }}><KasaneMark size={230} /></Box>
-              <Box sx={{ display: { xs: 'none', md: 'block' } }}><KasaneMark size={340} /></Box>
+              <Box sx={{ display: { xs: 'block', md: 'none' } }}><IromeMark size={230} /></Box>
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}><IromeMark size={340} /></Box>
             </Box>
           </Box>
           <Box sx={{ maxWidth: '78vw' }}>
-            <Box sx={{ display: { xs: 'block', md: 'none' } }}><KasaneWordmark width={300} /></Box>
-            <Box sx={{ display: { xs: 'none', md: 'block' } }}><KasaneWordmark width={340} /></Box>
+            <Box sx={{ display: { xs: 'block', md: 'none' } }}><IromeWordmark width={300} /></Box>
+            <Box sx={{ display: { xs: 'none', md: 'block' } }}><IromeWordmark width={340} /></Box>
           </Box>
           <Box sx={{ mt: { xs: 2.5, md: 3 }, display: 'flex', justifyContent: 'center' }}>
-            <Box sx={{ display: { xs: 'block', md: 'none' } }}><KasaneWalletWord width={150} /></Box>
-            <Box sx={{ display: { xs: 'none', md: 'block' } }}><KasaneWalletWord width={170} /></Box>
+            <Box sx={{ display: { xs: 'block', md: 'none' } }}><IromeWalletWord width={150} /></Box>
+            <Box sx={{ display: { xs: 'none', md: 'block' } }}><IromeWalletWord width={170} /></Box>
           </Box>
         </Box>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: { xs: 'center', md: 'flex-start' }, textAlign: { xs: 'center', md: 'left' }, flex: { md: '1 1 0' }, minWidth: 0, mt: { xs: 4, md: 0 }, width: { xs: '100%', md: 'auto' } }}>
-          <Typography variant="h4" sx={{ fontWeight: 400, lineHeight: 1.3, mb: { xs: 2, md: 3 }, letterSpacing: { xs: 6, md: 8 }, color: (t) => t.kasane.wordmark, fontSize: { xs: 24, sm: 28, md: 40 } }}>
-            {t('wallet.welcome_title_2')}
-          </Typography>
+          {/* 日本語のときだけ「ようこそ」を筆文字で。他の言語は、これまでどおりの細い字。 */}
+          {isJa ? (
+            <Box component="h1" sx={{ m: 0, mb: { xs: 2, md: 3 }, fontWeight: 400, lineHeight: 1 }} aria-label={t('wallet.welcome_title_2')}>
+              <Box sx={{ display: { xs: 'block', md: 'none' } }}><BrushYokoso height={46} /></Box>
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}><BrushYokoso height={72} /></Box>
+            </Box>
+          ) : (
+            <Typography variant="h4" sx={{ fontWeight: 400, lineHeight: 1.3, mb: { xs: 2, md: 3 }, letterSpacing: { xs: 6, md: 8 }, color: (t) => t.irome.wordmark, fontSize: { xs: 24, sm: 28, md: 40 } }}>
+              {t('wallet.welcome_title_2')}
+            </Typography>
+          )}
 
           <Typography variant="body2" sx={{ color: 'text.secondary', mb: { xs: 5, md: 6 }, maxWidth: { xs: 420, md: 480 }, lineHeight: 1.9, fontSize: { md: 17 }, whiteSpace: 'pre-line' }}>
             {t('wallet.welcome_subtitle')}

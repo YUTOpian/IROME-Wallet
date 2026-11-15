@@ -52,8 +52,8 @@ const dup = detectEmbeddedBrowser({ userAgent: ELECTRON, electronVersion: '33.2.
 check('electron が二重に数えられない', dup.kinds.filter((k) => k === 'electron').length === 1);
 
 // 別のブラウザに貼るアドレス
-check('# 以降のルートは外す', addressForOtherBrowser('https://example.com/kasane/index.html#/wallet/select') === 'https://example.com/kasane/index.html');
-check('# が無ければそのまま', addressForOtherBrowser('file:///Users/me/kasane/index.html') === 'file:///Users/me/kasane/index.html');
+check('# 以降のルートは外す', addressForOtherBrowser('https://example.com/irome/index.html#/wallet/select') === 'https://example.com/irome/index.html');
+check('# が無ければそのまま', addressForOtherBrowser('file:///Users/me/irome/index.html') === 'file:///Users/me/irome/index.html');
 
 if (failed > 0) {
   console.log(`\n${failed} check(s) failed`);

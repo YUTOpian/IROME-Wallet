@@ -71,8 +71,8 @@ export default function OfflineShell({ tab, steps, step, children }: Props) {
                 sx={{
                   display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1, borderRadius: 1.5, fontSize: '0.9rem',
                   fontWeight: active ? 'bold' : 'normal',
-                  background: (th) => (active ? th.kasane.gradient : 'transparent'),
-                  color: (th) => (active ? th.kasane.ink : done ? th.palette.text.primary : th.palette.text.disabled),
+                  background: (th) => (active ? th.irome.gradient : 'transparent'),
+                  color: (th) => (active ? th.irome.ink : done ? th.palette.text.primary : th.palette.text.disabled),
                   border: 1, borderColor: active ? 'transparent' : 'divider',
                 }}
               >

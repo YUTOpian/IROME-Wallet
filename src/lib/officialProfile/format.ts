@@ -4,7 +4,7 @@
 //   accounts                … { version, data: { [accountId]: AccountModel } }
 //   (settings / addressBookPerProfile もあるが、無くても既定値で動くので扱わない)
 // この形式の読み取り・組み立てと、パスワードまわりの暗号（SDK の Crypto.encrypt / decrypt と同じ方式）を
-// 扱う。KASANE の保存先（localForage）や鍵の導出には依存しない純粋な部分。
+// 扱う。IROME の保存先（localForage）や鍵の導出には依存しない純粋な部分。
 import { sha3_512 } from '@noble/hashes/sha3.js';
 
 // 公式ウォレット 1.2.0 の VersionedObjectStorage の版数（= マイグレーション数 + 1）。
@@ -124,7 +124,7 @@ export function officialPasswordMatches(profile: Pick<OfficialProfile, 'password
 
 // SDK の Crypto.encrypt: salt(16) と iv(16) をランダムに作り、PBKDF2（CryptoJS の既定＝HMAC-SHA1、1024 回、32 バイト）で
 // 鍵を作り、AES-256-CBC（PKCS#7）で暗号化する。出力は 「salt の16進(32桁) + iv の16進(32桁) + 暗号文の Base64」。
-// ※ 公式ウォレットが使う crypto-js は PBKDF2 の既定が SHA-1。KASANE が入れている crypto-js 4.2 は既定が SHA-256 に
+// ※ 公式ウォレットが使う crypto-js は PBKDF2 の既定が SHA-1。IROME が入れている crypto-js 4.2 は既定が SHA-256 に
 //   変わっているので、crypto-js は使わず、ここで SHA-1 を明示している。
 const PBKDF2_ITERATIONS = 1024;
 
@@ -233,7 +233,7 @@ function toAccount(id: string, raw: unknown): OfficialAccount | null {
  *  - localStorage の `profiles` と `accounts` を並べた JSON（値は文字列でもオブジェクトでもよい）
  *    例: { "profiles": "{\"version\":8,\"data\":{…}}", "accounts": "{…}" }
  *  - localStorage 全体を JSON.stringify したもの（同じ形。ほかのキーは無視する）
- *  - KASANE が書き出したファイル（同じ形に "format" などが付いたもの）
+ *  - IROME が書き出したファイル（同じ形に "format" などが付いたもの）
  */
 export function parseOfficialData(text: string): OfficialData {
   const trimmed = text.replace(/^\uFEFF/, '').trim();

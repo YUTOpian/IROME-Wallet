@@ -3,7 +3,7 @@ import { clearHandedPassword, readHandedPassword } from '../../lib/passedPasswor
 import { Box, Button, Grid, Card, Typography } from '@mui/material';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import MnemonicQrExport from '../../components/MnemonicQrExport';
 import MnemonicCopyButton from '../../components/MnemonicCopyButton';
 import PaperWalletButton from '../../components/PaperWalletButton';
@@ -159,7 +159,7 @@ export default function WalletBackup() {
   const words = mode === 'mnemonic' && key.length > 0 ? key.split(' ') : [];
 
   return (
-    <KasaneStage
+    <IromeStage
       back={`/wallet/backup_caution?id=${id}${backParam}${modeParam}`}
       title={mode === 'mnemonic' ? t('wallet.mnemonic_title') : t('wallet.private_key_backup_title')}
       maxWidth={560}
@@ -234,6 +234,6 @@ export default function WalletBackup() {
       </Box>
 
       <PasswordDialog open={showPinDialog} mode="check" popup profileKey={profileKey} onClose={() => setShowPinDialog(false)} onPass={onPassed} />
-    </KasaneStage>
+    </IromeStage>
   );
 }

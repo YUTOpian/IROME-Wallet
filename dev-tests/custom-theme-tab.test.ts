@@ -91,14 +91,14 @@ check('css without a title resets it', cleared.tabTitle === '');
 {
   const attrs: Record<string, string> = { href: 'data:image/png;base64,DEFAULT' };
   const link = { getAttribute: (k: string) => attrs[k] ?? null, setAttribute: (k: string, v: string) => { attrs[k] = v; } };
-  const doc = { title: 'KASANE Wallet', querySelector: () => link, createElement: () => link, head: { appendChild: () => {} } };
+  const doc = { title: 'IROME Wallet', querySelector: () => link, createElement: () => link, head: { appendChild: () => {} } };
   (globalThis as unknown as { document: unknown }).document = doc;
   applyTabIdentity({ tabTitle: 'Mine', images: { tabIcon: PNG } });
   check('applies the custom title and icon', doc.title === 'Mine' && attrs.href === PNG);
   applyTabIdentity({ tabTitle: 'Other' });
   check('icon falls back to the default when the theme has none', doc.title === 'Other' && attrs.href === 'data:image/png;base64,DEFAULT');
   applyTabIdentity(null);
-  check('no custom theme: back to the standard title and icon', doc.title === 'KASANE Wallet' && attrs.href === 'data:image/png;base64,DEFAULT');
+  check('no custom theme: back to the standard title and icon', doc.title === 'IROME Wallet' && attrs.href === 'data:image/png;base64,DEFAULT');
 }
 
 console.log(failed === 0 ? '\nALL PASS' : `\n${failed} FAILED`);

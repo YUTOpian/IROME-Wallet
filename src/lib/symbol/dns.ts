@@ -33,7 +33,7 @@ const MAX_DEPTH = 3;
 const NAME_PART = /^[a-z0-9][a-z0-9_-]*$/;
 
 /**
- * 入力（"kasane"、"Kasane"、"a.b" など）を Symbol のネームスペース名にそろえる。前後の空白を取り、小文字にする。
+ * 入力（"kasane"、"Irome"、"a.b" など）を Symbol のネームスペース名にそろえる。前後の空白を取り、小文字にする。
  * 形が違えば null。
  */
 export function normalizeSymbolDnsName(input: string): string | null {

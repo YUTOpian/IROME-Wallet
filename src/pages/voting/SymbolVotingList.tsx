@@ -169,7 +169,7 @@ export default function SymbolVotingList() {
         ) : visible.length === 0 && loadingMore ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={26} /></Box>
         ) : visible.length === 0 ? (
-          <Typography sx={{ color: 'text.secondary', textAlign: 'center', py: 4 }}>{t('nemvoting.empty')}</Typography>
+          <Typography sx={(t) => ({ color: 'text.secondary', textAlign: 'center', py: 4, ...t.irome.stageText })}>{t('nemvoting.empty')}</Typography>
         ) : (
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 1.5 }}>
             {visible.map((h) => {

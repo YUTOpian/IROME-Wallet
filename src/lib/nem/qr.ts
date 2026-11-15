@@ -32,9 +32,9 @@ export function buildNemAddressQr(address: string, name = ''): string {
 }
 
 /** Name printed into the invoice QR (NanoWallet writes "NanoWallet XEM invoice"). */
-export const NEM_INVOICE_NAME = 'KASANE XEM invoice';
+export const NEM_INVOICE_NAME = 'IROME XEM invoice';
 /** Name printed into an invoice QR that carries mosaics (type 4). */
-export const NEM_MOSAIC_INVOICE_NAME = 'KASANE invoice';
+export const NEM_MOSAIC_INVOICE_NAME = 'IROME invoice';
 
 /**
  * Invoice / payment-request QR.

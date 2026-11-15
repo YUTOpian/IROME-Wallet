@@ -13,7 +13,7 @@ export interface EditorTheme {
   root: CustomValues;
   chains: CustomThemeData['chains'];
   images: CustomImages;
-  tabTitle: string; // ブラウザのタブの表示名（空なら「KASANE Wallet」のまま）
+  tabTitle: string; // ブラウザのタブの表示名（空なら「IROME Wallet」のまま）
 }
 
 export const emptyEditor = (): EditorTheme => ({ id: null, name: '', root: {}, chains: {}, images: {}, tabTitle: '' });
@@ -49,7 +49,7 @@ export function applyCssToEditor(ed: EditorTheme, parsed: ThemeParseResult): Edi
   if (!parsed.theme) return ed;
   const images: CustomImages = { ...ed.images, ...parsed.theme.images };
   for (const key of parsed.clearedImages) delete images[key];
-  // タブの表示名は、色などと同じ扱い：CSS に書いてあればその文字に、書いていなければ（消してあれば）標準の「KASANE Wallet」に戻る。
+  // タブの表示名は、色などと同じ扱い：CSS に書いてあればその文字に、書いていなければ（消してあれば）標準の「IROME Wallet」に戻る。
   return { ...ed, name: ed.name.trim() !== '' ? ed.name : parsed.theme.name, root: parsed.theme.root, chains: parsed.theme.chains, images, tabTitle: parsed.theme.tabTitle ?? '' };
 }
 

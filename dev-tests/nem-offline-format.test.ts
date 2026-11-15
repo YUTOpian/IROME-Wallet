@@ -84,7 +84,7 @@ ok(bare !== null && bare.networkId === null && bare.body.data === good, 'a bare 
 ok(parseNemSigned(JSON.stringify({ data: good.toLowerCase(), signature: sig.toLowerCase() }))?.body.data === good, 'lower-case hex is accepted');
 ok(parseNemSigned(JSON.stringify({ data: good, signature: 'AB' })) === null, 'a short signature is refused');
 ok(parseNemSigned(JSON.stringify({ data: 'ZZ', signature: sig })) === null, 'data that is not hex is refused');
-ok(parseNemSigned(JSON.stringify({ kasane: 1, kind: 'signed', network_id: 104, data: { payload: 'AA', hash: 'BB' } })) === null, 'a Symbol KASANE QR is not a NEM one');
+ok(parseNemSigned(JSON.stringify({ kasane: 1, kind: 'signed', network_id: 104, data: { payload: 'AA', hash: 'BB' } })) === null, 'a Symbol IROME QR is not a NEM one');
 ok(parseNemSigned('not json') === null && parseNemSigned('') === null, 'garbage');
 throws(() => buildNemSignedQr('{"data":"AA","signature":"BB"}', 0x68), 'building from something that is not a signed transaction');
 

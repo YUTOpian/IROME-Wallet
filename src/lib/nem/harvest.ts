@@ -18,6 +18,7 @@ export interface NemRemoteAccount extends NemKeyPair {
   address: string;
 }
 
+// NOTE: keep the "KASANE" domain text as is - it derives the delegated-harvesting remote account (renaming the app must not change it).
 const REMOTE_DOMAIN = new TextEncoder().encode('KASANE Wallet / NEM delegated harvesting remote account / v1');
 
 /**

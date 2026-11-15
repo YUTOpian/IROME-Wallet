@@ -11,7 +11,7 @@ import ErrorSnackbar from '../../components/ErrorSnackbar';
 import MessageDialog from '../../components/MessageDialog';
 import PasswordDialog from '../../components/PasswordDialog';
 import QrTextDialog from '../../components/QrTextDialog';
-import { KASANE_QR_MAX_LENGTH, buildKasaneQr } from '../../lib/symbol/kasaneQr';
+import { IROME_QR_MAX_LENGTH, buildIromeQr } from '../../lib/symbol/iromeQr';
 import { SymbolSendError } from '../../lib/symbol/api';
 import type { MultisigCost, PartialItem } from '../../lib/symbol/multisigApi';
 import { formatAtomic } from '../../lib/symbol/amount';
@@ -149,13 +149,13 @@ export function ConfirmScreen({ rows, onBack, onPassword }: {
 export function CosignQrButton({ hash, payload, inline = false }: { hash: string; payload?: string; inline?: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const full = buildKasaneQr({ kind: 'cosign_request', hash, payload });
-  const text = full.length <= KASANE_QR_MAX_LENGTH ? full : buildKasaneQr({ kind: 'cosign_request', hash });
+  const full = buildIromeQr({ kind: 'cosign_request', hash, payload });
+  const text = full.length <= IROME_QR_MAX_LENGTH ? full : buildIromeQr({ kind: 'cosign_request', hash });
   return (
     <>
       <Button variant="outlined" color="primary" fullWidth={!inline} onClick={() => setOpen(true)} sx={inline ? undefined : { mb: 1 }}>{t('signqr.cosign_qr_button')}</Button>
       <QrTextDialog open={open} title={t('signqr.cosign_qr_title')} hint={t('signqr.cosign_qr_hint')} text={text}
-        file={payload ? { text: full, name: `kasane-cosign-request-${hash.slice(0, 8).toLowerCase()}.json` } : undefined}
+        file={payload ? { text: full, name: `irome-cosign-request-${hash.slice(0, 8).toLowerCase()}.json` } : undefined}
         onClose={() => setOpen(false)}
       />
     </>

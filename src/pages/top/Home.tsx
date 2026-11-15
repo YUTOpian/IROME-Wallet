@@ -212,7 +212,7 @@ export default function Home() {
   ];
   const tileSx = { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minHeight: 104, px: 0.5, py: 1.5, borderRadius: 3, border: 1, borderColor: 'divider', bgcolor: 'action.hover', textAlign: 'center', width: '100%' } as const;
   const tileCircle = (color: string, iconColor: string | undefined, icon: ReactNode) => (
-    <Box sx={{ width: 48, height: 48, borderRadius: '50%', bgcolor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: (th) => (iconColor === 'onGradient' ? th.kasane.onGradient : th.palette.mode === 'dark' ? th.kasane.ink : '#FFFFFF'), '& svg': { fontSize: 26 } }}>
+    <Box sx={{ width: 48, height: 48, borderRadius: '50%', bgcolor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: (th) => (iconColor === 'onGradient' ? th.irome.onGradient : th.palette.mode === 'dark' ? th.irome.ink : '#FFFFFF'), '& svg': { fontSize: 26 } }}>
       {icon}
     </Box>
   );
@@ -232,58 +232,58 @@ export default function Home() {
         </Alert>
       )}
       <Box sx={{ display: 'flex', flexDirection: 'column', mt: 2 }}>
-        <Card sx={{ background: (t) => t.kasane.hero, border: 'none', color: (t) => t.kasane.heroText, position: 'relative', overflow: 'hidden', textShadow: (t) => t.kasane.heroTextShadow }}>
+        <Card sx={{ background: (t) => t.irome.hero, border: 'none', color: (t) => t.irome.heroText, position: 'relative', overflow: 'hidden', textShadow: (t) => t.irome.heroTextShadow }}>
           <Box sx={{ position: 'relative', px: 2, pt: 1.5, pb: 2 }}>
             <Box>
               {walletName && (
                 <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 1, mb: 0.75 }}>
-                  <Typography sx={{ fontSize: '1.1rem', color: (t) => t.kasane.heroText, fontWeight: 'bold', wordBreak: 'break-all', lineHeight: 1.3 }}>
+                  <Typography sx={{ fontSize: '1.1rem', color: (t) => t.irome.heroText, fontWeight: 'bold', wordBreak: 'break-all', lineHeight: 1.3 }}>
                     {walletName}
                   </Typography>
                   {watchOnly && (
-                    <Chip size="small" label={t('watch.badge')} sx={{ height: 20, fontSize: '0.7rem', color: (t) => t.kasane.heroText, bgcolor: (t) => t.kasane.heroChipBg, textShadow: 'none' }} />
+                    <Chip size="small" label={t('watch.badge')} sx={{ height: 20, fontSize: '0.7rem', color: (t) => t.irome.heroText, bgcolor: (t) => t.irome.heroChipBg, textShadow: 'none' }} />
                   )}
                 </Box>
               )}
-              <Typography sx={{ fontSize: '0.75rem', color: (t) => t.kasane.heroTextSoft }}>
+              <Typography sx={{ fontSize: '0.75rem', color: (t) => t.irome.heroTextSoft }}>
                 {t('home.address_label')} ({activeNetworkLabel()})
               </Typography>
               <Box
                 onClick={onCopyAddress}
                 sx={{ display: 'flex', alignItems: 'center', gap: 0.75, cursor: displayedAddress ? 'pointer' : 'default', minWidth: 0 }}
               >
-                <Typography sx={{ fontSize: '1rem', color: (t) => t.kasane.heroText, fontWeight: 'bold', wordBreak: 'break-all', lineHeight: 1.4 }}>
+                <Typography sx={{ fontSize: '1rem', color: (t) => t.irome.heroText, fontWeight: 'bold', wordBreak: 'break-all', lineHeight: 1.4 }}>
                   {displayedAddress || '-'}
                 </Typography>
-                {displayedAddress && <ContentCopyIcon sx={{ fontSize: 16, color: (t) => t.kasane.heroTextSoft, flexShrink: 0 }} />}
+                {displayedAddress && <ContentCopyIcon sx={{ fontSize: 16, color: (t) => t.irome.heroTextSoft, flexShrink: 0 }} />}
               </Box>
             </Box>
 
             <Box sx={{ mt: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography sx={{ fontSize: '0.7rem', color: (t) => t.kasane.heroTextSoft, wordBreak: 'break-all', textAlign: 'left' }}>
+              <Typography sx={{ fontSize: '0.7rem', color: (t) => t.irome.heroTextSoft, wordBreak: 'break-all', textAlign: 'left' }}>
                 {cardSymbol} {t('home.balance_ribbon')}
               </Typography>
               <Tooltip title={balanceHidden ? t('home.balance_reveal') : t('home.balance_hide')}>
-                <IconButton size="small" onClick={toggleBalanceHidden} aria-label={balanceHidden ? t('home.balance_reveal') : t('home.balance_hide')} aria-pressed={balanceHidden} sx={{ color: (t) => t.kasane.heroTextSoft, p: 0.25 }}>
+                <IconButton size="small" onClick={toggleBalanceHidden} aria-label={balanceHidden ? t('home.balance_reveal') : t('home.balance_hide')} aria-pressed={balanceHidden} sx={{ color: (t) => t.irome.heroTextSoft, p: 0.25 }}>
                   {balanceHidden ? <VisibilityOutlinedIcon sx={{ fontSize: 18 }} /> : <VisibilityOffOutlinedIcon sx={{ fontSize: 18 }} />}
                 </IconButton>
               </Tooltip>
               </Box>
               {loadingBalance ? (
-                <CircularProgress size={22} sx={{ color: (t) => t.kasane.heroText, mt: 0.5, display: 'block' }} />
+                <CircularProgress size={22} sx={{ color: (t) => t.irome.heroText, mt: 0.5, display: 'block' }} />
               ) : (
-                <Typography sx={{ fontSize: 'xx-large', color: (t) => t.kasane.heroText, fontWeight: 'bold', lineHeight: 1.2, wordBreak: 'break-all' }}>
+                <Typography sx={{ fontSize: 'xx-large', color: (t) => t.irome.heroText, fontWeight: 'bold', lineHeight: 1.2, wordBreak: 'break-all' }}>
                   {balanceHidden ? MASK : Number(cardAmount).toLocaleString(undefined, { maximumFractionDigits: cardDivisibility })} {cardSymbol}
                 </Typography>
               )}
               {cardOthers > 0 && (
-                <Typography sx={{ fontSize: '0.8rem', color: (t) => t.kasane.heroTextSoft, mt: 0.5 }}>
+                <Typography sx={{ fontSize: '0.8rem', color: (t) => t.irome.heroTextSoft, mt: 0.5 }}>
                   {t('home.other_mosaics', { count: cardOthers })}
                 </Typography>
               )}
               {balanceFailed && (
-                <Typography sx={{ fontSize: '0.75rem', color: (t) => t.kasane.heroText, mt: 0.5 }}>
+                <Typography sx={{ fontSize: '0.75rem', color: (t) => t.irome.heroText, mt: 0.5 }}>
                   {t(chain === 'nem' ? 'home.balance_failed_nem' : 'home.balance_failed')}
                 </Typography>
               )}
@@ -325,11 +325,11 @@ export default function Home() {
             )
           ) : (
             <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, px: 2, pt: 2, pb: 1.5 }}>
-              {ribbonButton('mosaics', t('home.mosaics_ribbon'), 'nemOrange', <TokenOutlinedIcon sx={{ fontSize: 14, color: (t) => t.kasane.onGradient }} />)}
+              {ribbonButton('mosaics', t('home.mosaics_ribbon'), 'nemOrange', <TokenOutlinedIcon sx={{ fontSize: 14, color: (t) => t.irome.onGradient }} />)}
               {ribbonButton('history', t('home.transaction_ribbon'), 'nemBlue', <ReceiptLongOutlinedIcon sx={{ fontSize: 14 }} />)}
               {!watchOnly && ribbonButton('send', t('home.send'), 'nemGreen', <SendOutlinedIcon sx={{ fontSize: 14 }} />)}
               {ribbonButton('invoice', t('home.invoice_ribbon'), 'ribbonBlue', <QrCode2Icon sx={{ fontSize: 14 }} />)}
-              {ribbonButton('apostille', t('home.apostille_ribbon'), 'nemOrange', <VerifiedOutlinedIcon sx={{ fontSize: 14, color: (t) => t.kasane.onGradient }} />)}
+              {ribbonButton('apostille', t('home.apostille_ribbon'), 'nemOrange', <VerifiedOutlinedIcon sx={{ fontSize: 14, color: (t) => t.irome.onGradient }} />)}
               {ribbonButton('network', t('home.network_ribbon'), 'nemGreen', <PublicIcon sx={{ fontSize: 14 }} />)}
               {/* QRコードのインポート: an icon at the right end of the row; opens a popup (署名・連署のQR、アドレス・請求書のQR). Symbol only. */}
               {chain === 'symbol' && !noKey && (

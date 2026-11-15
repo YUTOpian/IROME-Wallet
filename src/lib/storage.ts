@@ -64,7 +64,7 @@ export class Storage {
       version     : 1.0,
       size        : 4980736, // Size of database, in bytes. WebSQL-only for now.
       storeName   : 'symbol_wallet_data', // Should be alphanumeric, with underscores.
-      description : 'KASANE Wallet for Symbol'
+      description : 'IROME Wallet for Symbol'
     });
   }
 

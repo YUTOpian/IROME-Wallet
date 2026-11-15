@@ -24,9 +24,10 @@ export const SYMBOL_PLAIN_MESSAGE_TYPE = 0x00;
 /**
  * The account public apostilles are sent to. Nobody holds its key: it is the address of the "public key" SHA3-256("KASANE apostille sink" + network byte),
  * which is not a key anyone generated (finding a key that hashes to it is as hard as breaking SHA3-256). Anyone can recompute it from the network byte.
- * It is KASANE's own choice: another wallet that picks a different sink does not show up in this wallet's explorer, and the other way round.
+ * It is IROME's own choice: another wallet that picks a different sink does not show up in this wallet's explorer, and the other way round.
  */
 export function symbolApostilleSink(networkByte: number): string {
+  // NOTE: keep the "KASANE" seed text as is - it derives the apostille sink address (renaming the app must not move it).
   const seed = new TextEncoder().encode(`KASANE apostille sink ${networkByte}`);
   const notAKey = sha3_256(seed);
   return facadeFor(networkByte).network.publicKeyToAddress(new PublicKey(notAKey)).toString();

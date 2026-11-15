@@ -7,6 +7,7 @@ import LanguageOutlinedIcon from '@mui/icons-material/LanguageOutlined';
 import HowToVoteOutlinedIcon from '@mui/icons-material/HowToVoteOutlined';
 import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined';
 import TerminalOutlinedIcon from '@mui/icons-material/TerminalOutlined';
+import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
 import CollectionsOutlinedIcon from '@mui/icons-material/CollectionsOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
@@ -51,6 +52,8 @@ export default function ServiceHub() {
   const daoTile = { icon: AccountBalanceOutlinedIcon, title: t('home.nav_dao'), desc: t('service.dao_desc'), to: '/dao' };
   // コンソール (コードを打ち込んで動かす)。Symbol / NEM どちらでも（中身はチェーンに合わせて切り替わる）。
   const consoleTile = { icon: TerminalOutlinedIcon, title: t('home.nav_console'), desc: t('service.console_desc'), to: '/console' };
+  // ノード（symbol-bootstrap・Shoestring・Nodewatch をコマンドで動かす）は Symbol だけ。ウォレットの鍵は使わない（ローカルのエージェントが実行する）ので、閲覧用・SSS でも出す。Ledger は NFT ビューアーだけ。
+  const nodeTile = { icon: StorageOutlinedIcon, title: t('home.nav_node'), desc: t('service.node_desc'), to: '/node' };
   // NFTビューアー (モザイクに紐づけられた画像を見る) は Symbol だけ。
   const nftViewerTile = { icon: CollectionsOutlinedIcon, title: t('home.nav_nftviewer'), desc: t('service.nftviewer_desc'), to: '/nft-viewer' };
   // ソーシャルメタデータ (アドレスに SNS などの URL・名前・アイコンを登録する) は Symbol だけ。署名が要るので、秘密鍵のプロファイルと SSS Extension で使える。
@@ -70,9 +73,9 @@ export default function ServiceHub() {
   ];
   // Ledger のコンソールは、診断ログだけ開ける（コードの実行は署名できないので出さない）。
   const tiles = ledger ? [nftViewerTile]
-    : keyless ? (chain === 'symbol' ? [nftViewerTile, consoleTile] : [consoleTile])
-    : sss ? (chain === 'symbol' ? [socialTile, dnsTile, nemonsterTile, votingTile, daoTile, nftViewerTile, consoleTile] : [consoleTile])
-    : chain === 'symbol' ? [socialTile, apostilleTile, dnsTile, signmsgTile, nemonsterTile, votingTile, daoTile, nftViewerTile, consoleTile] : nemTiles;
+    : keyless ? (chain === 'symbol' ? [nftViewerTile, consoleTile, nodeTile] : [consoleTile])
+    : sss ? (chain === 'symbol' ? [socialTile, dnsTile, nemonsterTile, votingTile, daoTile, nftViewerTile, consoleTile, nodeTile] : [consoleTile])
+    : chain === 'symbol' ? [socialTile, apostilleTile, dnsTile, signmsgTile, nemonsterTile, votingTile, daoTile, nftViewerTile, consoleTile, nodeTile] : nemTiles;
   // NEM の Ledger は、サービスに出せるものが無い（メニューにも出さない）。URL を直接開かれても、ホームに戻す。
   if (ledger && chain !== 'symbol') return <Navigate to="/top" replace />;
   return (

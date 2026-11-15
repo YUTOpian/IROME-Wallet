@@ -1,5 +1,71 @@
 # Vintage Wallet — Symbol 版 変更点
 
+## 追加: ノード構築 — wizard の簡易ターミナル（選択式の画面が重ならない）と、wizard を有効にする設定
+- 困りごと: `symbol-bootstrap wizard` の選択式の画面が、再描画のたびに同じ行が重なって出ていた（エスケープ列を消して文字だけ出していたため）。選んだ結果は動くが、見た目が崩れる。
+- 直したこと: 画面に**簡易ターミナル**を入れた。wizard のときだけ、エージェントから生の出力（エスケープ列つき）を受け取り、カーソル移動・行の消去を反映した「いまの画面」に描き直す。実物の動きで確かめた: 3 択の選択画面で ↓ ↓ ↑ を送ると、これまでは枠が 4 回重なって出ていたのが、いまの 1 枚だけになる。決定後は 1 行にまとまる。
+- 設定: ターミナルの上に「wizard（対話式の設定）を有効にする」を追加。**初期値は無効**（このブラウザにだけ保存。`irome-node-settings`）。簡易ターミナルは、これが有効なときだけ使える。
+- **挙動が変わるところ**: これまでは、`symbol-bootstrap wizard` が常に実行できたが、**無効のままだと実行できなくなる**（画面は「wizard は無効です」と出す。エージェントも `wizard_disabled` で断る）。使うときは、この設定をオンにする。`encrypt` `decrypt` など、ほかのコマンドは変わらない。
+- 操作: 簡易ターミナルが動いているあいだ、入力欄が空なら、矢印キー・Space・Enter をそのままキーとして送る。↑ ↓ ← → Enter Space Tab のボタンは、簡易ターミナルのときだけ出す（これまでは、端末で動いているコマンドすべてで出していた）。
+- 変更: `src/lib/node/termEmu.ts`（新規。簡易ターミナル）、`src/store/nodeSettingsStore.ts`（新規。設定）、`src/lib/node/nodeCommands.ts`（`ValidateOptions.wizard`・`isWizardArgv`）、`src/server/node-agent/agent.ts`（`rawTty`、`POST /v1/jobs` の `wizard` / `emulate`、返事の `raw`）、`src/lib/node/agentClient.ts`（`startJob` の引数）、`src/pages/node/NodePage.tsx`、`src/i18n/messages.json`（`service.node_wizard_*` ほか、ja・en）、`dev-tests/term-emu.test.ts`（新規）・`node-commands.test.ts`・`node-agent.test.ts`、`docs/NODE.md`。
+- 確認したこと: `termEmu.test` 63 項目、`node-commands.test` 167 項目、`node-agent.test` 142 項目が通過（`tsc` で変換して実行）。エージェント + 本物の端末（pty）+ 簡易ターミナルを通した、選択画面の通し確認。純粋な部分（`termEmu.ts` `nodeCommands.ts` `agentClient.ts`）は `tsc --strict` の型チェックを通過。`NodePage.tsx` は構文の確認のみ。**依存パッケージ（`node_modules`）が入っていない環境のため、画面全体の型チェック・`npm run build`・他のテストは動かしていない。実物の `symbol-bootstrap wizard`（Docker などが要る）での見え方も未確認**。お手元で `npm ci && npm run check` を実行してください。
+- 既知の限りがあること: 色・太字は出ない。最初の文字入力で止まる質問などは、入力欄に打って Enter（空のまま Enter は「決定」のキー）。
+
+## 変更: コードの中に残っていた「KASANE」の名前を、IROME に統一した
+- 画面・手順書に出る名前を変えた: ノード画面のコマンド `kasane install …` / `kasane uninstall …` → `irome install …` / `irome uninstall …`。環境変数 `KASANE_NODE_AGENT_*` → `IROME_NODE_AGENT_*`、`KASANE_DAO_BOT_*` → `IROME_DAO_BOT_*`。作業場所の既定 `~/kasane-node` → `~/irome-node`。書き出すファイルの名前（`kasane-qr-…`・`kasane-keystore-…`・`kasane-diagnostics-…` など）→ `irome-…`。リリースのファイル名・パッケージ名 `kasane-wallet` → `irome-wallet`。
+- 改名前の環境変数（`KASANE_…`）も、当面は同じ意味で読む（`IROME_…` が優先）。`~/kasane-node` がすでにあって `~/irome-node` がないときは、そちらを使い続ける。`src/server/legacyEnv.ts`・`dev-tests/legacy-env.test.ts`。
+- コードの名前を変えた: `Kasane*` のコンポーネント・関数・型 → `Irome*`（`components/kasane/` → `components/irome/`、`theme/kasaneTheme.ts` → `theme/iromeTheme.ts`、`lib/symbol/kasaneQr.ts` → `lib/symbol/iromeQr.ts` など）。MUI のテーマの `theme.kasane` → `theme.irome`。ロゴの色の表 `KASANE` → `IROME_LOGO`（すでにあった「色目」の `IROME` と名前がぶつかるため）。
+- **変えていないもの（変えると、保存済みのデータや、他の人が作った署名・QR が読めなくなる／アドレスが変わるため）**: 保存データのキー（`kasane.*`・`kasane-console-settings` など。IndexedDB の `KasaneThemeImages`・`KasaneKnownMosaics`）、書き出し・読み込みの形式名（`kasane-keystore`・`kasane-keypair`・`kasane-address-book`・`kasane-official-profile`・テーマのバックアップの `kasane-wallet`）、QR・署名の封筒の `kasane` キー、カスタムテーマの CSS 変数 `--kasane-*`、アドレス・鍵の導出に使う文字列（`KASANE apostille sink`・`KASANE Symbol poll index v1`・`KASANE Wallet / NEM delegated harvesting remote account / v1`）、NEM のノードのドメイン `*.kasanetalk.net`、GitHub のリポジトリ名 `KASANE-Wallet`。
+- 確認したこと: ツール類（`tsc`）の型チェックの結果が、変更前と同じ（`src/` で差が 0。名前のぶつかりは、この確認で 1 件見つけて直した）。`node-commands`（160 項目）・`legacy-env`（5 項目）は通過。**依存パッケージ（`node_modules`）が入っていない環境のため、ほかのテスト 91 本と `npm run build` は動かしていない**。お手元で `npm ci && npm run check` を実行してください。
+
+## 追加: ノード構築 — 対話式の画面用に、キー（↑ ↓ ← → Enter Space Tab）を送るボタン
+- 端末（pty）で動いているコマンドに、決まったキーを送るボタンをターミナルの下に追加（`symbol-bootstrap wizard` の選択式の画面用）。エージェントの入力（`POST /v1/jobs/:id/stdin`）に `key` を足した。送れるのは決まった 7 種類だけ（任意のバイト列は送れない）。端末で動いていないジョブには `no_pty` で断る。
+- 変更: `src/server/node-agent/agent.ts`（`TTY_KEYS`）、`src/lib/node/agentClient.ts`（`sendKey`）、`src/pages/node/NodePage.tsx`、`src/i18n/messages.json`（`service.node_key*`、ja・en）、`dev-tests/node-agent.test.ts`、`docs/NODE.md`。
+- 確認したこと: `tsc -b` 通過、`node-agent.test.ts` 130 項目通過（生の端末で、↑ が `ESC [ A`、Enter が `CR` として届くこと、任意のキーが断られること）。**実物の `wizard` と画面の見え方は未確認**。選択式の画面は、エスケープ列を消しているため、再描画のたびに行が重なって出ることがある。
+
+## 変更: ノード構築 — symbol-bootstrap の `wizard` `encrypt` `decrypt` も通す
+- これまで安全のために通していなかった、`symbol-bootstrap wizard`（対話式）・`encrypt`・`decrypt`（設定・鍵の暗号化と復号）を、許可リストに入れた。許可するかどうかは使う人が決めること、という方針。本物の端末（pty）が使える環境なら、パスワードの入力も画面で完結する。
+- 通さないままのもの: 秘密鍵を画面に出す `--show-private`、シェルの記号、任意のコマンド、`docker` の見る系以外。`shoestring` には `wizard` `encrypt` `decrypt` が無いので、そのまま。
+- 注意: 入力欄は「1 行打って Enter」だけで、矢印キーなどは送れない。`wizard` の選択式の画面は、崩れて出たり、選べなかったりすることがある。`decrypt` の結果（鍵が入る）は、作業フォルダのファイルとして残る。
+- 変更: `src/lib/node/nodeCommands.ts`、`dev-tests/node-commands.test.ts`・`node-agent.test.ts`、`docs/NODE.md`。
+- 確認したこと: `node-commands`・`node-agent` のテスト通過。**実物の symbol-bootstrap での確認はしていない**。
+
+## 追加: ノード構築 — 本物の端末（pty）で動かして、パスワードを聞くコマンドを使えるようにした
+- `symbol-bootstrap` `shoestring` `symbol-node-watcher` の、画面から打ったコマンドを、エージェントが端末（pty）の中で動かす。鍵を暗号化するパスワードなどの入力が、画面で完結する（入力したパスワードは、端末が画面に返さない）。`python3 -c` の小さな補助（標準の `pty`）で動かすので、ネイティブの追加パッケージは要らない。シェルは通さず、許可リストの判定はこれまでと同じ。
+- 使える条件は、Linux / macOS で `python3` の `pty` が読み込めること。Windows ネイティブ・`python3` なしでは、これまでどおりのパイプ。`IROME_NODE_AGENT_PTY=0` で切れる。状態（`/v1/status`）に `pty` を足した。
+- 出力はエスケープ列を消し、改行をそろえる（端末の幅 120 桁・`TERM=dumb`）。「停止」はプロセスグループへ SIGTERM（終了コード 143）。終了コードはそのまま通す。
+- 変更: `src/server/node-agent/agent.ts`・`run.ts`、`src/lib/node/agentClient.ts`（`AgentStatus.pty`）、`dev-tests/node-agent.test.ts`、`docs/NODE.md`。
+- 確認したこと: `tsc -b` 通過、`node-agent.test.ts` 127 項目通過（本物の pty で、パスワード入力・エコーなし・終了コード・停止・エスケープ列の除去・pty を切った動きを確認。`python3` の `getpass` を使った偽のツール）。**実際の symbol-bootstrap・Shoestring が、この端末でパスワードをどう聞くかは未確認**（対話式の選択画面は、崩れて出ることがある）。macOS・Docker での確認もしていない。
+
+## 追加: ノード構築 — 見ているノードを、ウォレットの接続先に登録できるようにした
+- サービス > ノードの「ノードの状態（ウォッチ）」で、正常に動いているノードが見えているとき、「ウォレットの接続先に登録」（「登録だけ」「登録して使う」）を出す。設定 > ノードの接続（`detectNodeNetwork` → `addSymbolNode` / `adoptNode`）と同じ決まりで、別のネットワークのノードは、「登録だけ」ならそのネットワークの一覧に入れ、「登録して使う」ならネットワークも切り替える。閲覧用・SSS のプロファイルは切り替えない。
+- 変更: `src/pages/node/NodeWatchCard.tsx`、`src/i18n/messages.json`（`service.node_reg_*`、ja・en）、`docs/NODE.md`。
+- 確認したこと: `tsc -b` 通過。**画面での動作・実際のノードへの登録は未確認**。ko・zh・ru の翻訳は付けていない（無いキーは、ほかの画面と同じ決まりで表示される）。
+
+## 追加: ノード構築（サービス > ノード）— KASANE のノード構築エージェントを移した
+- サービス > 「ノード」(`/node`) を追加（Symbol のみ。閲覧用・SSS のプロファイルでも開ける）。同じ PC で `npm run node-agent` を起動し、画面から接続して、symbol-bootstrap・Shoestring・Nodewatch（symbol-node-watcher）を、許可されたコマンドだけで動かす。設定ファイルの編集もできる。使い方・安全のための決まりは [NODE.md](NODE.md)。
+- 追加: `src/lib/node/`・`src/pages/node/`・`src/server/node-agent/`、`dev-tests/node-commands.test.ts`・`node-agent.test.ts`、`docs/NODE.md`。変更: `router.tsx`（`/node`）、`ServiceHub.tsx`（タイル）、`package.json`（`node-agent`）、`.env.example`、`i18n/messages.json`（ja・en の 200 キー）。
+- 環境変数の名前は、DAO ボットに合わせて `KASANE_NODE_AGENT_*` のまま。
+- 確認したこと: `tsc -b` 通過、`npm test` 122 本すべて通過（ノード関連は 149 + 96 項目）、`npm run build` 通過。ブラウザ版にエージェントのコードが入っていないことも確認（`child_process`・HTTP サーバーなし）。**実際に Docker・symbol-bootstrap を動かしての確認はしていない**（テストは、外部ツールをテスト用スクリプトに差し替えて行う）。画面での見え方も未確認。
+
+## 追加: 5つ目のテーマ「色目」（カラフル。Symbol も NEM も同じ見た目）
+- 設定 > テーマ（スタート画面・プロファイル選択画面も同じ）の選択肢に「色目 🎨」を追加。コーラル → ピンク → ラベンダー → アクア → ミントの5色を、ボタン・タブ・上部バーの下線・開いているメニューの項目に使う。背景はあたたかいクリーム色で、四隅にその5色のやわらかい光を置き、ロゴと同じ青海波の薄い模様を重ねた。残高カードは5色のグラデーションに青海波を重ねた。
+- **チェーンの色づけは付けない**: Symbol でも NEM でも mijin でも、色も形もまったく同じ（ダーク / ホワイト / ビジネス / さくら は、これまでどおりチェーンで色が変わる）。スタート画面などチェーン前の画面も同じ。
+- 変更: `src/theme/kasaneTheme.ts`（`IROME`・`seigaihaPattern`・`createKasaneTheme`）、`src/store/appStore.ts`（`ThemeMode`・`isValidThemeChoice`）、`src/theme/useThemeChoices.ts`、`src/i18n/*.json`（`settings.theme_irome`、日・英・中・韓・露）、`dev-tests/custom-theme.test.ts`（ひな形の往復の確認に「色目」を追加）
+- 確認したこと: `tsc -b` 通過、`custom-theme`・`design-scope` のテスト通過。**画面での見え方は未確認**（背景の光の強さ・青海波の濃さ・残高カードの文字の読みやすさは、実機で見て調整が要るかもしれない）。
+
+## 変更: ロゴを、改名前の KASANE のロゴ（六角形に五重の塔）に戻した
+- マーク（`KasaneLogo.tsx` の `KasaneMark`）、PDF などが使う画像（`src/assets/irome_mark.png`）、タブのロゴ（`index.html` のファビコン）を、KASANE のものと同じ絵にした。「IROME」の文字（`KasaneWordmark`）はそのまま。
+- 確認したこと: `tsc -b` 通過。画面での表示は未確認。
+
+## 変更: 名前を KASANE から IROME に変え、ロゴを新しくした
+- 画面・PDF（ペーパーウォレット・請求書・アポスティーユ証明書）・診断レポート・タブの名前（`index.html`）・翻訳（ja・en・zh・ko・ru）・README / docs の表示名を「IROME」にした。
+- ロゴを一新した。五色（コーラル → ピンク → ラベンダー → アクア → ミント）に重なった襟（襲の色目）のマークと、「IROME」の細い幾何学的な文字（`KasaneLogo.tsx`）。タブのロゴ（`index.html` のファビコン）、PDF などが使う画像（`src/assets/irome_mark.png`。以前の `kasane_mark.png` から改名）も同じ絵にした。
+- **内部の名前は変えていない**（保存済みのデータ・ファイル・QR を、これまでどおり読めるようにするため）:
+  - ブラウザの保存キー（`kasane.*` / `kasane-*`）、キーストア・アドレス帳・プロファイルのファイル形式（`kasane-keystore` など）、QR の封筒（`{"kasane": 1, ...}`）、カスタムテーマの変数（`--kasane-*`）とバックアップの識別子。
+  - 鍵やアカウントの導出に使う文字（`POLL_INDEX_SEED`、アポスティーユの受け皿、NEM のハーベスト用リモートアカウント）。変えると、別のアカウントになってしまう。
+  - 環境変数（`KASANE_DAO_BOT_*`）、コードの名前（`KasaneMark`、`kasaneTheme.ts` など）、パッケージ名・配布ファイル名（`kasane-wallet-*.html`）。必要なら別の変更で扱う。
+- パスワードの禁止リストに `irome1234`・`iromewallet` を追加（`kasane1234`・`kasanewallet` はそのまま）。
+
 ## 修正: モザイクなしの送金URIに署名すると「XYM × 0」が付く（Symbol・issue #1）
 - 原因: 送金は、URIを読み込んだ場合でも必ずモザイクを1件組んでいた（モザイクが未選択なら XYM。金額が空だと進めないので 0 を入れる必要があった）。そのため、モザイクなし（メッセージのみ）のURIに署名すると、`mosaicsCount` が 0 → 1、size が 0xCF → 0xDF になり、発行側が「手数料と期限以外は発行した内容のまま」を確かめる用途で不一致になっていた。
 - 変更（方針B）: 読み込んだ `web+symbol://transaction` のモザイクが 0 件だったときだけ、モザイクなしで組む。ほかの挙動は変えない（手入力の送金、モザイクが1件以上あるURI、「0 XYM を付けて送る」はこれまでどおり）。

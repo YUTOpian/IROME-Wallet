@@ -45,7 +45,7 @@ function runOne(file) {
     const started = Date.now();
     // 出力はパイプではなく一時ファイルに書かせる。テストが process.exit() で終わるとき、パイプだと
     // 最後の数十行が届かないことがある（失敗の行が消える）。ファイルなら全部残る。
-    const logPath = join(tmpdir(), `kasane-test-${process.pid}-${seq++}.log`);
+    const logPath = join(tmpdir(), `irome-test-${process.pid}-${seq++}.log`);
     const fd = openSync(logPath, 'w');
     // tsx を --import で読み込む（npx を挟まないぶん速い）。asset-loader は、画像・音声の import を Node で読めるようにする。
     const child = spawn(process.execPath, ['--import', 'tsx', '--import', assetLoader, join('dev-tests', file)], {

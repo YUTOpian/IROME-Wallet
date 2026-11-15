@@ -153,7 +153,7 @@ async function main() {
   await bad('rule missing', (m) => m.replace(',"nonTransferableOnly":true', ''), 'poll_invalid', 'a holder poll that does not say whether transferable mosaics are allowed is not read (not read as "allowed")');
   await bad('rule text', (m) => m.replace('"nonTransferableOnly":true', '"nonTransferableOnly":"true"'), 'poll_invalid', 'a rule that is not a boolean is not read');
   await bad('no mosaic', (m) => m.replace(SOUL, 'NOT A MOSAIC'), 'poll_invalid', 'a holder poll without a valid mosaic is not read');
-  await bad('five', (m) => m.replace('"type":4', '"type":5'), 'poll_unsupported', 'a type KASANE does not know is still unsupported');
+  await bad('five', (m) => m.replace('"type":4', '"type":5'), 'poll_unsupported', 'a type IROME does not know is still unsupported');
   const wb = msgs({ ...base, title: 'weighted with flag', type: POLL_TYPE_MOSAIC, mosaicId: COIN });
   publish(wb, 900, (m) => m.replace('"multiple":false', '"multiple":false,"nonTransferableOnly":true'));
   ok((await fetchPoll(wb.pollAddress)).nonTransferableOnly === false, 'the rule belongs to holder polls only: the weighted type ignores it');

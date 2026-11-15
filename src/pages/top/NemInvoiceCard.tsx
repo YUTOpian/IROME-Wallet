@@ -53,7 +53,7 @@ interface Props {
 /**
  * 「インボイス」(NEM): a payment request for this wallet with amount, mosaics and a message. Same form as the Symbol
  * one. XEM alone becomes the NEM wallets' invoice QR (NanoWallet / NEM mobile wallets: type 2); with any other mosaic
- * it is the mosaic-capable type 4 of the NEM QR draft, which KASANE reads into the transfer form (other wallets may
+ * it is the mosaic-capable type 4 of the NEM QR draft, which IROME reads into the transfer form (other wallets may
  * not). Scanning opens a transfer form prefilled with these. Unlike a Symbol request it carries no deadline.
  */
 export default function NemInvoiceCard({ address }: Props) {
@@ -160,7 +160,7 @@ export default function NemInvoiceCard({ address }: Props) {
     }
   };
 
-  // 「PDFで保存」: the same invoice as a KASANE-designed A4 sheet. A NEM request does not expire, so the QR on screen is printed as it is.
+  // 「PDFで保存」: the same invoice as a IROME-designed A4 sheet. A NEM request does not expire, so the QR on screen is printed as it is.
   const onDownloadPdf = async () => {
     if (pdfBusy || qr === '') return;
     setPdfBusy(true);

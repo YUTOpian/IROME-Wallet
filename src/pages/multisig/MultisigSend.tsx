@@ -13,8 +13,8 @@ import { planApproval, treeRows } from '../../lib/symbol/multisigTree';
 import type { MultisigGraph } from '../../lib/symbol/multisigTree';
 import { formatAtomic, parseDecimal } from '../../lib/symbol/amount';
 import { normalizeAddress } from '../../lib/symbol/crypto';
-import { buildKasaneQr } from '../../lib/symbol/kasaneQr';
-import type { TemplateQr } from '../../lib/symbol/kasaneQr';
+import { buildIromeQr } from '../../lib/symbol/iromeQr';
+import type { TemplateQr } from '../../lib/symbol/iromeQr';
 import { getNetworkConfig } from '../../lib/symbol/network';
 import { MAX_MESSAGE_BYTES, messageByteLength, multisigTransferAggregateSize } from '../../lib/symbol/tx';
 import { useAppStore } from '../../store/appStore';
@@ -236,7 +236,7 @@ function MultisigSend({ onSent }: SentProps) {
                   open={templateQrOpen}
                   title={t('signqr.template_title')}
                   hint={t('signqr.template_hint')}
-                  text={buildKasaneQr({ kind: 'template', account, recipient, mosaics: [{ id: mosaic.id, amount: amount.toString() }], message: message || undefined })}
+                  text={buildIromeQr({ kind: 'template', account, recipient, mosaics: [{ id: mosaic.id, amount: amount.toString() }], message: message || undefined })}
                   onClose={() => setTemplateQrOpen(false)}
                 />
               </>

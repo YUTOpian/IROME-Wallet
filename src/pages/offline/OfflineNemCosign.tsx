@@ -23,11 +23,11 @@ import { accountLabel, useSigningAccounts } from './signingAccounts';
 
 // 「オフライン連署」 for NEM (NIS1): cosigns a multisig transaction that another cosignatory started, on a PC with no network.
 // Unlike Symbol, NEM has no aggregate hash to look up on a node, so the request is the transaction the initiator signed (a "multisig
-// transaction", type 0x1004, as the body of POST /transaction/announce, in KASANE's NEM QR or as a bare body). Nothing here talks to a node:
+// transaction", type 0x1004, as the body of POST /transaction/announce, in IROME's NEM QR or as a bare body). Nothing here talks to a node:
 //   - everything shown is read from the bytes (the wrapped transaction, the multisig account, the hash a cosignature names);
 //   - the initiator's signature is checked with the key the transaction carries;
 //   - "expired" is judged by this device's clock, and mosaics are named from what this device remembers (lib/mosaicCache.ts).
-// The cosignature is the body of POST /transaction/announce as KASANE's NEM QR, which 「読み込んで送信」 sends from a PC that is online.
+// The cosignature is the body of POST /transaction/announce as IROME's NEM QR, which 「読み込んで送信」 sends from a PC that is online.
 // (NEM only accepts a cosignature once the transaction it names is waiting on the network: send the initiator's one first.)
 
 const DETAIL_ROW_SX = { fontSize: '0.95rem', whiteSpace: 'pre-wrap', ...mono } as const;
@@ -173,7 +173,7 @@ export default function OfflineNemCosign({ onStep }: { onStep: (step: number) =>
             </SectionCard>
             <SectionCard title={t('signqr.cosignature_qr_title')}>
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>{t('offline_cosign.qr_hint')}</Typography>
-              <QrTextPanel text={result.text} file={{ text: result.text, name: `kasane-nem-cosignature-${result.innerHash.slice(0, 8).toLowerCase()}.json` }} />
+              <QrTextPanel text={result.text} file={{ text: result.text, name: `irome-nem-cosignature-${result.innerHash.slice(0, 8).toLowerCase()}.json` }} />
             </SectionCard>
             <Button onClick={reset} sx={{ mt: 1 }}>{t('offline_cosign.another')}</Button>
           </>

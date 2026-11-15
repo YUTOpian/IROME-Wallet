@@ -44,7 +44,7 @@ const innerBytes = bytes.subarray(16 + 32 + 8 + 4 + 4, 16 + 32 + 8 + 4 + 4 + inn
 ok(hexOf(keccak_256(innerBytes)) === s.innerHash, 'innerHash is the Keccak-256 of the wrapped bytes', s.innerHash);
 ok(readNemTransfer(hexOf(innerBytes)).signerPublicKey === multisigPub, 'the wrapped bytes start with the multisig account as signer');
 
-// QR round trip: the same body comes back from KASANE's NEM QR and from a bare announce body
+// QR round trip: the same body comes back from IROME's NEM QR and from a bare announce body
 const fromQr = parseNemSigned(buildNemSignedQr(bodyText, TESTNET));
 ok(fromQr !== null && readNemMultisigRequest(fromQr.body.data).innerHash === s.innerHash, 'QR round trip');
 const bare = parseNemSigned(bodyText);

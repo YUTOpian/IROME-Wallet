@@ -3,7 +3,7 @@ import { handOverPassword } from '../../lib/passedPassword';
 import { Box, Button, Typography } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import PasswordDialog from '../../components/PasswordDialog';
 import { PinCodeHelper, WalletsHelper } from '../../lib/storage';
 import cautionIcon from '../../assets/icon_caution.png';
@@ -54,7 +54,7 @@ export default function WalletBackupCaution() {
   };
 
   return (
-    <KasaneStage
+    <IromeStage
       back={back || `/wallet/settings?id=${id}`}
       title={mode === 'mnemonic' ? t('common.backup') : t('wallet.private_key_backup_title')}
     >
@@ -90,6 +90,6 @@ export default function WalletBackupCaution() {
         // does not have to be typed a second time.
         onPass={(pin) => { handOverPassword(pin); navigate(backupUrl); }}
       />
-    </KasaneStage>
+    </IromeStage>
   );
 }

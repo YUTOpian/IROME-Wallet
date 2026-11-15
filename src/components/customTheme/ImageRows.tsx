@@ -67,17 +67,17 @@ type Picker = ReturnType<typeof useImagePicker>;
 type SlotLang = 'ja' | 'en' | 'zh' | 'ko' | 'ru';
 const SLOT_LABELS: Record<'zh' | 'ko' | 'ru', Record<string, string>> = {
   zh: {
-    logoMark: '徽标（六边形标志）：启动画面、对话框', logoWordmark: '徽标（KASANE 字样）：启动画面、侧边菜单', background: '背景图片', hero: '余额卡片图片', tabIcon: '浏览器标签页图标（网站图标）',
+    logoMark: '徽标（标志）：启动画面、对话框', logoWordmark: '徽标（IROME 字样）：启动画面、侧边菜单', background: '背景图片', hero: '余额卡片图片', tabIcon: '浏览器标签页图标（网站图标）',
     navHome: '主页', navAccount: '账户', navAddressbook: '通讯录', navMosaic: '马赛克', navNamespace: '命名空间', navMetadata: '元数据', navMultisig: '多重签名',
     navHarvest: '收割', navAggregate: '聚合交易', navService: '服务', navLinks: '链接集', navSettings: '设置',
   },
   ko: {
-    logoMark: '로고(육각형 마크): 시작 화면·대화상자', logoWordmark: '로고(KASANE 글자): 시작 화면·사이드 메뉴', background: '배경 이미지', hero: '잔액 카드 이미지', tabIcon: '브라우저 탭 로고(파비콘)',
+    logoMark: '로고(마크): 시작 화면·대화상자', logoWordmark: '로고(IROME 글자): 시작 화면·사이드 메뉴', background: '배경 이미지', hero: '잔액 카드 이미지', tabIcon: '브라우저 탭 로고(파비콘)',
     navHome: '홈', navAccount: '계정', navAddressbook: '주소록', navMosaic: '모자이크', navNamespace: '네임스페이스', navMetadata: '메타데이터', navMultisig: '멀티시그',
     navHarvest: '하베스팅', navAggregate: '애그리게이트', navService: '서비스', navLinks: '링크 모음', navSettings: '설정',
   },
   ru: {
-    logoMark: 'Логотип (шестиугольный знак): стартовый экран, диалоги', logoWordmark: 'Логотип (надпись KASANE): стартовый экран, боковое меню', background: 'Фоновое изображение', hero: 'Изображение карточки баланса', tabIcon: 'Значок вкладки браузера (фавикон)',
+    logoMark: 'Логотип (знак): стартовый экран, диалоги', logoWordmark: 'Логотип (надпись IROME): стартовый экран, боковое меню', background: 'Фоновое изображение', hero: 'Изображение карточки баланса', tabIcon: 'Значок вкладки браузера (фавикон)',
     navHome: 'Главная', navAccount: 'Аккаунт', navAddressbook: 'Адресная книга', navMosaic: 'Мозаики', navNamespace: 'Пространства имён', navMetadata: 'Метаданные', navMultisig: 'Мультиподпись',
     navHarvest: 'Харвестинг', navAggregate: 'Агрегаты', navService: 'Сервисы', navLinks: 'Ссылки', navSettings: 'Настройки',
   },

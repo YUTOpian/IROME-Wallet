@@ -17,7 +17,7 @@ if (isFramed()) {
   box.style.cssText = 'font-family:system-ui,sans-serif;padding:24px;max-width:480px;margin:10vh auto;line-height:1.6';
   const title = document.createElement('p');
   title.style.fontWeight = '700';
-  title.textContent = 'KASANE Wallet は他のページの中では開けません。 / KASANE Wallet cannot run inside another page.';
+  title.textContent = 'IROME Wallet は他のページの中では開けません。 / IROME Wallet cannot run inside another page.';
   const link = document.createElement('a');
   link.href = window.location.href;
   link.target = '_blank';
@@ -26,7 +26,7 @@ if (isFramed()) {
   box.append(title, link);
   document.body.replaceChildren(box);
   // アプリ本体の読み込みをここで中断する（以降の import は評価されない）。
-  throw new Error('KASANE Wallet: blocked, running inside a frame');
+  throw new Error('IROME Wallet: blocked, running inside a frame');
 }
 
 export {};

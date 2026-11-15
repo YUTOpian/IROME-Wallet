@@ -87,7 +87,7 @@ function SignPanel() {
 
   const shared = result === null ? '' : format === 'kasane' ? result.share : result.nanoShare;
   const fileName = result === null ? '' : format === 'kasane'
-    ? `kasane-nem-signed-message-${result.signature.slice(0, 8).toLowerCase()}.json`
+    ? `irome-nem-signed-message-${result.signature.slice(0, 8).toLowerCase()}.json`
     : `nanowallet-signed-message-${result.signature.slice(0, 8).toLowerCase()}.json`;
 
   return (
@@ -143,7 +143,7 @@ function SignPanel() {
                 aria-label={t('signmsg.signed_title')}
                 sx={{ mb: 1 }}
               >
-                <OptionItem value="kasane" sx={{ textTransform: 'none', px: 2 }}>KASANE</OptionItem>
+                <OptionItem value="kasane" sx={{ textTransform: 'none', px: 2 }}>IROME</OptionItem>
                 <OptionItem value="nanowallet" sx={{ textTransform: 'none', px: 2 }}>NanoWallet</OptionItem>
               </OptionSelect>
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>{format === 'kasane' ? t('signmsg.share_hint') : t('signmsg.share_nano_hint')}</Typography>
@@ -196,7 +196,7 @@ function VerifyPanel() {
   const edit = (apply: () => void) => { apply(); setVerdict(null); setChecked(null); };
 
   const check = (msg: string, pk: string, sig: string) => {
-    // Text as KASANE signs it (UTF-8), or as NanoWallet encodes it (emoji and other characters outside the BMP differ).
+    // Text as IROME signs it (UTF-8), or as NanoWallet encodes it (emoji and other characters outside the BMP differ).
     let matched: 'utf8' | 'nanowallet' | null = null;
     try { matched = verifyNemText(pk, msg, sig); } catch { matched = null; }
     const derived = nemAddressFromPublicKey(pk, cfg.networkByte);

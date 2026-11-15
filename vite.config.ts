@@ -25,10 +25,10 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 // 出来上がった dist/index.html の CSP を、インライン script のハッシュ方式に差し替える（vite-csp.ts）。
 // 全プラグインが HTML を書き終えたあと（closeBundle）に、ファイルを読み直して書き換える。
 // `vite` の開発サーバーでは動かない（HMR に インライン script が要るため、開発中は index.html のゆるい CSP のまま）。
-function kasaneCspHash(): Plugin {
+function iromeCspHash(): Plugin {
   let outDir = ''
   return {
-    name: 'kasane-csp-hash',
+    name: 'irome-csp-hash',
     apply: 'build',
     configResolved(config) {
       outDir = resolve(config.root, config.build.outDir)
@@ -71,7 +71,7 @@ export default defineConfig({
     // dependencies expect these globals) with no further Node builtin dependencies.
     nodePolyfills({ include: ['buffer', 'process'] }),
     viteSingleFile({ removeViteModuleLoader: true }),
-    kasaneCspHash(),
+    iromeCspHash(),
   ],
   // コンソールの Worker（src/lib/console/consoleWorker.ts）。`?worker&inline` で単一HTMLに Blob として埋め込む。
   // Worker のビルドには、本体のプラグインが適用されない。symbol-sdk が期待する buffer / process は、ここで別に入れる。

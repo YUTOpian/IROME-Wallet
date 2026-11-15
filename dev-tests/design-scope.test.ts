@@ -1,5 +1,5 @@
 // Run: npx tsx dev-tests/design-scope.test.ts
-// The Ledger / view-only profile screens must look exactly like the start screen: the fixed neutral KASANE
+// The Ledger / view-only profile screens must look exactly like the start screen: the fixed neutral IROME
 // design (it does not follow the saved chain; the dark / light / business setting DOES apply) and no side menu.
 import { hasNoMenuPath, isOnboardingPath, ONBOARDING_PREFIXES, resolveDesign } from '../src/theme/designScope';
 

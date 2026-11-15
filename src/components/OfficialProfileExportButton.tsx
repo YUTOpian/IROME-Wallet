@@ -11,7 +11,7 @@ import type { ExportResult } from '../lib/officialProfile/convert';
 type Done = Extract<ExportResult, { ok: true }>;
 
 function fileNameOf(profileName: string): string {
-  const safe = profileName.replace(/[\\/:*?"<>|\s]+/g, '_').replace(/^_+|_+$/g, '') || 'kasane';
+  const safe = profileName.replace(/[\\/:*?"<>|\s]+/g, '_').replace(/^_+|_+$/g, '') || 'irome';
   return `${safe}-symbol-wallet-profile.json`;
 }
 

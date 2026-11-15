@@ -3,7 +3,7 @@ import { Alert, Box, Button, FormControlLabel, Switch, Typography } from '@mui/m
 import TextField from '../../components/TextField';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import KasaneStage from '../../components/kasane/KasaneStage';
+import IromeStage from '../../components/irome/IromeStage';
 import ErrorSnackbar from '../../components/ErrorSnackbar';
 import { WalletsHelper } from '../../lib/storage';
 import { isSssAutoAdd, setSssAutoAdd } from '../../lib/sss';
@@ -60,7 +60,7 @@ export default function WalletSssNew() {
   if (state !== 'ready') return <Navigate to="/wallet/new" replace />;
 
   return (
-    <KasaneStage back="/wallet/new" title={t('sss.create_title')} maxWidth={560} panel>
+    <IromeStage back="/wallet/new" title={t('sss.create_title')} maxWidth={560} panel>
       <Box sx={{ width: '100%', mt: 2 }}>
         <Typography align="center" sx={{ mx: 2, lineHeight: 1.8 }}>
           {(t('sss.create_message', { returnObjects: true }) as string[]).map((line, i) => (
@@ -102,6 +102,6 @@ export default function WalletSssNew() {
         </Box>
       </Box>
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage('')} />
-    </KasaneStage>
+    </IromeStage>
   );
 }

@@ -14,7 +14,7 @@ function check(name: string, ok: boolean, detail = '') {
 
 // 1x1 white PNG, stands in for the QR images (the real ones come from qrcode.react in the browser).
 const PIXEL = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'));
-const MARK = new Uint8Array(readFileSync(new URL('../src/assets/kasane_mark.png', import.meta.url)));
+const MARK = new Uint8Array(readFileSync(new URL('../src/assets/irome_mark.png', import.meta.url)));
 
 const words24 = `${'abandon '.repeat(23)}art`.split(' ');
 const base = { network: 'mainnet' as const, publicKey: 'A'.repeat(64), markPng: MARK, publicQrPng: PIXEL, createdAt: new Date('2026-10-09T00:00:00Z') };

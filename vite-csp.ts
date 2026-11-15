@@ -50,7 +50,7 @@ export function buildCsp(scriptHashes: string[]): string {
 export function applyCsp(html: string): string {
   const hashes = inlineScriptHashes(html);
   if (hashes.length === 0) {
-    throw new Error('kasane-csp: インラインの <script> が見つかりません（単一HTMLビルドになっていますか）。CSPは変更しませんでした。');
+    throw new Error('irome-csp: インラインの <script> が見つかりません（単一HTMLビルドになっていますか）。CSPは変更しませんでした。');
   }
   const meta = `<meta http-equiv="Content-Security-Policy" content="${buildCsp(hashes)}" />`;
   if (CSP_META.test(html)) {

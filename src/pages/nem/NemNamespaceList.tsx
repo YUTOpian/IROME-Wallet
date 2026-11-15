@@ -179,7 +179,7 @@ export default function NemNamespaceList({ initialTab = 'held' }: { initialTab?:
               <Button variant="outlined" onClick={load}>{t('nemns.retry')}</Button>
             </Box>
           ) : shown.length === 0 ? (
-            <Typography sx={{ color: 'text.secondary', textAlign: 'center', py: 4 }}>{t('nemns.empty')}</Typography>
+            <Typography sx={(t) => ({ color: 'text.secondary', textAlign: 'center', py: 4, ...t.irome.stageText })}>{t('nemns.empty')}</Typography>
           ) : compact ? (
             <Box sx={{ display: 'grid', gap: 1.5 }}>
               {loading && <LinearProgress />}

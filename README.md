@@ -1,4 +1,4 @@
-# KASANE Wallet
+# IROME Wallet
 
 [![Deploy](https://github.com/YUTOpian/KASANE-Wallet/actions/workflows/deploy.yml/badge.svg)](https://github.com/YUTOpian/KASANE-Wallet/actions/workflows/deploy.yml)
 [![CodeQL](https://github.com/YUTOpian/KASANE-Wallet/actions/workflows/codeql.yml/badge.svg)](https://github.com/YUTOpian/KASANE-Wallet/actions/workflows/codeql.yml)
@@ -17,6 +17,7 @@
 - オフライントランザクション（署名済みトランザクションを QR にして、あとで読み込んで発行）
 - マルチシグ / アグリゲート（CSV 一括）/ ハーベスト / 投票 / DAO / DNS / アポスティーユ
 - コンソール（コードを入力してウォレットを操作）
+- ノード構築（サービス > ノード。symbol-bootstrap・Shoestring・Nodewatch を、同じ PC のエージェント経由でコマンド実行。[docs/NODE.md](docs/NODE.md)）
 - テーマ・5 言語
 - ビルド成果物は `dist/index.html` 1 ファイル。CSP は、ビルド時にインライン script の SHA-256 ハッシュ方式へ差し替え
 
@@ -52,7 +53,7 @@ npm run preview   # ビルド結果を確認
 |---|---|---|
 | [`ci.yml`](.github/workflows/ci.yml) | プルリクエスト | lint / test / build、CSP とビルド成果物の検査、成果物をアーティファクトに保存（SHA-256 付き） |
 | [`deploy.yml`](.github/workflows/deploy.yml) | `main` への push | CI を通したうえで GitHub Pages に公開 |
-| [`release.yml`](.github/workflows/release.yml) | タグ `v*.*.*` の push | CI を通したうえで Release を作成し、`kasane-wallet-<tag>.html` と `SHA256SUMS.txt` を添付 |
+| [`release.yml`](.github/workflows/release.yml) | タグ `v*.*.*` の push | CI を通したうえで Release を作成し、`irome-wallet-<tag>.html` と `SHA256SUMS.txt` を添付 |
 | [`codeql.yml`](.github/workflows/codeql.yml) | PR / `main` / 毎週 | CodeQL による静的解析 |
 | [`dependabot.yml`](.github/dependabot.yml) | 毎週 | npm と GitHub Actions の更新プルリクエスト |
 

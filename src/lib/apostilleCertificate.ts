@@ -1,5 +1,5 @@
 // アポスティーユの「証明書」画像（PNG）: ブラウザの canvas に描く。日本語のファイル名もそのまま出せる。
-// NanoWallet の証明書（背景画像に文字を載せる形）と同じ項目を、KASANE の見た目で。端末の中だけで作り、送信しない。
+// NanoWallet の証明書（背景画像に文字を載せる形）と同じ項目を、IROME の見た目で。端末の中だけで作り、送信しない。
 import { loadMark, qrToPng } from './paperWalletExport';
 
 export interface CertificateInfo {
@@ -64,7 +64,7 @@ export async function drawApostilleCertificate(info: CertificateInfo): Promise<U
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
 
-  // header band with the KASANE gradient edge
+  // header band with the IROME gradient edge
   ctx.fillStyle = INK;
   ctx.fillRect(0, 0, W, 230);
   const grad = ctx.createLinearGradient(0, 0, W, 0);
@@ -79,7 +79,7 @@ export async function drawApostilleCertificate(info: CertificateInfo): Promise<U
   ctx.fillStyle = '#EAF4A6';
   ctx.font = `300 76px ${sans}`;
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('KASANE', 250, 120);
+  ctx.fillText('IROME', 250, 120);
   ctx.font = `34px ${sans}`;
   ctx.fillText('APOSTILLE CERTIFICATE', 252, 172);
   ctx.textAlign = 'right';
@@ -153,7 +153,7 @@ export async function drawApostilleCertificate(info: CertificateInfo): Promise<U
     info.signed
       ? 'The recorded message holds the owner\'s signature of the file hash.'
       : 'The recorded message holds the hash of the file.',
-    'To check a file, open Services > Apostille > Audit in KASANE and select the renamed file.',
+    'To check a file, open Services > Apostille > Audit in IROME and select the renamed file.',
     'Keep the renamed file exactly as it is: changing even one byte of it makes the audit fail.',
   ];
   for (const line of notes) {
@@ -169,9 +169,9 @@ export async function drawApostilleCertificate(info: CertificateInfo): Promise<U
   ctx.fillRect(0, H - 90, W, 4);
   ctx.fillStyle = MUTED;
   ctx.font = `22px ${sans}`;
-  ctx.fillText('Generated locally on this device by KASANE Wallet', left, H - 45);
+  ctx.fillText('Generated locally on this device by IROME Wallet', left, H - 45);
   ctx.textAlign = 'right';
-  ctx.fillText('KASANE', W - left, H - 45);
+  ctx.fillText('IROME', W - left, H - 45);
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('certificate: image could not be encoded');

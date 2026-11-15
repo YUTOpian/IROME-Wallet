@@ -3,7 +3,7 @@ import { Alert, Box, Button, Typography } from '@mui/material';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import { useTranslation } from 'react-i18next';
-import { createKasaneTheme } from '../../theme/kasaneTheme';
+import { createIromeTheme } from '../../theme/iromeTheme';
 import { IMAGE_SLOTS, MAX_CSS_BYTES, buildTemplateCss, decodeCssBytes, normalizeTabTitle, parseCustomThemeCss } from '../../theme/customTheme';
 import type { CustomImages, CustomMode, ThemeParseResult } from '../../theme/customTheme';
 import { processImage } from '../../theme/imageProcessing';
@@ -30,11 +30,11 @@ export default function CssEditor({ ed, result, setResult, update }: Props) {
   // いまの設定（かんたんで作ったもの）を、全項目の説明つきで書き出す。画像も入る。
   const downloadCurrent = () => {
     const mode: CustomMode = ed.root.mode ?? 'dark';
-    const look = { ...createKasaneTheme(mode, 'symbol').kasane.look, ...ed.root };
-    saveTextFile(buildTemplateCss(look, title, ed.images, ed.chains, normalizeTabTitle(ed.tabTitle) ?? undefined), `kasane-theme-${safeFileName(ed.name)}.css`, 'text/css;charset=utf-8', true);
+    const look = { ...createIromeTheme(mode, 'symbol').irome.look, ...ed.root };
+    saveTextFile(buildTemplateCss(look, title, ed.images, ed.chains, normalizeTabTitle(ed.tabTitle) ?? undefined), `irome-theme-${safeFileName(ed.name)}.css`, 'text/css;charset=utf-8', true);
   };
   const downloadTemplate = () => {
-    saveTextFile(buildTemplateCss(createKasaneTheme('dark', 'symbol').kasane.look, t('settings.theme_dark')), 'kasane-theme-dark.css', 'text/css;charset=utf-8', true);
+    saveTextFile(buildTemplateCss(createIromeTheme('dark', 'symbol').irome.look, t('settings.theme_dark')), 'irome-theme-dark.css', 'text/css;charset=utf-8', true);
   };
 
   const onFile = async (event: React.ChangeEvent<HTMLInputElement>) => {

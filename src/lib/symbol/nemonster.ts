@@ -1,7 +1,7 @@
 // NEMonster on Symbol: the same game as the NEM one (lib/nem/nemonster.ts), played on the Symbol chain.
 //
 // The NEM version is compatible with the official NEM Nano Wallet. Symbol has no official NEMonster, so this
-// version is KASANE's own, and it is built the same way:
+// version is IROME's own, and it is built the same way:
 //  - every account has its own "sink" address, derived from its address: the private key is
 //    SHA3-256("NEMonster-Symbol-" + address). Nobody keeps that key, the sink is only a place to point at.
 //  - "catching" a monster = sending a transfer with no mosaic (0 XYM) from the account to its sink; the fee is
