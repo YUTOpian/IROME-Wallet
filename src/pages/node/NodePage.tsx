@@ -353,7 +353,7 @@ export default function NodePage() {
         {/* 接続 */}
         <Box sx={cardSx}>
           <Typography sx={{ fontWeight: 700, mb: 1 }}>{t('service.node_conn_title')}</Typography>
-          {!connected && <Typography sx={{ mb: 2, color: 'text.secondary', fontSize: '0.9rem' }}>{t('service.node_conn_howto')}</Typography>}
+          {!connected && <Typography sx={{ mb: 2, color: 'text.secondary', fontSize: '0.9rem', whiteSpace: 'pre-line' }}>{t('service.node_conn_howto')}</Typography>}
           {connected ? (
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
               <Chip color="success" size="small" label={t('service.node_connected')} />

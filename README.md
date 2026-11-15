@@ -36,6 +36,19 @@ npm run preview   # ビルド結果を確認
 
 `dist/index.html` は、ダブルクリックで開いてもそのまま動きます（`file://` 対応）。
 
+### ノード構築を使う（サービス > ノード）
+
+ノード構築の**エージェントは、公開ページにも `dist/index.html` にも入っていません**。ノードを動かす PC で、リポジトリを取得して、そのフォルダで起動します（画面は、公開ページでも手元の `dist/index.html` でもかまいません）。
+
+```bash
+git clone https://github.com/YUTOpian/IROME-Wallet.git   # 初回だけ（ZIP で取得してもよい）
+cd IROME-Wallet
+npm ci                  # 初回だけ。忘れると `tsx: command not found` で止まります
+npm run node-agent      # 使っているあいだは、このターミナルを閉じない
+```
+
+表示された接続先（`http://127.0.0.1:7391`）とトークン（起動のたびに変わる）を、ウォレットの **サービス > ノード** に入れて「接続」します。くわしくは [docs/NODE.md](docs/NODE.md)。
+
 ## 開発
 
 | コマンド | 内容 |
