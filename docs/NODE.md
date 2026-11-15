@@ -16,12 +16,29 @@ Bitcoin Core のように、このウォレットから Symbol ノードの環�
 
 ## 使い方
 
+エージェントは、公開ページ（GitHub Pages）にも `dist/index.html` にも**入っていない**。ノードを動かす PC に、このリポジトリを取得して、その中で起動する。ウォレット（画面）は、公開ページでも、手元の `dist/index.html` でもよい。
+
+### 準備（最初の 1 回）
+
+1. Node.js 22.12 以上を入れる（`node -v` で確認）。
+2. リポジトリを取得して、そのフォルダに入る。
+   ```bash
+   git clone https://github.com/YUTOpian/IROME-Wallet.git
+   cd IROME-Wallet
+   ```
+   GitHub の「Download ZIP」で取得してもよい（展開したフォルダに `cd` する）。ZIP は、取得した時点の版のまま。更新したいときは、取り直す（`git clone` なら `git pull`）。
+3. 依存パッケージを入れる。**`npm run node-agent` の前に、必ず 1 回やる**（`node_modules` が無いと、`tsx: command not found` で止まる）。
+   ```bash
+   npm ci
+   ```
+
+### 起動
+
 ```bash
-npm ci
 npm run node-agent
 ```
 
-起動すると、接続先とトークンが表示される。
+起動すると、接続先とトークンが表示される。**使っているあいだは、このターミナルを閉じない**（閉じるとエージェントが止まる）。トークンは、起動のたびに変わる。
 
 ```
 IROME ノード構築エージェント
@@ -30,7 +47,7 @@ IROME ノード構築エージェント
   作業場所: /home/you/irome-node
 ```
 
-ウォレットの **サービス > ノード** を開き、接続先とトークンを入れて「接続」。
+ウォレットの **サービス > ノード** を開き、接続先とトークンを入れて「接続」。公開ページ（https）から `http://127.0.0.1` に繋ぐときは、ブラウザの「ローカルネットワークへのアクセス」の確認が出ることがある（許可する）。
 
 1. 「この PC の環境」で、Docker・Node.js・Python・symbol-bootstrap・Shoestring・Nodewatch の有無を確認する。
 2. 無いツールは「入れる」（または `irome install bootstrap | shoestring | nodewatch`）。作業場所の `tools/` の中に入る（`sudo` は使わない）。
