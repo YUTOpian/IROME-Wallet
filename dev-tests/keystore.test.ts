@@ -106,7 +106,7 @@ const nemPlainText = () => buildPlainKeyFile(nemAccount);
   check('read: an unknown format is refused', (await rejects(() => readKeystore(JSON.stringify({ ...JSON.parse(plainText), format: 'x' })))) === 'invalid_keystore');
 
   check('invalid: garbage is refused', (await rejects(() => readKeystore('not json'))) === 'invalid_keystore');
-  check('filename', keystoreFilename(account, true, new Date('2026-10-11T00:00:00Z')) === `kasane-keystore-symbol-${account.address.slice(0, 6)}-20261011.json`);
+  check('filename', keystoreFilename(account, true, new Date('2026-10-11T00:00:00Z')) === `irome-keystore-symbol-${account.address.slice(0, 6)}-20261011.json`);
 
   if (failed > 0) { console.log(`\n${failed} failed`); process.exit(1); }
   console.log('\nall ok');
