@@ -23,6 +23,10 @@ import {
   createSymbolPoll, fetchPollFeeMultiplier, fetchXymBalance, pollAddressInUse, resolveMosaicInput, symbolAddressing, symbolPollFee,
 } from '../../lib/symbol/votingApi';
 import { useAppStore } from '../../store/appStore';
+import CosignAccountPicker from '../../components/CosignAccountPicker';
+import { useCosignAccounts } from '../../hooks/useCosignAccounts';
+import { fetchHashLockAmount } from '../../lib/symbol/multisigApi';
+import { HASH_LOCK_SIZE } from '../../lib/symbol/tx';
 import { ConfirmRows, CostBox, classifyNemError } from '../nem/parts';
 import { xymText } from '../multisig/parts';
 import { withFormReset, type SentProps } from '../../lib/withFormReset';
@@ -69,6 +73,10 @@ function SymbolVotingCreate({ onSent }: SentProps) {
   const [mosaicChecking, setMosaicChecking] = useState(false);
   const [mosaicError, setMosaicError] = useState<string | null>(null);
 
+  // 作成者のアカウント: 自分のアカウント、または自分が連署するマルチシグアカウント（自分が署名するアグリゲートで送る。連署が要るときは bonded）。
+  const accounts = useCosignAccounts();
+  const { signer } = accounts;
+  const [lockAmount, setLockAmount] = useState<bigint | null>(null);
   const [publicKey, setPublicKey] = useState('');
   const [address, setAddress] = useState('');
   const [xymBalance, setXymBalance] = useState<bigint | null>(null);
@@ -125,23 +133,35 @@ function SymbolVotingCreate({ onSent }: SentProps) {
   const cleanOptions = options.map((o) => o.trim());
   const filledOptions = cleanOptions.filter((o) => o !== '');
   const invalidWhitelist = whitelist.filter((a) => !isValidAddress(a, ad.networkByte)).length;
-  const canContinue = issues.length === 0;
+  const canContinue = issues.length === 0 && !accounts.blocked;
+  // 投票のアドレスのもとになる「作成者の公開鍵」: マルチシグ名義なら、そのアカウントの鍵。
+  const creatorKey = signer?.publicKey ?? publicKey;
+  const needsLock = signer !== undefined && !signer.selfSufficient;
+  useEffect(() => {
+    let cancelled = false;
+    setLockAmount(null);
+    if (!needsLock) return undefined;
+    fetchHashLockAmount().then((a) => { if (!cancelled) setLockAmount(a); }).catch(() => { /* shown as unknown */ });
+    return () => { cancelled = true; };
+  }, [needsLock, network]);
 
   const { messages } = useMemo(
-    () => buildPollMessages(input, publicKey || '0'.repeat(64), ad),
+    () => buildPollMessages(input, creatorKey || '0'.repeat(64), ad),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [title, description, options, doe, type, multiple, whitelist, mosaicInfo, nonTransferableOnly, publicKey, ad],
+    [title, description, options, doe, type, multiple, whitelist, mosaicInfo, nonTransferableOnly, creatorKey, ad],
   );
   // 手数料は、実際に送るアグリゲートの大きさから決まる（内容が正しいときだけ計算できる）。
   const totalFee = useMemo(() => {
     if (!canContinue || publicKey === '' || address === '' || multiplier === null) return null;
     try {
-      return symbolPollFee(messages, publicKey, address, multiplier);
+      return symbolPollFee(messages, publicKey, address, multiplier, signer);
     } catch {
       return null;
     }
-  }, [canContinue, messages, publicKey, address, multiplier]);
-  const balanceShort = xymBalance !== null && totalFee !== null && xymBalance < totalFee;
+  }, [canContinue, messages, publicKey, address, multiplier, signer]);
+  // 連署が要るときは、ハッシュロックの預け金と、そのトランザクションの手数料もこのウォレットから出る。
+  const lockTotal = needsLock && lockAmount !== null && multiplier !== null ? lockAmount + BigInt(HASH_LOCK_SIZE) * BigInt(multiplier) : 0n;
+  const balanceShort = xymBalance !== null && totalFee !== null && xymBalance < totalFee + lockTotal;
   const feeText = totalFee === null ? '-' : xymText(totalFee);
 
   const setOption = (i: number, value: string) => setOptions((cur) => cur.map((o, j) => (j === i ? value.slice(0, POLL_MAX_OPTION_LENGTH + 1) : o)));
@@ -156,20 +176,23 @@ function SymbolVotingCreate({ onSent }: SentProps) {
         setErrorMessage(t('wallet.invalid_key'));
         return;
       }
-      const built = buildPollMessages(input, wallet.publicKey, ad);
+      const built = buildPollMessages(input, signer?.publicKey ?? wallet.publicKey, ad);
       if (await pollAddressInUse(built.pollAddress)) {
         setSendError({ kind: 'duplicate', detail: '' });
         return;
       }
-      const { hash } = await createSymbolPoll({ privateKey, keyless: wallet.sss ? { kind: 'sss' } : undefined, publicKey: wallet.publicKey, address: wallet.address, input });
-      showTxNotice({ lines: t('nemvoting.create_done_message', { returnObjects: true }) as string[], explorerUrl: explorerTxUrl(hash), explorerLabel: t('nemvoting.view_explorer') });
+      const { hash, bonded } = await createSymbolPoll({ privateKey, keyless: wallet.sss ? { kind: 'sss' } : undefined, publicKey: wallet.publicKey, address: wallet.address, input, signer });
+      const doneLines = t('nemvoting.create_done_message', { returnObjects: true }) as string[];
+      showTxNotice({ lines: bonded ? [...doneLines, t('metadata.done_bonded_hint')] : doneLines, explorerUrl: explorerTxUrl(hash), explorerLabel: t('nemvoting.view_explorer') });
       onSent();
     } catch (error) {
       if (error instanceof SssError) {
         setErrorMessage(t(sssErrorKey(error)));
         return;
       }
-      setSendError(classifyNemError(error, 'NONE'));
+      const classified = classifyNemError(error, 'NONE');
+      const text = error instanceof Error ? error.message : String(error);
+      setSendError(classified.kind === 'unknown' && text.includes('Multisig_Operation_Prohibited') ? { kind: 'prohibited', detail: '' } : classified);
     } finally {
       setSending(false);
     }
@@ -180,13 +203,16 @@ function SymbolVotingCreate({ onSent }: SentProps) {
     else navigate('/voting');
   };
 
-  const errorTitle = sendError ? t(votingErrorKey(sendError.kind, 'title')) : '';
-  const errorTexts = sendError ? (t(votingErrorKey(sendError.kind, 'message'), { returnObjects: true, detail: sendError.detail }) as string[]) : [];
+  const errorTitle = sendError ? (sendError.kind === 'prohibited' ? t('cosign_account.prohibited_title') : t(votingErrorKey(sendError.kind, 'title'))) : '';
+  const errorTexts = sendError
+    ? (sendError.kind === 'prohibited' ? [t('cosign_account.self_is_multisig')] : t(votingErrorKey(sendError.kind, 'message'), { returnObjects: true, detail: sendError.detail }) as string[])
+    : [];
 
   if (step === 'confirm') {
     const rows = [
       { label: t('nemvoting.title_label'), value: title.trim(), big: true },
       { label: t('send.network'), value: `Symbol ${netCfg.label}` },
+      ...(signer ? [{ label: t('cosign_account.label'), value: signer.address }] : []),
       { label: t('nemvoting.options_label'), value: filledOptions.join('\n') },
       { label: t('nemvoting.end_label'), value: new Date(doe).toLocaleString() },
       { label: t('nemvoting.type_label'), value: t(pollTypeLabelKey(type)) },
@@ -228,6 +254,7 @@ function SymbolVotingCreate({ onSent }: SentProps) {
       back="/voting"
       left={(
         <>
+          <CosignAccountPicker accounts={accounts} lockText={lockAmount !== null ? xymText(lockAmount) : null} />
           <VotingSection title={t('nemvoting.section_content')}>
             <TextField
               label={t('nemvoting.title_label')}

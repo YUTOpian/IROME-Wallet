@@ -11,6 +11,13 @@ import MessageDialog from '../../components/MessageDialog';
 import MetadataEntriesEditor from '../../components/MetadataEntriesEditor';
 import PasswordDialog from '../../components/PasswordDialog';
 import { withFormReset, type SentProps } from '../../lib/withFormReset';
+import CosignAccountPicker from '../../components/CosignAccountPicker';
+import { useCosignAccounts } from '../../hooks/useCosignAccounts';
+import { quoteAggregate, sendAggregate } from '../../lib/symbol/aggregateApi';
+import type { AggregateQuote } from '../../lib/symbol/aggregateApi';
+import type { AggregateItem } from '../../lib/symbol/aggregate';
+import { aggregateMosaicId } from '../../lib/symbol/aggregate';
+import { getDefaultFeeSpeed } from '../../lib/symbol/feeSpeed';
 import { showTxNotice } from '../../store/txNoticeStore';
 import { WalletsHelper } from '../../lib/storage';
 import {
@@ -23,7 +30,7 @@ import type { MetadataDraft } from '../../lib/symbol/metadata';
 import { getNetworkConfig } from '../../lib/symbol/network';
 import {
   BLOCKS_PER_DAY, MAX_MOSAIC_DIVISIBILITY, MAX_MOSAIC_SUPPLY, MOSAIC_FLAG_REVOKABLE, MOSAIC_FLAG_RESTRICTABLE,
-  MOSAIC_FLAG_SUPPLY_MUTABLE, MOSAIC_FLAG_TRANSFERABLE,
+  MOSAIC_FLAG_SUPPLY_MUTABLE, MOSAIC_FLAG_TRANSFERABLE, newMosaicNonce,
 } from '../../lib/symbol/tx';
 import { useAppStore } from '../../store/appStore';
 import { MOSAIC_FLAG_LABELS, groupDigits } from './mosaicFlags';
@@ -74,6 +81,11 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
 
   const [step, setStep] = useState<Step>('form');
 
+  // The account that issues the mosaic: this wallet's own, or a multisig account it cosigns for (sent inside an aggregate).
+  const accounts = useCosignAccounts();
+  const { accountAddr, signer } = accounts;
+  const [aggQuote, setAggQuote] = useState<AggregateQuote | null>(null);
+
   // form
   const [supplyText, setSupplyText] = useState('');
   const [divisibility, setDivisibility] = useState(0);
@@ -113,13 +125,35 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
       try {
         const wallet = await WalletsHelper.getActive();
         if (!wallet) return;
-        const balances = await fetchBalances(wallet.address);
+        const balances = await fetchBalances(accountAddr || wallet.address);
         const xym = balances.find((b) => b.id === getNetworkConfig(network).currencyMosaicId);
         if (!cancelled) setXymBalance(xym?.amount ?? 0n);
       } catch { /* the warning is optional */ }
     })();
     return () => { cancelled = true; };
-  }, [network]);
+  }, [network, accountAddr]);
+
+  const daysNumber = /^\d+$/.test(daysText) ? Number(daysText) : NaN;
+  const daysValid = unlimited || (daysNumber >= 1 && daysNumber <= MAX_DAYS);
+  const flags =
+    (supplyMutable ? MOSAIC_FLAG_SUPPLY_MUTABLE : 0) |
+    (transferable ? MOSAIC_FLAG_TRANSFERABLE : 0) |
+    (restrictable ? MOSAIC_FLAG_RESTRICTABLE : 0) |
+    (revokable ? MOSAIC_FLAG_REVOKABLE : 0);
+  const durationBlocks = unlimited || !daysValid ? 0n : BigInt(daysNumber) * BigInt(BLOCKS_PER_DAY);
+
+  // The definition and the first supply, both signed by the multisig account (the nonce is chosen when sending; the size does not depend on it).
+  // Metadata entries are set on the new mosaic in the same aggregate (the definition runs first), with the multisig account as their source.
+  const multisigItems = (nonce: number, supply: bigint): AggregateItem[] => {
+    if (!signer) return [];
+    const mosaicId = aggregateMosaicId(signer.address, nonce);
+    const entries = draftsValid(metadataDrafts) ? draftsToItems(metadataDrafts) : [];
+    return [
+      { uid: 'definition', kind: 'mosaic_definition', nonce, divisibility, flags, durationBlocks, signer },
+      { uid: 'supply', kind: 'mosaic_supply', mosaicId, mosaicSymbol: '', divisibility, action: 'increase', delta: supply, signer },
+      ...entries.map((e, i): AggregateItem => ({ uid: `meta${i}`, kind: 'metadata', signer, target: { type: 'mosaic', mosaicId }, key: e.key, oldValue: new Uint8Array(0), newValue: e.value })),
+    ];
+  };
 
   // The transaction fee grows with the metadata rows, so it is quoted again when their sizes change.
   const metadataLengths = draftValueLengths(metadataDrafts);
@@ -127,11 +161,23 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
   useEffect(() => {
     let cancelled = false;
     setTxFee('loading');
-    quoteMosaicCreationFee(metadataLengthsKey === '' ? [] : metadataLengthsKey.split(',').map(Number))
-      .then((q) => { if (!cancelled) setTxFee(q.fee); })
-      .catch(() => { if (!cancelled) setTxFee(null); });
+    setAggQuote(null);
+    if (signer) {
+      WalletsHelper.getActive().then((wallet) => (wallet ? quoteAggregate(wallet.publicKey, wallet.address, multisigItems(0, 1n)) : null))
+        .then((q) => {
+          if (cancelled || !q) return;
+          setAggQuote(q);
+          setTxFee(q.fees[getDefaultFeeSpeed()].fee + q.lockFees[getDefaultFeeSpeed()]);
+        })
+        .catch(() => { if (!cancelled) setTxFee(null); });
+    } else {
+      quoteMosaicCreationFee(metadataLengthsKey === '' ? [] : metadataLengthsKey.split(',').map(Number))
+        .then((q) => { if (!cancelled) setTxFee(q.fee); })
+        .catch(() => { if (!cancelled) setTxFee(null); });
+    }
     return () => { cancelled = true; };
-  }, [metadataLengthsKey, network]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metadataLengthsKey, network, signer, divisibility, flags]);
 
   const cost: Cost = rental === 'loading' || txFee === 'loading' ? 'loading' : rental === null || txFee === null ? null : { rental, fee: txFee };
 
@@ -143,23 +189,18 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
     ? t('mosaic.supply_too_large', { max: groupDigits(formatAtomic(MAX_MOSAIC_SUPPLY, divisibility)) })
     : supplyValid ? '' : t('mosaic.invalid_supply');
 
-  const daysNumber = /^\d+$/.test(daysText) ? Number(daysText) : NaN;
-  const daysValid = unlimited || (daysNumber >= 1 && daysNumber <= MAX_DAYS);
   const daysError = unlimited || daysText === '' || daysValid ? '' : t('mosaic.invalid_days');
 
   const metadataValid = draftsValid(metadataDrafts);
-  const canContinue = supplyValid && daysValid && metadataValid;
+  const canContinue = supplyValid && daysValid && metadataValid && !accounts.blocked;
 
-  const flags =
-    (supplyMutable ? MOSAIC_FLAG_SUPPLY_MUTABLE : 0) |
-    (transferable ? MOSAIC_FLAG_TRANSFERABLE : 0) |
-    (restrictable ? MOSAIC_FLAG_RESTRICTABLE : 0) |
-    (revokable ? MOSAIC_FLAG_REVOKABLE : 0);
-  const durationBlocks = unlimited || !daysValid ? 0n : BigInt(daysNumber) * BigInt(BLOCKS_PER_DAY);
 
   const xym = (amount: bigint) => `${formatAtomic(amount, CURRENCY_DIVISIBILITY)} ${CURRENCY_SYMBOL}`;
   const total = cost !== null && cost !== 'loading' ? cost.rental + cost.fee : null;
-  const balanceShort = total !== null && xymBalance !== null && xymBalance < total;
+  // For a multisig account the account itself pays the rental; the fee (and hash lock) come from this wallet.
+  const balanceShort = signer
+    ? cost !== null && cost !== 'loading' && xymBalance !== null && xymBalance < cost.rental
+    : total !== null && xymBalance !== null && xymBalance < total;
 
   const onChangeDivisibility = (value: number) => {
     setDivisibility(value);
@@ -176,9 +217,19 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
     try {
       const wallet = await WalletsHelper.getActive();
       if (!wallet) return;
-      const privateKey = await WalletsHelper.decryptKey(wallet.id, password);
+      const privateKey = wallet.sss && signer ? '' : await WalletsHelper.decryptKey(wallet.id, password);
       if (privateKey == null) {
         setErrorMessage(t('wallet.invalid_key'));
+        return;
+      }
+      if (signer) {
+        const nonce = newMosaicNonce();
+        const sentAgg = await sendAggregate({
+          privateKey, keyless: wallet.sss ? { kind: 'sss' } : undefined, publicKey: wallet.publicKey, address: wallet.address,
+          items: multisigItems(nonce, supplyAtomic), feeSpeed: getDefaultFeeSpeed(),
+        });
+        showTxNotice({ lines: t('mosaic.done_message', { returnObjects: true }) as string[], explorerUrl: explorerTxUrl(sentAgg.hash), explorerLabel: t('mosaic.view_explorer') });
+        onSent();
         return;
       }
       const created = await createMosaic({
@@ -232,6 +283,7 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
     const rows: { label: string; value: string; big?: boolean }[] = [
       { label: t('mosaic.initial_supply'), value: groupDigits(supplyText), big: true },
       { label: t('send.network'), value: `Symbol ${netCfg.label}` },
+      ...(signer ? [{ label: t('cosign_account.label'), value: signer.address }] : []),
       { label: t('mosaic.divisibility_label'), value: String(divisibility) },
       { label: t('mosaic.options_title'), value: enabled.length > 0 ? enabled.join('・') : t('mosaic.off') },
       { label: t('mosaic.duration_label'), value: unlimited ? t('mosaic.duration_unlimited') : t('mosaic.duration_days', { days: daysNumber }) },
@@ -300,6 +352,7 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
       {!embedded && <BackButton onBack={onBack} back="/mosaic" />}
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
         <Alert severity="info" sx={{ mb: 2 }}>{t('mosaic.caution_immutable')}</Alert>
+        <CosignAccountPicker accounts={accounts} lockText={aggQuote ? xym(aggQuote.lockAmount) : null} />
 
         {/* initial supply on the left, the divisibility it is counted in on the right (one column on a phone) */}
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 1fr))' }, columnGap: 2, rowGap: 2, alignItems: 'start', mb: 3 }}>

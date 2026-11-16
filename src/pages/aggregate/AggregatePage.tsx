@@ -20,8 +20,8 @@ import {
 import type { FeeSpeed, MosaicBalance, OwnedMosaic, OwnedNamespace } from '../../lib/symbol/api';
 import { MAX_AGGREGATE_INNER, aggregateMosaicId, namespaceFullName, needsBonded, otherSigners, uidsToRemove } from '../../lib/symbol/aggregate';
 import type { AggregateItem, AggregateItemKind, AggregateSigner } from '../../lib/symbol/aggregate';
-import { quoteAggregate, resolveSigner, sendAggregate } from '../../lib/symbol/aggregateApi';
-import { fetchCosignedAccounts } from '../../lib/symbol/multisigApi';
+import { quoteAggregate, quoteRental, resolveSigner, sendAggregate } from '../../lib/symbol/aggregateApi';
+import { fetchCosignedAccounts, fetchMultisigInfo } from '../../lib/symbol/multisigApi';
 import type { AggregateQuote } from '../../lib/symbol/aggregateApi';
 import { formatAtomic } from '../../lib/symbol/amount';
 import { CURRENCY_DIVISIBILITY, CURRENCY_SYMBOL } from '../../lib/symbol/constants';
@@ -49,6 +49,7 @@ function classifyError(error: unknown): { kind: string; detail: string } {
   if (code === 'Failure_Core_Insufficient_Balance') return { kind: 'insufficient_balance', detail };
   if (code === 'Failure_Core_Future_Deadline' || code === 'Failure_Core_Past_Deadline') return { kind: 'deadline', detail };
   if (code === 'Failure_Core_Wrong_Network') return { kind: 'wrong_network', detail };
+  if (code === 'Failure_Multisig_Operation_Prohibited_By_Account') return { kind: 'prohibited', detail: code };
   if (code === 'lock_timeout') return { kind: 'lock_timeout', detail };
   if (code.startsWith('Failure_Mosaic') || code.startsWith('Failure_Namespace')) return { kind: 'conflict', detail: code };
   return { kind: 'unknown', detail: code && code !== detail ? `${code}: ${detail}` : detail };
@@ -73,6 +74,9 @@ export default function AggregatePage() {
   const [ownedMosaics, setOwnedMosaics] = useState<OwnedMosaic[]>([]);
   const [ownedNamespaces, setOwnedNamespaces] = useState<OwnedNamespace[]>([]);
   const [signers, setSigners] = useState<AggregateSigner[]>([]);
+  // The wallet's own account is a multisig account: it cannot send an aggregate itself (a cosigner's wallet has to).
+  const [selfIsMultisig, setSelfIsMultisig] = useState(false);
+  const [walletRental, setWalletRental] = useState<bigint | null>(null);
   const [formKind, setFormKind] = useState<FormKind>('transfer');
   // Bumped after each save so the form starts empty again.
   const [formNonce, setFormNonce] = useState(0);
@@ -92,6 +96,7 @@ export default function AggregatePage() {
       if (!w || cancelled) return;
       bind(`${network}:${w.address}`); // a draft made for another wallet / network is dropped
       setWallet({ address: w.address, publicKey: w.publicKey, id: w.id, sss: w.sss });
+      fetchMultisigInfo(w.address).then((info) => { if (!cancelled) setSelfIsMultisig(info.isMultisig); }).catch(() => { /* only a hint */ });
       const [b, m, n] = await Promise.all([
         fetchBalances(w.address).catch(() => [] as MosaicBalance[]),
         fetchOwnedMosaics(w.address).catch(() => [] as OwnedMosaic[]),
@@ -124,6 +129,15 @@ export default function AggregatePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemsKey, wallet, network]);
 
+  // Rental that the wallet itself pays: items made for a multisig account are paid by that account.
+  useEffect(() => {
+    const own = items.filter((i) => i.signer === undefined);
+    if (own.length === items.length) { setWalletRental(null); return undefined; }
+    let cancelled = false;
+    quoteRental(own).then((v) => { if (!cancelled) setWalletRental(v); }).catch(() => { if (!cancelled) setWalletRental(null); });
+    return () => { cancelled = true; };
+  }, [itemsKey]);
+
   const ctx: AggregateContext = { address: wallet?.address ?? '', items, balances, ownedMosaics, ownedNamespaces, signers };
   const bonded = needsBonded(items);
 
@@ -135,13 +149,19 @@ export default function AggregatePage() {
   const lockAmount = ready ? ready.lockAmount : null;
   const total = txFee !== null && rental !== null ? txFee + rental : null;
   // XYM that the transfers inside the aggregate send out, on top of the fees.
-  const xymSent = items.reduce((sum, i) => (i.kind === 'transfer' && i.mosaicId === netCfg.currencyMosaicId ? sum + i.amount : sum), 0n);
+  const xymSent = items.reduce((sum, i) => (i.kind === 'transfer' && i.signer === undefined && i.mosaicId === netCfg.currencyMosaicId ? sum + i.amount : sum), 0n);
+  const hasSignerItems = items.some((i) => i.signer !== undefined);
+  const walletRentalDue = hasSignerItems ? (walletRental ?? 0n) : rental;
   const xymBalance = balances.find((b) => b.id === netCfg.currencyMosaicId)?.amount ?? null;
-  const balanceShort = total !== null && xymBalance !== null && xymBalance < total + xymSent + (lockAmount ?? 0n);
+  const balanceShort = txFee !== null && walletRentalDue !== null && xymBalance !== null && xymBalance < txFee + walletRentalDue + xymSent + (lockAmount ?? 0n);
   const costText = (value: bigint | null) => (quote === 'loading' ? t('aggregate.cost_loading') : value === null ? t('aggregate.cost_unavailable') : xym(value));
 
   const describe = (item: AggregateItem): { title: string; lines: string[] } => {
     const owner = wallet?.address ?? '';
+    // Items made for a multisig account name it (a transfer shows it as the sender).
+    const acct = item.kind !== 'transfer' && item.signer
+      ? [`${t('cosign_account.label')}: ${prettyAddress(item.signer.address)}${item.signer.selfSufficient ? '' : ` ${t('aggregate.needs_cosign')}`}`]
+      : [];
     switch (item.kind) {
       case 'transfer':
         return {
@@ -158,7 +178,8 @@ export default function AggregatePage() {
         return {
           title: t('aggregate.kind_mosaic_definition'),
           lines: [
-            `ID: ${aggregateMosaicId(owner, item.nonce)}`,
+            ...acct,
+            `ID: ${aggregateMosaicId(item.signer?.address ?? owner, item.nonce)}`,
             `${t('mosaic.divisibility_label')}: ${item.divisibility}`,
             `${t('mosaic.duration_label')}: ${item.durationBlocks === 0n ? t('mosaic.duration_unlimited') : t('mosaic.duration_days', { days: Math.max(1, Math.round(Number(item.durationBlocks) / BLOCKS_PER_DAY)) })}`,
           ],
@@ -166,12 +187,23 @@ export default function AggregatePage() {
       case 'mosaic_supply':
         return {
           title: t('aggregate.kind_mosaic_supply'),
-          lines: [`${item.mosaicSymbol}: ${item.action === 'increase' ? '+' : '-'}${formatAtomic(item.delta, item.divisibility)}`],
+          lines: [...acct, `${item.mosaicSymbol}: ${item.action === 'increase' ? '+' : '-'}${formatAtomic(item.delta, item.divisibility)}`],
+        };
+      case 'metadata':
+        return {
+          title: t('metadata.target_label'),
+          lines: [`${item.target.type}: ${item.target.type === 'mosaic' ? item.target.mosaicId : item.target.type === 'namespace' ? item.target.namespaceId : ''}`.replace(/: $/, ''), `${item.key.toString(16).toUpperCase().padStart(16, '0')}`],
+        };
+      case 'alias':
+        return {
+          title: t(item.action === 'link' ? 'namespace.alias_link' : 'namespace.alias_unlink'),
+          lines: [item.namespaceId, item.target.type === 'address' ? prettyAddress(item.target.address) : item.target.mosaicId],
         };
       default:
         return {
           title: t('aggregate.kind_namespace'),
           lines: [
+            ...acct,
             namespaceFullName(item),
             item.parent ? t('namespace.child_badge') : `${t('namespace.duration_label')}: ${t('namespace.days_value', { days: Math.round(Number(item.durationBlocks) / BLOCKS_PER_DAY) })}`,
           ],
@@ -213,8 +245,8 @@ export default function AggregatePage() {
     else navigate('/top');
   };
 
-  const errorTitle = sendError ? t(`aggregate.error_${sendError.kind}_title`) : '';
-  const errorTexts = sendError ? (t(`aggregate.error_${sendError.kind}_message`, { returnObjects: true, detail: sendError.detail }) as string[]) : [];
+  const errorTitle = sendError ? (sendError.kind === 'prohibited' ? t('cosign_account.prohibited_title') : t(`aggregate.error_${sendError.kind}_title`)) : '';
+  const errorTexts = sendError ? (sendError.kind === 'prohibited' ? [t('cosign_account.self_is_multisig')] : t(`aggregate.error_${sendError.kind}_message`, { returnObjects: true, detail: sendError.detail }) as string[]) : [];
 
   const itemCards = useMemo(() => items.map((item) => {
     const d = describe(item);
@@ -289,6 +321,7 @@ export default function AggregatePage() {
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
         <Alert severity="info" sx={{ mb: 2 }}>{t('aggregate.intro')}</Alert>
+        {selfIsMultisig && <Alert severity="warning" sx={{ mb: 2 }}>{t('cosign_account.self_is_multisig')}</Alert>}
 
         {/* 種類ごとのタブ: 入力して「保存」すると、下の「まとめる内容」に積まれる */}
         <SectionCard sx={{ px: { xs: 2, md: 3 }, pt: 0 }}>
@@ -339,7 +372,7 @@ export default function AggregatePage() {
       </Box>
 
       <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Button variant="contained" size="large" fullWidth disabled={items.length === 0 || total === null} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5 }}>
+        <Button variant="contained" size="large" fullWidth disabled={items.length === 0 || total === null || selfIsMultisig} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5 }}>
           {t('aggregate.go_confirm')}
         </Button>
       </Box>

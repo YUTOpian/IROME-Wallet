@@ -1,5 +1,13 @@
 {
   "ja": {
+    "cosign_account": {
+      "label": "実行するアカウント",
+      "self": "このウォレット（{{address}}）",
+      "multisig": "マルチシグ {{address}}（連署者として実行）",
+      "bonded_notice": "このマルチシグアカウントは他の連署者の承認が必要です。送信するとアグリゲートボンデッドトランザクションになり、ハッシュロックとして {{lock}} が一時的に預けられます（成立すると戻ります）。連署者が署名すると実行されます。",
+      "self_is_multisig": "このウォレットのアカウントはマルチシグアカウントなので、自分では送信できません。連署者のウォレットに切り替えて、「実行するアカウント」からこのマルチシグアカウントを選んでください。",
+      "prohibited_title": "マルチシグアカウントからは送信できません"
+    },
     "dao": {
       "title": "DAO",
       "lead": "ガバナンストークンで運営する組織（DAO）を作り、ポイント・特典・交換・投票を行います。",
@@ -5261,6 +5269,14 @@
     }
   },
   "en": {
+    "cosign_account": {
+      "label": "Account to act with",
+      "self": "This wallet ({{address}})",
+      "multisig": "Multisig {{address}} (act as cosigner)",
+      "bonded_notice": "This multisig account needs approval from other cosigners. Sending creates an aggregate bonded transaction and temporarily locks {{lock}} as a hash lock (returned once it is confirmed). It takes effect after the cosigners sign.",
+      "self_is_multisig": "This wallet's account is a multisig account and cannot send by itself. Switch to a cosigner's wallet and pick this multisig account under \"Account to act with\".",
+      "prohibited_title": "A multisig account cannot send by itself"
+    },
     "dao": {
       "title": "DAO",
       "lead": "Create an organization (DAO) run with a governance token, and use points, rewards, exchange and voting.",

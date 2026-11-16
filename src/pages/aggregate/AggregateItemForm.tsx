@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, Button, Checkbox, FormControlLabel, InputAdornment, MenuItem, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { formatAtomic, parseDecimal } from '../../lib/symbol/amount';
-import { fetchBalances, resolveRecipientInput } from '../../lib/symbol/api';
+import { fetchBalances, fetchOwnedMosaics, fetchOwnedNamespaces, resolveRecipientInput } from '../../lib/symbol/api';
 import type { MosaicBalance, OwnedMosaic, OwnedNamespace, RecipientResolution } from '../../lib/symbol/api';
 import { classifyRecipientInput } from '../../lib/symbol/recipientInput';
 import type { RecipientInput } from '../../lib/symbol/recipientInput';
@@ -56,7 +56,7 @@ function sanitizeAmount(raw: string, decimals: number): string {
   return s;
 }
 
-interface MosaicOption { id: string; symbol: string; divisibility: number; balance?: bigint; local: boolean }
+interface MosaicOption { id: string; symbol: string; divisibility: number; balance?: bigint; local: boolean; owner?: string }
 
 // One form per kind of transaction (transfer / mosaic definition / supply change / namespace), laid out like the official
 // Symbol wallet: a heading, then rows with the label on the left and the field next to it, and a 「保存」 button that
@@ -66,10 +66,14 @@ export default function AggregateItemForm({ kind, ctx, index, full, onAdd }: Pro
   const networkByte = getNetworkConfig().networkByte;
 
   // Mosaics created earlier in this draft (their ids are known already, so later items can use them).
-  const draftMosaics: MosaicOption[] = useMemo(() => ctx.items.flatMap((i) => (i.kind === 'mosaic_definition'
-    ? [{ id: aggregateMosaicId(ctx.address, i.nonce), symbol: aggregateMosaicId(ctx.address, i.nonce), divisibility: i.divisibility, local: true }]
-    : [])), [ctx.items, ctx.address]);
-  const draftDefs = useMemo(() => new Map(ctx.items.flatMap((i) => (i.kind === 'mosaic_definition' ? [[aggregateMosaicId(ctx.address, i.nonce), i] as const] : []))), [ctx.items, ctx.address]);
+  // (a mosaic issued for a multisig account belongs to that account, so its owner is the item's signer)
+  const draftMosaics: MosaicOption[] = useMemo(() => ctx.items.flatMap((i) => {
+    if (i.kind !== 'mosaic_definition') return [];
+    const owner = i.signer?.address ?? ctx.address;
+    const id = aggregateMosaicId(owner, i.nonce);
+    return [{ id, symbol: id, divisibility: i.divisibility, local: true, owner }];
+  }), [ctx.items, ctx.address]);
+  const draftDefs = useMemo(() => new Map(ctx.items.flatMap((i) => (i.kind === 'mosaic_definition' ? [[aggregateMosaicId(i.signer?.address ?? ctx.address, i.nonce), i] as const] : []))), [ctx.items, ctx.address]);
 
   const [recipient, setRecipient] = useState('');
   const [assetId, setAssetId] = useState('');
@@ -161,20 +165,36 @@ export default function AggregateItemForm({ kind, ctx, index, full, onAdd }: Pro
     return () => { cancelled = true; };
   }, [signer?.address]);
 
+  // The account the item is made for: the wallet itself, or the multisig account chosen above (its mosaics / namespaces are the ones to use).
+  const actorAddress = signer?.address ?? ctx.address;
+  const [signerOwned, setSignerOwned] = useState<{ mosaics: OwnedMosaic[]; namespaces: OwnedNamespace[] } | 'loading'>({ mosaics: [], namespaces: [] });
+  useEffect(() => {
+    if (!signer || kind === 'transfer') { setSignerOwned({ mosaics: [], namespaces: [] }); return undefined; }
+    let cancelled = false;
+    setSignerOwned('loading');
+    Promise.all([
+      fetchOwnedMosaics(signer.address).catch(() => [] as OwnedMosaic[]),
+      fetchOwnedNamespaces(signer.address).catch(() => [] as OwnedNamespace[]),
+    ]).then(([mosaics, namespaces]) => { if (!cancelled) setSignerOwned({ mosaics, namespaces }); });
+    return () => { cancelled = true; };
+  }, [signer?.address, kind]);
+  const ownedMosaicsOfActor = signer ? (signerOwned === 'loading' ? [] : signerOwned.mosaics) : ctx.ownedMosaics;
+  const ownedNamespacesOfActor = signer ? (signerOwned === 'loading' ? [] : signerOwned.namespaces) : ctx.ownedNamespaces;
+
   // ---- transfer ----
   const transferAssets: MosaicOption[] = useMemo(() => [
     ...(signer ? (senderBalances === 'loading' ? [] : senderBalances) : ctx.balances).filter((b) => b.amount > 0n && b.transferable !== false)
       .map((b) => ({ id: b.id, symbol: b.symbol, divisibility: b.divisibility, balance: b.amount, local: false })),
-    // Mosaics created in this aggregate belong to the wallet, so only the wallet can send them.
-    ...(signer ? [] : draftMosaics.filter((m) => ((draftDefs.get(m.id)?.flags ?? 0) & MOSAIC_FLAG_TRANSFERABLE) !== 0)),
-  ], [ctx.balances, senderBalances, signer, draftMosaics, draftDefs]);
+    // Mosaics created in this aggregate belong to the account they were made for, so only that account can send them.
+    ...draftMosaics.filter((m) => m.owner === actorAddress && ((draftDefs.get(m.id)?.flags ?? 0) & MOSAIC_FLAG_TRANSFERABLE) !== 0),
+  ], [ctx.balances, senderBalances, signer, draftMosaics, draftDefs, actorAddress]);
 
   // ---- supply change ----
   const supplyTargets: MosaicOption[] = useMemo(() => [
-    ...ctx.ownedMosaics.filter((m) => (m.flags & MOSAIC_FLAG_SUPPLY_MUTABLE) !== 0)
+    ...ownedMosaicsOfActor.filter((m) => (m.flags & MOSAIC_FLAG_SUPPLY_MUTABLE) !== 0)
       .map((m) => ({ id: m.id, symbol: m.symbol, divisibility: m.divisibility, local: false })),
-    ...draftMosaics.filter((m) => ((draftDefs.get(m.id)?.flags ?? 0) & MOSAIC_FLAG_SUPPLY_MUTABLE) !== 0),
-  ], [ctx.ownedMosaics, draftMosaics, draftDefs]);
+    ...draftMosaics.filter((m) => m.owner === actorAddress && ((draftDefs.get(m.id)?.flags ?? 0) & MOSAIC_FLAG_SUPPLY_MUTABLE) !== 0),
+  ], [ownedMosaicsOfActor, draftMosaics, draftDefs, actorAddress]);
 
   const options = kind === 'transfer' ? transferAssets : supplyTargets;
   const selected = options.find((o) => o.id === assetId) ?? options[0];
@@ -182,14 +202,14 @@ export default function AggregateItemForm({ kind, ctx, index, full, onAdd }: Pro
 
   // ---- namespace parents ----
   const parents = useMemo(() => {
-    const owned = ctx.ownedNamespaces.filter((n) => n.depth < MAX_NAMESPACE_DEPTH && !n.expired).map((n) => ({ id: n.id, name: n.name }));
+    const owned = ownedNamespacesOfActor.filter((n) => n.depth < MAX_NAMESPACE_DEPTH && !n.expired).map((n) => ({ id: n.id, name: n.name }));
     const inDraft = ctx.items.flatMap((i) => {
-      if (i.kind !== 'namespace') return [];
+      if (i.kind !== 'namespace' || (i.signer?.address ?? ctx.address) !== actorAddress) return [];
       const full = namespaceFullName(i);
       return full.split('.').length < MAX_NAMESPACE_DEPTH ? [{ id: aggregateNamespaceId(i.name, i.parent?.id), name: full }] : [];
     });
     return [...owned, ...inDraft];
-  }, [ctx.ownedNamespaces, ctx.items]);
+  }, [ownedNamespacesOfActor, ctx.items, ctx.address, actorAddress]);
   const parent = parents.find((p) => p.id === parentId) ?? parents[0];
 
   const fmt = (v: bigint, d: number) => formatAtomic(v, d);
@@ -214,11 +234,11 @@ export default function AggregateItemForm({ kind, ctx, index, full, onAdd }: Pro
       if (!unlimited && !(days >= 1 && days <= MAX_MOSAIC_DAYS)) return { error: daysText === '' ? '' : t('mosaic.invalid_days') };
       const supply = initialSupply === '' ? null : parseDecimal(initialSupply, divisibility);
       if (initialSupply !== '' && (supply === null || supply <= 0n || supply > MAX_MOSAIC_SUPPLY)) return { error: t('mosaic.invalid_supply') };
-      const def: AggregateItem = { uid: uid(), kind: 'mosaic_definition', nonce: newMosaicNonce(), divisibility, flags, durationBlocks: unlimited ? 0n : BigInt(days) * BigInt(BLOCKS_PER_DAY) };
+      const def: AggregateItem = { uid: uid(), kind: 'mosaic_definition', signer, nonce: newMosaicNonce(), divisibility, flags, durationBlocks: unlimited ? 0n : BigInt(days) * BigInt(BLOCKS_PER_DAY) };
       const list: AggregateItem[] = [def];
       if (supply !== null) {
-        const id = aggregateMosaicId(ctx.address, def.nonce);
-        list.push({ uid: uid(), kind: 'mosaic_supply', mosaicId: id, mosaicSymbol: id, divisibility, action: 'increase', delta: supply });
+        const id = aggregateMosaicId(actorAddress, def.nonce);
+        list.push({ uid: uid(), kind: 'mosaic_supply', signer, mosaicId: id, mosaicSymbol: id, divisibility, action: 'increase', delta: supply });
       }
       return { items: list };
     }
@@ -227,16 +247,16 @@ export default function AggregateItemForm({ kind, ctx, index, full, onAdd }: Pro
       const delta = amountText === '' ? null : parseDecimal(amountText, selectedDiv);
       if (amountText === '') return { error: '' };
       if (delta === null || delta <= 0n || delta > MAX_MOSAIC_SUPPLY) return { error: t('aggregate.invalid_amount') };
-      return { items: [{ uid: uid(), kind: 'mosaic_supply', mosaicId: selected.id, mosaicSymbol: selected.symbol, divisibility: selectedDiv, action, delta } as AggregateItem] };
+      return { items: [{ uid: uid(), kind: 'mosaic_supply', signer, mosaicId: selected.id, mosaicSymbol: selected.symbol, divisibility: selectedDiv, action, delta } as AggregateItem] };
     }
     if (!isValidNamespaceName(nsName)) return { error: nsName === '' ? '' : t('namespace.invalid_name') };
     if (nsType === 'child') {
       if (!parent) return { error: '' };
-      return { items: [{ uid: uid(), kind: 'namespace', name: nsName, parent, durationBlocks: 0n } as AggregateItem] };
+      return { items: [{ uid: uid(), kind: 'namespace', signer, name: nsName, parent, durationBlocks: 0n } as AggregateItem] };
     }
     const days = /^\d+$/.test(nsDays) ? Number(nsDays) : NaN;
     if (!(days >= MIN_NAMESPACE_DAYS && days <= MAX_NAMESPACE_DAYS)) return { error: t('namespace.invalid_days', { min: MIN_NAMESPACE_DAYS, max: MAX_NAMESPACE_DAYS }) };
-    return { items: [{ uid: uid(), kind: 'namespace', name: nsName, durationBlocks: BigInt(days) * BigInt(BLOCKS_PER_DAY) } as AggregateItem] };
+    return { items: [{ uid: uid(), kind: 'namespace', signer, name: nsName, durationBlocks: BigInt(days) * BigInt(BLOCKS_PER_DAY) } as AggregateItem] };
   })();
 
   const noTarget = (kind === 'transfer' || kind === 'mosaic_supply') && options.length === 0;
@@ -330,6 +350,20 @@ export default function AggregateItemForm({ kind, ctx, index, full, onAdd }: Pro
               helperText={message === '' ? undefined : `${messageByteLength(message)} / ${MAX_MESSAGE_BYTES} bytes`} />
           </FormRow>
         </>
+      )}
+
+      {/* 実行するアカウント: the wallet itself, or a multisig account it cosigns for (the item is then signed by that account inside this aggregate) */}
+      {(kind === 'mosaic_definition' || kind === 'mosaic_supply' || kind === 'namespace') && ctx.signers.length > 0 && (
+        <FormRow label={t('cosign_account.label')} hint={signer && !signer.selfSufficient ? t('aggregate.sender_cosign_hint') : undefined}>
+          <Field select ariaLabel={t('cosign_account.label')} value={senderChoice} onChange={(e) => { setSenderChoice(e.target.value); setAssetId(''); setAmountText(''); setParentId(''); }}>
+            <MenuItem value="self">{t('cosign_account.self', { address: prettyAddress(ctx.address) })}</MenuItem>
+            {ctx.signers.map((x) => (
+              <MenuItem key={x.address} value={x.address} sx={{ fontFamily: 'monospace', wordBreak: 'break-all', whiteSpace: 'normal' }}>
+                {t('cosign_account.multisig', { address: prettyAddress(x.address) })}
+              </MenuItem>
+            ))}
+          </Field>
+        </FormRow>
       )}
 
       {kind === 'mosaic_definition' && (

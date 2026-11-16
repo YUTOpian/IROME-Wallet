@@ -23,6 +23,8 @@ import { MetadataEditor } from '../metadata/MetadataPage';
 import NamespaceAlias from './NamespaceAlias';
 import NamespaceRegister from './NamespaceRegister';
 import NamespaceRenew from './NamespaceRenew';
+import CosignAccountPicker from '../../components/CosignAccountPicker';
+import { useCosignAccounts } from '../../hooks/useCosignAccounts';
 import { aliasActionFor } from '../../lib/symbol/namespaceAlias';
 import { isExpiringSoon, isRenewableRoot } from '../../lib/symbol/namespaceRenew';
 
@@ -55,6 +57,9 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
   const [aliasNamespaceId, setAliasNamespaceId] = useState<string | null>(null);
   const [renewNamespaceId, setRenewNamespaceId] = useState<string | null>(null);
   const [nowMs] = useState(() => Date.now());
+  // 「実行するアカウント」: this wallet's own account, or a multisig account it cosigns for (its namespaces are listed, renewed and linked through an aggregate this wallet signs).
+  const accounts = useCosignAccounts();
+  const { accountAddr } = accounts;
 
   const [rows, setRows] = useState<OwnedNamespace[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,14 +73,14 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
     if (!quiet) setFailed(false);
     try {
       const wallet = await WalletsHelper.getActive();
-      setRows(wallet ? await fetchOwnedNamespaces(wallet.address) : []);
+      setRows(wallet ? await fetchOwnedNamespaces(accountAddr || wallet.address) : []);
     } catch (e) {
       console.error('Failed to load namespaces', e);
       if (!quiet) setFailed(true);
     } finally {
       if (!quiet) setLoading(false);
     }
-  }, []);
+  }, [accountAddr]);
 
   // 画面を開いたまま、取引を受け取ったとき（LiveUpdates）に、静かに読み直す。
   useLiveRefresh(() => { if (!failed) void load(true); });
@@ -192,6 +197,7 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
         />
       ) : (
         <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pb: 4, boxSizing: 'border-box' }}>
+          {!watchOnly && <Box sx={{ mt: 1.5 }}><CosignAccountPicker accounts={accounts} onPick={() => { setSort(null); setRows([]); }} /></Box>}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', columnGap: 2, rowGap: 0.5, mt: 1.5, mb: 1 }}>
             {!watchOnly && <Button size="small" startIcon={<DataObjectOutlinedIcon />} onClick={() => setMetadataDialog({})}>{t('namespace.add_metadata')}</Button>}
               <FormControlLabel
@@ -282,7 +288,7 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
         </DialogTitle>
         <Box sx={{ overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           {aliasNamespaceId !== null && (
-            <NamespaceAlias embedded initialNamespaceId={aliasNamespaceId} onDone={() => { setAliasNamespaceId(null); load(); }} />
+            <NamespaceAlias embedded initialNamespaceId={aliasNamespaceId} initialAccountAddr={accountAddr} onDone={() => { setAliasNamespaceId(null); load(); }} />
           )}
         </Box>
       </Dialog>
@@ -294,7 +300,7 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
         </DialogTitle>
         <Box sx={{ overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           {renewNamespaceId !== null && (
-            <NamespaceRenew embedded initialNamespaceId={renewNamespaceId} onDone={() => { setRenewNamespaceId(null); load(); }} />
+            <NamespaceRenew embedded initialNamespaceId={renewNamespaceId} initialAccountAddr={accountAddr} onDone={() => { setRenewNamespaceId(null); load(); }} />
           )}
         </Box>
       </Dialog>

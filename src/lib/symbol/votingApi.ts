@@ -3,7 +3,7 @@ import { generateNamespaceId } from 'symbol-sdk/symbol';
 import { TX_TYPE_TRANSFER } from './constants';
 import { addressBytesToString, addressFromPublicKey, hexToBytes, isValidAddress, normalizeAddress } from './crypto';
 import { aggregateSize } from './aggregate';
-import type { AggregateItem } from './aggregate';
+import type { AggregateItem, AggregateSigner } from './aggregate';
 import { fetchExistingMosaicInfo, feeMultipliers, fetchBalances, nodeRequest, quoteFee, sendTransfer } from './api';
 import type { MosaicInfo } from './api';
 import { sendAggregate } from './aggregateApi';
@@ -407,15 +407,31 @@ export interface SendSymbolVoteInput {
   publicKey: string;
   poll: Poll;
   option: string;
+  /** マルチシグアカウントの名前で投票する: そのアカウントを署名者にして、自分のウォレットが署名するアグリゲートの中の送金として送る。 */
+  signer?: AggregateSigner;
+  /** `signer` を使うとき、自分のウォレットのアドレス。 */
+  address?: string;
 }
 
 /** 1 つの選択肢に投票する（空の 0 XYM の送金）。送る前に Error('poll_ended' | 'poll_invalid' | 'invalid_option') を投げる。 */
-export async function sendSymbolVote(input: SendSymbolVoteInput): Promise<{ hash: string }> {
+export async function sendSymbolVote(input: SendSymbolVoteInput): Promise<{ hash: string; bonded?: boolean }> {
   const { poll, option } = input;
   if (isPollEnded(poll)) throw new Error('poll_ended');
   if (!poll.valid) throw new Error('poll_invalid');
   const recipient = poll.optionAddresses[option];
   if (!recipient) throw new Error('invalid_option');
+  if (input.signer) {
+    if (!input.address) throw new Error('address_required');
+    const sent = await sendAggregate({
+      privateKey: input.privateKey,
+      keyless: input.sss ? { kind: 'sss' } : undefined,
+      publicKey: input.publicKey,
+      address: input.address,
+      items: toItems([{ recipient, message: '' }], input.signer),
+      feeSpeed: getDefaultFeeSpeed(),
+    });
+    return { hash: sent.hash, bonded: sent.bonded };
+  }
   return sendTransfer({
     privateKey: input.privateKey,
     sss: input.sss,
@@ -426,9 +442,30 @@ export async function sendSymbolVote(input: SendSymbolVoteInput): Promise<{ hash
   });
 }
 
+/** マルチシグアカウントの名前で、複数の選択肢に 1 つのアグリゲートで投票する（連署が要るなら、ロックは 1 回だけ）。 */
+export async function sendSymbolVotesAsMultisig(input: Omit<SendSymbolVoteInput, 'option' | 'signer' | 'address'> & { options: string[]; signer: AggregateSigner; address: string }): Promise<{ hash: string; bonded: boolean }> {
+  const { poll } = input;
+  if (isPollEnded(poll)) throw new Error('poll_ended');
+  if (!poll.valid) throw new Error('poll_invalid');
+  const messages = input.options.map((option) => {
+    const recipient = poll.optionAddresses[option];
+    if (!recipient) throw new Error('invalid_option');
+    return { recipient, message: '' };
+  });
+  const sent = await sendAggregate({
+    privateKey: input.privateKey,
+    keyless: input.sss ? { kind: 'sss' } : undefined,
+    publicKey: input.publicKey,
+    address: input.address,
+    items: toItems(messages, input.signer),
+    feeSpeed: getDefaultFeeSpeed(),
+  });
+  return { hash: sent.hash, bonded: sent.bonded };
+}
+
 // --- creating a poll --------------------------------------------------------------------------
 /** メッセージを、モザイクなしの送金のアイテム（アグリゲートの中身）にする。 */
-function toItems(messages: PollMessage[]): AggregateItem[] {
+function toItems(messages: PollMessage[], signer?: AggregateSigner): AggregateItem[] {
   return messages.map((m, i): AggregateItem => ({
     uid: `poll-${i}`,
     kind: 'transfer',
@@ -438,6 +475,7 @@ function toItems(messages: PollMessage[]): AggregateItem[] {
     divisibility: 0,
     amount: 0n, // 0 のときは、モザイクを付けない
     message: m.message,
+    signer,
   }));
 }
 
@@ -447,8 +485,8 @@ export async function fetchPollFeeMultiplier(speed: FeeSpeed = getDefaultFeeSpee
 }
 
 /** 投票の作成の手数料（XYM の最小単位）。送るアグリゲートの実際の大きさから計算する（ネットワークへの問い合わせなし）。 */
-export function symbolPollFee(messages: PollMessage[], publicKey: string, address: string, multiplier: number): bigint {
-  const size = aggregateSize(publicKey, address, getNetworkConfig().networkByte, toItems(messages));
+export function symbolPollFee(messages: PollMessage[], publicKey: string, address: string, multiplier: number, signer?: AggregateSigner): bigint {
+  const size = aggregateSize(publicKey, address, getNetworkConfig().networkByte, toItems(messages, signer));
   return BigInt(size) * BigInt(multiplier);
 }
 
@@ -471,18 +509,20 @@ export interface CreateSymbolPollInput {
   publicKey: string;
   address: string; // 自分のアドレス
   input: NewPollInput;
+  /** マルチシグアカウントの名前で作る: 作成者の公開鍵（投票のアドレスのもと）はこのアカウントのもの。連署が要るときは bonded になる。 */
+  signer?: AggregateSigner;
 }
 
 /** 投票を作る: メッセージを 1 つのアグリゲートにまとめて送る（全部入るか、全部入らないか）。 */
-export async function createSymbolPoll(args: CreateSymbolPollInput): Promise<{ hash: string; pollAddress: string }> {
-  const { pollAddress, messages } = buildPollMessages(args.input, args.publicKey, symbolAddressing());
+export async function createSymbolPoll(args: CreateSymbolPollInput): Promise<{ hash: string; pollAddress: string; bonded: boolean }> {
+  const { pollAddress, messages } = buildPollMessages(args.input, args.signer?.publicKey ?? args.publicKey, symbolAddressing());
   const sent = await sendAggregate({
     privateKey: args.privateKey,
     keyless: args.keyless,
     publicKey: args.publicKey,
     address: args.address,
-    items: toItems(messages),
+    items: toItems(messages, args.signer),
     feeSpeed: getDefaultFeeSpeed(),
   });
-  return { hash: sent.hash, pollAddress };
+  return { hash: sent.hash, pollAddress, bonded: sent.bonded };
 }

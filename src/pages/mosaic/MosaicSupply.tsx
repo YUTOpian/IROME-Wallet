@@ -9,6 +9,11 @@ import ErrorSnackbar from '../../components/ErrorSnackbar';
 import MessageDialog from '../../components/MessageDialog';
 import PasswordDialog from '../../components/PasswordDialog';
 import { withFormReset, type SentProps } from '../../lib/withFormReset';
+import CosignAccountPicker from '../../components/CosignAccountPicker';
+import { useCosignAccounts } from '../../hooks/useCosignAccounts';
+import { quoteAggregate, sendAggregate } from '../../lib/symbol/aggregateApi';
+import type { AggregateQuote } from '../../lib/symbol/aggregateApi';
+import { getDefaultFeeSpeed } from '../../lib/symbol/feeSpeed';
 import { showTxNotice } from '../../store/txNoticeStore';
 import { WalletsHelper } from '../../lib/storage';
 import {
@@ -69,6 +74,10 @@ function MosaicSupply({ initialMosaicId, embedded, onDone, onSent }: MosaicSuppl
   const [rows, setRows] = useState<MosaicRow[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [mosaicId, setMosaicId] = useState(initialMosaicId ?? '');
+  // The account whose mosaics are changed: this wallet's own, or a multisig account it cosigns for (sent inside an aggregate).
+  const accounts = useCosignAccounts();
+  const { accountAddr, signer } = accounts;
+  const [aggQuote, setAggQuote] = useState<AggregateQuote | null>(null);
   const [action, setAction] = useState<SupplyAction>('increase');
   const [amountText, setAmountText] = useState('');
 
@@ -88,7 +97,8 @@ function MosaicSupply({ initialMosaicId, embedded, onDone, onSent }: MosaicSuppl
     (async () => {
       try {
         const wallet = await WalletsHelper.getActive();
-        const all = wallet ? await fetchMosaicRows(wallet.address) : [];
+        const ownerAddress = accountAddr || wallet?.address;
+        const all = ownerAddress ? await fetchMosaicRows(ownerAddress) : [];
         if (!cancelled) setRows(all.filter(isSupplyMutableMine));
       } catch (e) {
         console.error('Failed to load mosaics', e);
@@ -96,14 +106,28 @@ function MosaicSupply({ initialMosaicId, embedded, onDone, onSent }: MosaicSuppl
       }
     })();
     return () => { cancelled = true; };
-  }, [network]);
+  }, [network, accountAddr]);
 
   // Transaction fee, and the XYM balance (to warn when it will not cover the fee).
   useEffect(() => {
     let cancelled = false;
     setFee('loading');
     setXymBalance(null);
-    quoteMosaicSupplyChangeFee().then((q) => { if (!cancelled) setFee(q.fee); }).catch(() => { if (!cancelled) setFee(null); });
+    setAggQuote(null);
+    if (signer) {
+      // A multisig account: the change travels inside an aggregate signed by this wallet (bonded when others must cosign), which also pays the fee.
+      WalletsHelper.getActive().then((wallet) => (wallet
+        ? quoteAggregate(wallet.publicKey, wallet.address, [{ uid: 'supply', kind: 'mosaic_supply', mosaicId: '0'.repeat(16), mosaicSymbol: '', divisibility: 0, action: 'increase', delta: 1n, signer }])
+        : null))
+        .then((q) => {
+          if (cancelled || !q) return;
+          setAggQuote(q);
+          setFee(q.fees[getDefaultFeeSpeed()].fee + q.lockFees[getDefaultFeeSpeed()]);
+        })
+        .catch(() => { if (!cancelled) setFee(null); });
+    } else {
+      quoteMosaicSupplyChangeFee().then((q) => { if (!cancelled) setFee(q.fee); }).catch(() => { if (!cancelled) setFee(null); });
+    }
     (async () => {
       try {
         const wallet = await WalletsHelper.getActive();
@@ -114,7 +138,7 @@ function MosaicSupply({ initialMosaicId, embedded, onDone, onSent }: MosaicSuppl
       } catch { /* the warning is optional */ }
     })();
     return () => { cancelled = true; };
-  }, [network]);
+  }, [network, signer]);
 
   const selected = useMemo(() => (rows ?? []).find((r) => r.id === mosaicId) ?? (rows ?? [])[0], [rows, mosaicId]);
   const div = selected?.divisibility ?? 0;
@@ -122,7 +146,7 @@ function MosaicSupply({ initialMosaicId, embedded, onDone, onSent }: MosaicSuppl
   const blocked = selected ? supplyBlockedReason(selected) : null;
   const delta = selected && amountText !== '' ? parseDecimal(amountText, div) : null;
   const problem = selected && amountText !== '' ? validateSupplyChange(selected, action, delta) : null;
-  const canContinue = selected !== undefined && blocked === null && amountText !== '' && problem === null && delta !== null;
+  const canContinue = selected !== undefined && blocked === null && amountText !== '' && problem === null && delta !== null && !accounts.blocked;
   const after = selected && delta !== null && problem === null ? supplyAfter(selected.supply, action, delta) : null;
 
   const fmt = (v: bigint) => groupDigits(formatAtomic(v, div));
@@ -140,12 +164,18 @@ function MosaicSupply({ initialMosaicId, embedded, onDone, onSent }: MosaicSuppl
     try {
       const wallet = await WalletsHelper.getActive();
       if (!wallet) return;
-      const privateKey = await WalletsHelper.decryptKey(wallet.id, password);
+      const privateKey = wallet.sss && signer ? '' : await WalletsHelper.decryptKey(wallet.id, password);
       if (privateKey == null) {
         setErrorMessage(t('wallet.invalid_key'));
         return;
       }
-      const sent = await changeMosaicSupply({ privateKey, publicKey: wallet.publicKey, mosaicId: selected.id, action, delta });
+      const sent = signer
+        ? await sendAggregate({
+          privateKey, keyless: wallet.sss ? { kind: 'sss' } : undefined, publicKey: wallet.publicKey, address: wallet.address,
+          items: [{ uid: 'supply', kind: 'mosaic_supply', mosaicId: selected.id, mosaicSymbol: selected.name ?? selected.id, divisibility: selected.divisibility, action, delta, signer }],
+          feeSpeed: getDefaultFeeSpeed(),
+        })
+        : await changeMosaicSupply({ privateKey, publicKey: wallet.publicKey, mosaicId: selected.id, action, delta });
       showTxNotice({ lines: t('mosaic.supply_done_message', { returnObjects: true }) as string[], explorerUrl: explorerTxUrl(sent.hash), explorerLabel: t('mosaic.view_explorer') });
       onDone?.();
       onSent();
@@ -168,6 +198,7 @@ function MosaicSupply({ initialMosaicId, embedded, onDone, onSent }: MosaicSuppl
     const confirmRows: { label: string; value: string; big?: boolean }[] = [
       { label: t('mosaic.supply_pick'), value: `${selected.name ?? selected.id}${selected.name ? `\n${selected.id}` : ''}` },
       { label: t('send.network'), value: `Symbol ${netCfg.label}` },
+      ...(signer ? [{ label: t('cosign_account.label'), value: signer.address }] : []),
       { label: t('mosaic.supply_action'), value: `${action === 'increase' ? t('mosaic.supply_increase') : t('mosaic.supply_decrease')}  ${action === 'increase' ? '+' : '−'}${fmt(delta)}`, big: true },
       { label: t('mosaic.supply_current'), value: fmt(selected.supply) },
       { label: t('mosaic.supply_after'), value: fmt(after), big: true },
@@ -221,6 +252,8 @@ function MosaicSupply({ initialMosaicId, embedded, onDone, onSent }: MosaicSuppl
         <Alert severity="info" sx={{ mb: 2 }}>
           {t('mosaic.supply_intro')}<br />{t('mosaic.supply_rule_hint')}
         </Alert>
+
+        <CosignAccountPicker accounts={accounts} onPick={() => { setMosaicId(''); setAmountText(''); }} lockText={aggQuote ? xym(aggQuote.lockAmount) : null} />
 
         {rows === null ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={26} /></Box>

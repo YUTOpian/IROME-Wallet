@@ -5,8 +5,8 @@
 // (no cosignatures, no hash lock); aggregates that need other accounts' signatures are the multisig screens.
 import { Address, SymbolFacade, generateMosaicId, generateNamespaceId, models } from 'symbol-sdk/symbol';
 import { bytesToHex, facadeFor, normalizeAddress } from './crypto';
-import { COSIGNATURE_SIZE, isValidNamespaceName, MAX_MESSAGE_BYTES, messageField, signingKeyPair } from './tx';
-import type { SignedTransaction } from './tx';
+import { COSIGNATURE_SIZE, createMetadataEmbedded, isValidNamespaceName, MAX_MESSAGE_BYTES, messageField, signingKeyPair } from './tx';
+import type { MetadataTarget, SignedTransaction } from './tx';
 
 /** The network accepts at most this many inner transactions in one aggregate (maxTransactionsPerAggregate). */
 export const MAX_AGGREGATE_INNER = 100;
@@ -42,6 +42,7 @@ export type AggregateItem =
   | {
     uid: string;
     kind: 'mosaic_definition';
+    signer?: AggregateSigner; // omitted = defined by the wallet itself; set to issue the mosaic from a multisig account
     nonce: number; // uint32; with the owner's address it fixes the mosaic id
     divisibility: number;
     flags: number;
@@ -50,6 +51,7 @@ export type AggregateItem =
   | {
     uid: string;
     kind: 'mosaic_supply';
+    signer?: AggregateSigner; // omitted = changed by the wallet itself
     mosaicId: string; // 16 hex chars
     mosaicSymbol: string; // for display
     divisibility: number;
@@ -59,10 +61,30 @@ export type AggregateItem =
   | {
     uid: string;
     kind: 'namespace';
+    signer?: AggregateSigner; // omitted = registered by the wallet itself; set to renew / register for a multisig account the wallet cosigns for
     name: string; // this level's name only
     parent?: { id: string; name: string }; // set for a sub-namespace (full name of the parent for display)
     durationBlocks: bigint; // root namespaces only
+  }
+  | {
+    uid: string;
+    kind: 'alias';
+    signer?: AggregateSigner; // omitted = the wallet's own namespace; set for a multisig account's namespace
+    namespaceId: string; // 16 hex chars
+    action: 'link' | 'unlink';
+    target: AliasItemTarget; // what is linked (link) / what is linked now (unlink)
+  }
+  | {
+    uid: string;
+    kind: 'metadata';
+    signer?: AggregateSigner; // omitted = set by the wallet itself; set for a multisig account (the entry's source and the target's owner)
+    target: MetadataTarget; // the multisig account's own address / mosaic / namespace (the account is the signer's)
+    key: bigint; // scoped metadata key
+    oldValue: Uint8Array; // value stored now (empty when the key is new)
+    newValue: Uint8Array;
   };
+
+export type AliasItemTarget = { type: 'address'; address: string } | { type: 'mosaic'; mosaicId: string };
 
 export type AggregateItemKind = AggregateItem['kind'];
 
@@ -101,20 +123,20 @@ export function validateItem(item: AggregateItem): string | null {
 
 /** Whether the aggregate must be bonded: some inner transaction is signed by an account the wallet cannot sign for alone. */
 export function needsBonded(items: AggregateItem[]): boolean {
-  return items.some((i) => i.kind === 'transfer' && i.signer !== undefined && !i.signer.selfSufficient);
+  return items.some((i) => i.signer !== undefined && !i.signer.selfSufficient);
 }
 
 /** Signatures to be collected from others (counted once per signing account), which the fee has to leave room for. */
 export function cosignatureCount(items: AggregateItem[]): number {
   const seen = new Map<string, number>();
-  for (const i of items) if (i.kind === 'transfer' && i.signer && !i.signer.selfSufficient) seen.set(i.signer.address, i.signer.cosignatures);
+  for (const i of items) if (i.signer && !i.signer.selfSufficient) seen.set(i.signer.address, i.signer.cosignatures);
   return [...seen.values()].reduce((sum, n) => sum + n, 0);
 }
 
 /** The other accounts whose signature the aggregate needs (distinct, in order of first use). */
 export function otherSigners(items: AggregateItem[]): AggregateSigner[] {
   const out = new Map<string, AggregateSigner>();
-  for (const i of items) if (i.kind === 'transfer' && i.signer && !out.has(i.signer.address)) out.set(i.signer.address, i.signer);
+  for (const i of items) if (i.signer && !out.has(i.signer.address)) out.set(i.signer.address, i.signer);
   return [...out.values()];
 }
 
@@ -145,10 +167,10 @@ function buildEmbedded(facade: SymbolFacade, signerPublicKey: string, ownerAddre
       });
     }
     case 'mosaic_definition': {
-      const id = BigInt(`0x${aggregateMosaicId(ownerAddress, item.nonce)}`);
+      const id = BigInt(`0x${aggregateMosaicId(item.signer?.address ?? ownerAddress, item.nonce)}`);
       return facade.transactionFactory.createEmbedded({
         type: 'mosaic_definition_transaction_v1',
-        signerPublicKey,
+        signerPublicKey: item.signer?.publicKey ?? signerPublicKey,
         id: new models.MosaicId(id),
         duration: new models.BlockDuration(item.durationBlocks),
         nonce: new models.MosaicNonce(item.nonce),
@@ -159,14 +181,28 @@ function buildEmbedded(facade: SymbolFacade, signerPublicKey: string, ownerAddre
     case 'mosaic_supply':
       return facade.transactionFactory.createEmbedded({
         type: 'mosaic_supply_change_transaction_v1',
-        signerPublicKey,
+        signerPublicKey: item.signer?.publicKey ?? signerPublicKey,
         mosaicId: new models.UnresolvedMosaicId(BigInt(`0x${item.mosaicId}`)),
         delta: new models.Amount(item.delta),
         action: item.action === 'increase' ? models.MosaicSupplyChangeAction.INCREASE : models.MosaicSupplyChangeAction.DECREASE,
       });
+    case 'metadata':
+      return createMetadataEmbedded(facade, item.signer?.publicKey ?? signerPublicKey, item.signer?.address ?? ownerAddress, {
+        target: item.target, key: item.key, oldValue: item.oldValue, newValue: item.newValue,
+      });
+    case 'alias': {
+      const common = {
+        signerPublicKey: item.signer?.publicKey ?? signerPublicKey,
+        namespaceId: new models.NamespaceId(BigInt(`0x${item.namespaceId}`)),
+        aliasAction: item.action === 'link' ? models.AliasAction.LINK : models.AliasAction.UNLINK,
+      };
+      return item.target.type === 'address'
+        ? facade.transactionFactory.createEmbedded({ type: 'address_alias_transaction_v1', ...common, address: normalizeAddress(item.target.address) })
+        : facade.transactionFactory.createEmbedded({ type: 'mosaic_alias_transaction_v1', ...common, mosaicId: new models.MosaicId(BigInt(`0x${item.target.mosaicId}`)) });
+    }
     default: {
       const common = {
-        signerPublicKey,
+        signerPublicKey: item.signer?.publicKey ?? signerPublicKey,
         id: new models.NamespaceId(BigInt(`0x${aggregateNamespaceId(item.name, item.parent?.id)}`)),
         name: new TextEncoder().encode(item.name),
       };
@@ -232,7 +268,7 @@ export function signAggregate(privateKey: string, generationHash: string, p: Agg
 
 /** The mosaic or namespace id that an item creates, or null for items that create nothing. */
 export function createdId(item: AggregateItem, ownerAddress: string): string | null {
-  if (item.kind === 'mosaic_definition') return aggregateMosaicId(ownerAddress, item.nonce);
+  if (item.kind === 'mosaic_definition') return aggregateMosaicId(item.signer?.address ?? ownerAddress, item.nonce);
   if (item.kind === 'namespace') return aggregateNamespaceId(item.name, item.parent?.id);
   return null;
 }

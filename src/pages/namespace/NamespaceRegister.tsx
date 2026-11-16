@@ -12,6 +12,13 @@ import MessageDialog from '../../components/MessageDialog';
 import MetadataEntriesEditor from '../../components/MetadataEntriesEditor';
 import PasswordDialog from '../../components/PasswordDialog';
 import { withFormReset, type SentProps } from '../../lib/withFormReset';
+import CosignAccountPicker from '../../components/CosignAccountPicker';
+import { useCosignAccounts } from '../../hooks/useCosignAccounts';
+import { quoteAggregate, sendAggregate } from '../../lib/symbol/aggregateApi';
+import type { AggregateQuote } from '../../lib/symbol/aggregateApi';
+import { aggregateNamespaceId } from '../../lib/symbol/aggregate';
+import type { AggregateItem } from '../../lib/symbol/aggregate';
+import { getDefaultFeeSpeed } from '../../lib/symbol/feeSpeed';
 import { showTxNotice } from '../../store/txNoticeStore';
 import { WalletsHelper } from '../../lib/storage';
 import {
@@ -33,11 +40,13 @@ import { fieldBoxSx } from '../../components/fieldBox';
 
 // Maps the node's transaction-status codes (and local failures) to a message key + detail.
 function classifyError(error: unknown): { kind: string; detail: string } {
-  const code = error instanceof SymbolSendError ? error.code : '';
   const detail = error instanceof Error ? error.message : String(error);
+  // The node's status code travels in `code`; when the error lost its class on the way, the code is still in the message.
+  const code = error instanceof SymbolSendError ? error.code : (/Failure_[A-Za-z_]+/.exec(detail)?.[0] ?? '');
   if (code === 'Failure_Core_Insufficient_Balance') return { kind: 'insufficient_balance', detail };
   if (code === 'Failure_Core_Future_Deadline' || code === 'Failure_Core_Past_Deadline') return { kind: 'deadline', detail };
   if (code === 'Failure_Core_Wrong_Network') return { kind: 'wrong_network', detail };
+  if (code === 'Failure_Multisig_Operation_Prohibited_By_Account') return { kind: 'prohibited', detail: code };
   if (code === 'Failure_Namespace_Owner_Conflict' || code === 'Failure_Namespace_Root_Name_Reserved') return { kind: 'conflict', detail };
   return { kind: 'unknown', detail: code && code !== detail ? `${code}: ${detail}` : detail };
 }
@@ -64,6 +73,11 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
   const netCfg = getNetworkConfig(network);
 
   const [step, setStep] = useState<Step>('form');
+
+  // The account that registers the namespace: this wallet's own, or a multisig account it cosigns for (sent inside an aggregate).
+  const accounts = useCosignAccounts();
+  const { accountAddr, signer } = accounts;
+  const [aggQuote, setAggQuote] = useState<AggregateQuote | null>(null);
 
   // form
   const [kindState, setKind] = useState<Kind>('root');
@@ -100,9 +114,10 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
       try {
         const wallet = await WalletsHelper.getActive();
         if (!wallet) return;
+        const ownerAddress = accountAddr || wallet.address;
         const [balances, owned] = await Promise.all([
-          fetchBalances(wallet.address),
-          fetchOwnedNamespaces(wallet.address).catch(() => [] as OwnedNamespace[]),
+          fetchBalances(ownerAddress),
+          fetchOwnedNamespaces(ownerAddress).catch(() => [] as OwnedNamespace[]),
         ]);
         if (cancelled) return;
         const xym = balances.find((b) => b.id === getNetworkConfig(network).currencyMosaicId);
@@ -113,7 +128,7 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
       } catch { /* the warning and the parent list are optional */ }
     })();
     return () => { cancelled = true; };
-  }, [network]);
+  }, [network, accountAddr]);
 
   // --- validation -------------------------------------------------------------------------
   const nameValid = isValidNamespaceName(name);
@@ -123,27 +138,54 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
   const daysError = daysText === '' || daysValid ? '' : t('namespace.invalid_days', { min: MIN_NAMESPACE_DAYS, max: MAX_NAMESPACE_DAYS });
   const parent = parents.find((p) => p.id === parentId);
   const metadataValid = draftsValid(metadataDrafts);
-  const canContinue = nameValid && (kind === 'root' ? daysValid : parent !== undefined) && metadataValid;
+  const canContinue = nameValid && (kind === 'root' ? daysValid : parent !== undefined) && metadataValid && !accounts.blocked;
 
   const fullName = kind === 'child' && parent ? `${parent.name}.${name}` : name;
   const durationBlocks = kind === 'root' && daysValid ? BigInt(daysNumber) * BigInt(BLOCKS_PER_DAY) : 0n;
 
+  // The registration and its metadata entries (set on the new namespace in the same aggregate), all signed by the multisig account.
+  const multisigItems = (): AggregateItem[] => {
+    if (!signer) return [];
+    const nsName = nameValid ? name : 'a';
+    const parentRef = kind === 'child' && parent ? { id: parent.id, name: parent.name } : undefined;
+    const namespaceId = aggregateNamespaceId(nsName, parentRef?.id);
+    const entries = draftsValid(metadataDrafts) ? draftsToItems(metadataDrafts) : [];
+    return [
+      { uid: 'ns', kind: 'namespace', name: nsName, parent: parentRef, durationBlocks, signer },
+      ...entries.map((e, i): AggregateItem => ({ uid: `meta${i}`, kind: 'metadata', signer, target: { type: 'namespace', namespaceId }, key: e.key, oldValue: new Uint8Array(0), newValue: e.value })),
+    ];
+  };
   // Transaction fee depends on the name's length and on the metadata rows (sent in the same aggregate).
   const metadataLengthsKey = draftValueLengths(metadataDrafts).join(',');
   useEffect(() => {
     let cancelled = false;
     setTxFee(null);
-    quoteNamespaceRegistrationFee(nameValid ? name : 'a', metadataLengthsKey === '' ? [] : metadataLengthsKey.split(',').map(Number))
-      .then((q) => { if (!cancelled) setTxFee(q.fee); })
-      .catch(() => { /* shown as unavailable */ });
+    setAggQuote(null);
+    if (signer) {
+      WalletsHelper.getActive().then((wallet) => (wallet ? quoteAggregate(wallet.publicKey, wallet.address, multisigItems()) : null))
+        .then((q) => {
+          if (cancelled || !q) return;
+          setAggQuote(q);
+          setTxFee(q.fees[getDefaultFeeSpeed()].fee + q.lockFees[getDefaultFeeSpeed()]);
+        })
+        .catch(() => { /* shown as unavailable */ });
+    } else {
+      quoteNamespaceRegistrationFee(nameValid ? name : 'a', metadataLengthsKey === '' ? [] : metadataLengthsKey.split(',').map(Number))
+        .then((q) => { if (!cancelled) setTxFee(q.fee); })
+        .catch(() => { /* shown as unavailable */ });
+    }
     return () => { cancelled = true; };
-  }, [name, nameValid, metadataLengthsKey, network]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, nameValid, metadataLengthsKey, network, signer, kind, parentId]);
 
   const rentalFee: bigint | null = fees === 'loading' || fees === null
     ? null
     : kind === 'root' ? fees.rootFeePerBlock * durationBlocks : fees.childFee;
   const total = rentalFee !== null && txFee !== null ? rentalFee + txFee : null;
-  const balanceShort = total !== null && xymBalance !== null && xymBalance < total;
+  // For a multisig account the account itself pays the rental; the fee (and hash lock) come from this wallet.
+  const balanceShort = signer
+    ? rentalFee !== null && xymBalance !== null && xymBalance < rentalFee
+    : total !== null && xymBalance !== null && xymBalance < total;
 
   const xym = (amount: bigint) => `${formatAtomic(amount, CURRENCY_DIVISIBILITY)} ${CURRENCY_SYMBOL}`;
   const costText = (value: bigint | null) =>
@@ -157,9 +199,18 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
     try {
       const wallet = await WalletsHelper.getActive();
       if (!wallet) return;
-      const privateKey = await WalletsHelper.decryptKey(wallet.id, password);
+      const privateKey = wallet.sss && signer ? '' : await WalletsHelper.decryptKey(wallet.id, password);
       if (privateKey == null) {
         setErrorMessage(t('wallet.invalid_key'));
+        return;
+      }
+      if (signer) {
+        const sentAgg = await sendAggregate({
+          privateKey, keyless: wallet.sss ? { kind: 'sss' } : undefined, publicKey: wallet.publicKey, address: wallet.address,
+          items: multisigItems(), feeSpeed: getDefaultFeeSpeed(),
+        });
+        showTxNotice({ lines: t('namespace.done_message', { returnObjects: true }) as string[], explorerUrl: explorerTxUrl(sentAgg.hash), explorerLabel: t('namespace.view_explorer') });
+        onSent();
         return;
       }
       const registered = await registerNamespace({
@@ -191,9 +242,9 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
     ? { flexGrow: 1, display: 'flex', flexDirection: 'column' }
     : { minHeight: '100vh', display: 'flex', flexDirection: 'column' };
 
-  const errorTitle = sendError ? t(`namespace.error_${sendError.kind}_title`) : '';
+  const errorTitle = sendError ? (sendError.kind === 'prohibited' ? t('cosign_account.prohibited_title') : t(`namespace.error_${sendError.kind}_title`)) : '';
   const errorTexts = sendError
-    ? (t(`namespace.error_${sendError.kind}_message`, { returnObjects: true, detail: sendError.detail }) as string[])
+    ? (sendError.kind === 'prohibited' ? [t('cosign_account.self_is_multisig')] : t(`namespace.error_${sendError.kind}_message`, { returnObjects: true, detail: sendError.detail }) as string[])
     : [];
 
   // ============================ confirm ============================
@@ -201,6 +252,7 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
     const rows: { label: string; value: string; big?: boolean }[] = [
       { label: t('namespace.full_name'), value: fullName, big: true },
       { label: t('send.network'), value: `Symbol ${netCfg.label}` },
+      ...(signer ? [{ label: t('cosign_account.label'), value: signer.address }] : []),
       { label: t('namespace.type_label'), value: kind === 'root' ? t('namespace.type_root') : t('namespace.type_child') },
       ...(kind === 'root' ? [{ label: t('namespace.duration_label'), value: t('namespace.days_value', { days: daysNumber }) }] : []),
       ...(activeDrafts(metadataDrafts).length > 0
@@ -272,6 +324,7 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
       {!embedded && <BackButton onBack={onBack} back="/namespace" />}
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
         <Alert severity="info" sx={{ mb: 2 }}>{t('namespace.caution_taken')}</Alert>
+        <CosignAccountPicker accounts={accounts} lockText={aggQuote ? xym(aggQuote.lockAmount) : null} />
 
         {fixedKind === undefined && (
           <>

@@ -13,6 +13,11 @@ import { fieldBoxSx } from '../../components/fieldBox';
 import { WalletsHelper } from '../../lib/storage';
 import type { Wallet } from '../../lib/storage';
 import { explorerTxUrl, fetchBalances, fetchMetadataValue, quoteMetadataFee, setMetadata } from '../../lib/symbol/api';
+import { quoteAggregate, sendAggregate } from '../../lib/symbol/aggregateApi';
+import type { AggregateQuote } from '../../lib/symbol/aggregateApi';
+import CosignAccountPicker from '../../components/CosignAccountPicker';
+import { useCosignAccounts } from '../../hooks/useCosignAccounts';
+import { getDefaultFeeSpeed } from '../../lib/symbol/feeSpeed';
 import { formatAtomic } from '../../lib/symbol/amount';
 import { CURRENCY_DIVISIBILITY, CURRENCY_SYMBOL } from '../../lib/symbol/constants';
 import { encodeValue } from '../../lib/symbol/metadata';
@@ -46,6 +51,10 @@ export default function SocialMetadataEditor({ embedded = false, account, onClos
   const network = useAppStore((s) => s.network);
   const netCfg = getNetworkConfig(network);
 
+  // The account the metadata is for: this wallet's own, or a multisig account it cosigns for (sent inside an aggregate this wallet signs).
+  const accounts = useCosignAccounts(account);
+  const { accountAddr, signer } = accounts;
+  const [aggQuote, setAggQuote] = useState<AggregateQuote | null>(null);
   const [address, setAddress] = useState('');
   const [current, setCurrent] = useState<SocialMetadata | null | 'loading' | 'failed'>('loading');
   const [form, setForm] = useState<SocialMetadata>(EMPTY);
@@ -64,31 +73,35 @@ export default function SocialMetadataEditor({ embedded = false, account, onClos
   // アカウントのアドレスと、いま登録されている内容（フォームの初期値）。
   useEffect(() => {
     let cancelled = false;
+    if (!accounts.ready) return undefined;
     setCurrent('loading');
+    setForeign(false);
     (async () => {
       const wallet = account ?? await WalletsHelper.getActive();
       if (!wallet || cancelled) return;
-      setAddress(wallet.address);
+      const owner = accountAddr || wallet.address;
+      setAddress(owner);
+      // The multisig account pays nothing itself: the fee and the hash lock come from this wallet.
       const balances = await fetchBalances(wallet.address).catch(() => null);
       if (!cancelled && balances) setXymBalance(balances.find((b) => b.id === netCfg.currencyMosaicId)?.amount ?? 0n);
       try {
-        const existing = await fetchSocialMetadata(wallet.address);
+        const existing = await fetchSocialMetadata(owner);
         if (cancelled) return;
         setCurrent(existing);
-        if (existing) setForm({ ...existing });
-        else setForeign(await hasForeignValue(wallet.address));
+        setForm(existing ? { ...existing } : EMPTY);
+        if (!existing) setForeign(await hasForeignValue(owner));
       } catch {
         if (!cancelled) setCurrent('failed');
       }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account, network]);
+  }, [account, network, accountAddr, accounts.ready]);
 
   const errors = useMemo(() => validateSocialMetadata(form), [form]);
   const valid = Object.values(errors).every((e) => e === null);
   const unchanged = typeof current === 'object' && current !== null && sameSocialMetadata(current, normalize(form));
-  const canUpdate = valid && !unchanged && current !== 'loading' && current !== 'failed' && address !== '';
+  const canUpdate = valid && !unchanged && current !== 'loading' && current !== 'failed' && address !== '' && !accounts.blocked;
   const valueText = valid ? serializeSocialMetadata(form) : '';
 
   // 手数料: 値の大きさ（いま付いている値と新しい値の大きいほう）で決まる。
@@ -97,15 +110,29 @@ export default function SocialMetadataEditor({ embedded = false, account, onClos
   useEffect(() => {
     let cancelled = false;
     setTxFee(null);
+    setAggQuote(null);
     if (!valid) return undefined;
-    quoteMetadataFee('account', [Math.max(newLength, oldLength)])
-      .then((q) => { if (!cancelled) setTxFee(q.fee); })
-      .catch(() => { /* shown as unavailable */ });
+    if (signer) {
+      // A multisig account: the entry travels inside an aggregate signed by this wallet (bonded when others must cosign).
+      const wal = account ? Promise.resolve(account) : WalletsHelper.getActive();
+      wal.then((w) => (w ? quoteAggregate(w.publicKey, w.address, [{
+        uid: 'meta', kind: 'metadata', signer, target: { type: 'account' }, key: 0n, oldValue: new Uint8Array(0), newValue: new Uint8Array(Math.max(newLength, oldLength)),
+      }]) : null)).then((q) => {
+        if (cancelled || !q) return;
+        setAggQuote(q);
+        setTxFee(q.fees[getDefaultFeeSpeed()].fee + q.lockFees[getDefaultFeeSpeed()]);
+      }).catch(() => { /* shown as unavailable */ });
+    } else {
+      quoteMetadataFee('account', [Math.max(newLength, oldLength)])
+        .then((q) => { if (!cancelled) setTxFee(q.fee); })
+        .catch(() => { /* shown as unavailable */ });
+    }
     return () => { cancelled = true; };
-  }, [valid, newLength, oldLength, network]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valid, newLength, oldLength, network, signer]);
 
   const xym = (amount: bigint) => `${formatAtomic(amount, CURRENCY_DIVISIBILITY)} ${CURRENCY_SYMBOL}`;
-  const balanceShort = txFee !== null && xymBalance !== null && xymBalance < txFee;
+  const balanceShort = txFee !== null && xymBalance !== null && xymBalance < txFee + (aggQuote ? aggQuote.lockAmount : 0n);
 
   const set = (field: keyof SocialMetadata) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [field]: e.target.value }));
   const blur = (field: keyof SocialMetadata) => () => setTouched((x) => ({ ...x, [field]: true }));
@@ -123,9 +150,29 @@ export default function SocialMetadataEditor({ embedded = false, account, onClos
     try {
       const wallet = account ?? await WalletsHelper.getActive();
       if (!wallet) return;
-      const privateKey = await WalletsHelper.decryptKey(wallet.id, password);
+      const privateKey = wallet.sss && signer ? '' : await WalletsHelper.decryptKey(wallet.id, password);
       if (privateKey == null) {
         setErrorMessage(t('wallet.invalid_key'));
+        return;
+      }
+      if (signer) {
+        // The multisig account is the source of its own metadata, so its approval is collected through the aggregate.
+        const oldValue = await fetchMetadataValue({ type: 'account', address: signer.address, sourceAddress: signer.address }, SOCIAL_METADATA_KEY);
+        const sentAgg = await sendAggregate({
+          privateKey, keyless: wallet.sss ? { kind: 'sss' } : undefined, publicKey: wallet.publicKey, address: wallet.address,
+          items: [{ uid: 'meta', kind: 'metadata', signer, target: { type: 'account' }, key: SOCIAL_METADATA_KEY, oldValue, newValue: encodeValue(valueText) }],
+          feeSpeed: getDefaultFeeSpeed(),
+        });
+        clearSocialMetadataCache(signer.address);
+        const lines = t(sentAgg.bonded ? 'metadata.done_bonded_message' : 'social.done_message', { returnObjects: true }) as string[];
+        showTxNotice({
+          lines: sentAgg.bonded ? [...lines, t('metadata.done_bonded_hint')] : lines,
+          explorerUrl: explorerTxUrl(sentAgg.hash),
+          explorerLabel: t('metadata.view_explorer'),
+        });
+        setCurrent(normalize(form));
+        onSent?.();
+        if (embedded) onClose?.();
         return;
       }
       const sent = await setMetadata({
@@ -162,6 +209,8 @@ export default function SocialMetadataEditor({ embedded = false, account, onClos
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left', maxWidth: 640, mx: 'auto' }}>
         {!embedded && <Typography sx={{ fontWeight: 'bold', fontSize: '1.3rem', mb: 1 }}>{t('social.title')}</Typography>}
         <Alert severity="info" sx={{ mb: 2 }}>{t('social.lead')}</Alert>
+
+        <CosignAccountPicker accounts={accounts} onPick={() => { setForm(EMPTY); setTouched({}); }} lockText={aggQuote ? xym(aggQuote.lockAmount) : null} />
 
         {address !== '' && (
           <Typography variant="body2" sx={{ wordBreak: 'break-all', fontFamily: 'monospace', mb: 2 }}>{address}</Typography>

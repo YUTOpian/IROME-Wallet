@@ -8,6 +8,11 @@ import ErrorSnackbar from '../../components/ErrorSnackbar';
 import MessageDialog from '../../components/MessageDialog';
 import PasswordDialog from '../../components/PasswordDialog';
 import { withFormReset, type SentProps } from '../../lib/withFormReset';
+import { quoteAggregate, sendAggregate } from '../../lib/symbol/aggregateApi';
+import type { AggregateQuote } from '../../lib/symbol/aggregateApi';
+import CosignAccountPicker from '../../components/CosignAccountPicker';
+import { useCosignAccounts } from '../../hooks/useCosignAccounts';
+import { getDefaultFeeSpeed } from '../../lib/symbol/feeSpeed';
 import { showTxNotice } from '../../store/txNoticeStore';
 import { WalletsHelper } from '../../lib/storage';
 import {
@@ -29,11 +34,13 @@ const DEFAULT_DAYS = 365;
 
 // Maps the node's status codes (and local failures) to a message key + detail.
 function classifyError(error: unknown): { kind: string; detail: string } {
-  const code = error instanceof SymbolSendError ? error.code : '';
   const detail = error instanceof Error ? error.message : String(error);
+  // The node's status code travels in `code`; when the error lost its class on the way, the code is still in the message.
+  const code = error instanceof SymbolSendError ? error.code : (/Failure_[A-Za-z_]+/.exec(detail)?.[0] ?? '');
   if (code === 'Failure_Core_Insufficient_Balance') return { kind: 'insufficient_balance', detail };
   if (code === 'Failure_Core_Future_Deadline' || code === 'Failure_Core_Past_Deadline') return { kind: 'deadline', detail };
   if (code === 'Failure_Core_Wrong_Network') return { kind: 'wrong_network', detail };
+  if (code === 'Failure_Multisig_Operation_Prohibited_By_Account') return { kind: 'prohibited', detail: code };
   if (code === 'Failure_Namespace_Owner_Conflict') return { kind: 'taken', detail };
   if (code === 'Failure_Namespace_Invalid_Duration') return { kind: 'duration', detail: code };
   return { kind: 'unknown', detail: code && code !== detail ? `${code}: ${detail}` : detail };
@@ -46,6 +53,8 @@ interface NamespaceRenewProps {
   initialNamespaceId?: string;
   /** Shown inside a dialog (the list's row button): no page title of its own. */
   embedded?: boolean;
+  /** The multisig account whose namespaces the list is showing: selected first (empty = this wallet's own account). */
+  initialAccountAddr?: string;
   /** Called after the transaction was sent (the dialog closes and the list reloads). */
   onDone?: () => void;
 }
@@ -53,7 +62,7 @@ interface NamespaceRenewProps {
 // 「更新」: ネームスペース一覧の行のボタンから開くポップアップ。自分のルートネームスペースの期間を延ばす。
 // Symbol に専用の更新トランザクションはなく、持ち主が同じ名前でルートをもう一度登録すると、今の期限に期間が足される。
 // 入力 → 確認（パスワード）→ 送信。
-function NamespaceRenew({ initialNamespaceId, onDone, onSent }: NamespaceRenewProps & SentProps) {
+function NamespaceRenew({ initialNamespaceId, initialAccountAddr, onDone, onSent }: NamespaceRenewProps & SentProps) {
   const { t, i18n } = useTranslation();
   const network = useAppStore((s) => s.network);
   const netCfg = getNetworkConfig(network);
@@ -63,6 +72,10 @@ function NamespaceRenew({ initialNamespaceId, onDone, onSent }: NamespaceRenewPr
   const [roots, setRoots] = useState<OwnedNamespace[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [nsId, setNsId] = useState(initialNamespaceId ?? '');
+  // The account the renewal is made for: this wallet's own account, or a multisig account it cosigns for.
+  const accounts = useCosignAccounts(undefined, initialAccountAddr);
+  const { accountAddr, signer } = accounts;
+  const [aggQuote, setAggQuote] = useState<AggregateQuote | null>(null);
   const [daysText, setDaysText] = useState(String(DEFAULT_DAYS));
 
   const [fees, setFees] = useState<NamespaceRentalFees | null | 'loading'>('loading');
@@ -75,8 +88,11 @@ function NamespaceRenew({ initialNamespaceId, onDone, onSent }: NamespaceRenewPr
   const [errorMessage, setErrorMessage] = useState('');
   const [sendError, setSendError] = useState<{ kind: string; detail: string } | null>(null);
 
-  // The roots the wallet owns (soonest expiry first), the rental price and the XYM balance.
+
+  // The roots the chosen account owns (soonest expiry first), the rental price and the XYM balance.
   useEffect(() => {
+    // Opened for a multisig account: wait until it is selected, so the wallet's own roots are not shown (and picked) first.
+    if (!accounts.ready) return undefined;
     let cancelled = false;
     setRoots(null);
     setLoadFailed(false);
@@ -86,11 +102,12 @@ function NamespaceRenew({ initialNamespaceId, onDone, onSent }: NamespaceRenewPr
       fetchNamespaceRentalFees().then((f) => { if (!cancelled) setFees(f); }).catch(() => { if (!cancelled) setFees(null); });
       try {
         const wallet = await WalletsHelper.getActive();
-        const owned = wallet ? await fetchOwnedNamespaces(wallet.address) : [];
+        const ownerAddress = accountAddr || wallet?.address;
+        const owned = ownerAddress ? await fetchOwnedNamespaces(ownerAddress) : [];
         if (cancelled) return;
         setRoots(owned.filter(isRenewableRoot).sort((a, b) => (a.expiresAtMs ?? 0) - (b.expiresAtMs ?? 0)));
-        if (wallet) {
-          const balances = await fetchBalances(wallet.address).catch(() => null);
+        if (ownerAddress) {
+          const balances = await fetchBalances(ownerAddress).catch(() => null);
           const xym = balances?.find((b) => b.id === getNetworkConfig(network).currencyMosaicId);
           if (!cancelled && balances) setXymBalance(xym?.amount ?? 0n);
         }
@@ -100,7 +117,7 @@ function NamespaceRenew({ initialNamespaceId, onDone, onSent }: NamespaceRenewPr
       }
     })();
     return () => { cancelled = true; };
-  }, [network]);
+  }, [network, accountAddr, accounts.ready]);
 
   const selected = useMemo(() => (roots ?? []).find((r) => r.id === nsId) ?? (roots ?? [])[0], [roots, nsId]);
 
@@ -130,16 +147,32 @@ function NamespaceRenew({ initialNamespaceId, onDone, onSent }: NamespaceRenewPr
     let cancelled = false;
     setTxFee(null);
     if (!selected) return undefined;
-    quoteNamespaceRegistrationFee(selected.name, [])
-      .then((q) => { if (!cancelled) setTxFee(q.fee); })
-      .catch(() => { /* shown as unavailable */ });
+    setAggQuote(null);
+    if (signer) {
+      // A multisig account: the registration travels inside an aggregate signed by this wallet (bonded when others must cosign).
+      WalletsHelper.getActive().then((wallet) => {
+        if (!wallet) return null;
+        return quoteAggregate(wallet.publicKey, wallet.address, [{ uid: 'renew', kind: 'namespace', name: selected.name, durationBlocks: 1n, signer }]);
+      }).then((q) => {
+        if (cancelled || !q) return;
+        setAggQuote(q);
+        setTxFee(q.fees[getDefaultFeeSpeed()].fee + q.lockFees[getDefaultFeeSpeed()]);
+      }).catch(() => { /* shown as unavailable */ });
+    } else {
+      quoteNamespaceRegistrationFee(selected.name, [])
+        .then((q) => { if (!cancelled) setTxFee(q.fee); })
+        .catch(() => { /* shown as unavailable */ });
+    }
     return () => { cancelled = true; };
-  }, [selected?.name, network]);
+  }, [selected?.name, network, signer]);
 
   const durationBlocks = BigInt(daysNumber) * BigInt(BLOCKS_PER_DAY);
   const rentalFee: bigint | null = fees === 'loading' || fees === null || !daysValid ? null : fees.rootFeePerBlock * durationBlocks;
   const total = rentalFee !== null && txFee !== null ? rentalFee + txFee : null;
-  const balanceShort = total !== null && xymBalance !== null && xymBalance < total;
+  // For a multisig account the account itself pays the rental; the fee (and hash lock) come from this wallet.
+  const balanceShort = signer
+    ? rentalFee !== null && xymBalance !== null && xymBalance < rentalFee
+    : total !== null && xymBalance !== null && xymBalance < total;
 
   const xym = (amount: bigint) => `${formatAtomic(amount, CURRENCY_DIVISIBILITY)} ${CURRENCY_SYMBOL}`;
   const costText = (value: bigint | null) => (!daysValid ? '-' : fees === 'loading' ? t('namespace.cost_loading') : value === null ? t('namespace.cost_unavailable') : xym(value));
@@ -147,7 +180,7 @@ function NamespaceRenew({ initialNamespaceId, onDone, onSent }: NamespaceRenewPr
   const afterMs = selected && daysValid ? extendedExpiryMs(selected, daysNumber) : null;
   const left = selected ? remainingDays(selected, nowMs) : null;
 
-  const canContinue = daysValid && !maxed;
+  const canContinue = daysValid && !maxed && !accounts.blocked;
 
   // --- sending ----------------------------------------------------------------------------
   const onPassed = async (password: string) => {
@@ -156,9 +189,20 @@ function NamespaceRenew({ initialNamespaceId, onDone, onSent }: NamespaceRenewPr
     try {
       const wallet = await WalletsHelper.getActive();
       if (!wallet) return;
-      const privateKey = await WalletsHelper.decryptKey(wallet.id, password);
+      const privateKey = wallet.sss && signer ? '' : await WalletsHelper.decryptKey(wallet.id, password);
       if (privateKey == null) {
         setErrorMessage(t('wallet.invalid_key'));
+        return;
+      }
+      if (signer) {
+        const sentAgg = await sendAggregate({
+          privateKey, keyless: wallet.sss ? { kind: 'sss' } : undefined, publicKey: wallet.publicKey, address: wallet.address,
+          items: [{ uid: 'renew', kind: 'namespace', name: selected.name, durationBlocks, signer }],
+          feeSpeed: getDefaultFeeSpeed(),
+        });
+        showTxNotice({ lines: t('namespace.renew_done_message', { returnObjects: true }) as string[], explorerUrl: explorerTxUrl(sentAgg.hash), explorerLabel: t('namespace.view_explorer') });
+        onDone?.();
+        onSent();
         return;
       }
       const sent = await registerNamespace({
@@ -179,9 +223,9 @@ function NamespaceRenew({ initialNamespaceId, onDone, onSent }: NamespaceRenewPr
     }
   };
 
-  const errorTitle = sendError ? t(`namespace.error_${sendError.kind}_title`) : '';
+  const errorTitle = sendError ? (sendError.kind === 'prohibited' ? t('cosign_account.prohibited_title') : t(`namespace.error_${sendError.kind}_title`)) : '';
   const errorTexts = sendError
-    ? (t(`namespace.error_${sendError.kind}_message`, { returnObjects: true, detail: sendError.detail }) as string[])
+    ? (sendError.kind === 'prohibited' ? [t('cosign_account.self_is_multisig')] : t(`namespace.error_${sendError.kind}_message`, { returnObjects: true, detail: sendError.detail }) as string[])
     : [];
 
   const rootSx = { flexGrow: 1, display: 'flex', flexDirection: 'column' } as const;
@@ -191,6 +235,7 @@ function NamespaceRenew({ initialNamespaceId, onDone, onSent }: NamespaceRenewPr
     const rows: { label: string; value: string; big?: boolean }[] = [
       { label: t('namespace.table_name'), value: selected.name, big: true },
       { label: t('send.network'), value: `Symbol ${netCfg.label}` },
+      ...(signer ? [{ label: t('cosign_account.label'), value: signer.address }] : []),
       { label: t('namespace.renew_current_expiry'), value: date(selected.expiresAtMs) },
       { label: t('namespace.renew_days_label'), value: t('namespace.days_value', { days: daysNumber }) },
       ...(afterMs !== null ? [{ label: t('namespace.renew_after_expiry'), value: date(afterMs) }] : []),
@@ -247,6 +292,8 @@ function NamespaceRenew({ initialNamespaceId, onDone, onSent }: NamespaceRenewPr
     <Box sx={rootSx}>
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
         <Alert severity="info" sx={{ mb: 2 }}>{t('namespace.renew_intro')}</Alert>
+
+        <CosignAccountPicker accounts={accounts} onPick={() => setNsId('')} lockText={aggQuote ? xym(aggQuote.lockAmount) : null} />
 
         {roots === null ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={26} /></Box>

@@ -281,7 +281,7 @@ export interface MetadataChange {
 }
 
 /** Embedded metadata transaction; the target account is `c.targetAddress`, or `ownerAddress` (the source) when omitted. */
-function createMetadataEmbedded(facade: SymbolFacade, signerPublicKey: string, ownerAddress: string, c: MetadataChange) {
+export function createMetadataEmbedded(facade: SymbolFacade, signerPublicKey: string, ownerAddress: string, c: MetadataChange) {
   const common = {
     signerPublicKey,
     targetAddress: normalizeAddress(c.targetAddress ?? ownerAddress),

@@ -12,10 +12,14 @@ import ErrorSnackbar from '../../components/ErrorSnackbar';
 import MessageDialog from '../../components/MessageDialog';
 import PasswordDialog from '../../components/PasswordDialog';
 import { useAddressBook } from '../../hooks/useAddressBook';
+import CosignAccountPicker from '../../components/CosignAccountPicker';
+import { useCosignAccounts } from '../../hooks/useCosignAccounts';
+import { quoteAggregate, sendAggregate } from '../../lib/symbol/aggregateApi';
+import { getDefaultFeeSpeed } from '../../lib/symbol/feeSpeed';
 import { WalletsHelper } from '../../lib/storage';
 import type { Wallet } from '../../lib/storage';
 import {
-  SymbolSendError, explorerAccountUrl, explorerTxUrl, fetchBalances, fetchMetadataEntries, fetchOwnedMosaics, fetchOwnedNamespaces,
+  SymbolSendError, explorerAccountUrl, explorerTxUrl, fetchBalances, fetchMetadataEntries, fetchMetadataValue, fetchOwnedMosaics, fetchOwnedNamespaces,
   quoteMetadataFee, setMetadata,
 } from '../../lib/symbol/api';
 import type { MetadataEntry, MetadataTargetRef, OwnedMosaic, OwnedNamespace } from '../../lib/symbol/api';
@@ -79,6 +83,11 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
   const netCfg = getNetworkConfig(network);
 
   const [step, setStep] = useState<Step>('form');
+
+  // The account that sets the metadata: this wallet's own, or a multisig account it cosigns for. The multisig account is then the
+  // entry's source and the target's owner, and the aggregate is signed by this wallet (bonded when others must cosign).
+  const accounts = useCosignAccounts(account);
+  const msig = accounts.signer;
 
   // target
   const [type, setType] = useState<MetadataTargetType>(lockedType ?? 'account');
@@ -160,7 +169,8 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
 
   const other: AggregateSigner | null = ownerMode === 'other' && otherState.status === 'ok' ? otherState.owner : null;
   // The account the metadata is attached to (the owner of the mosaic / namespace).
-  const ownerAddress = ownerMode === 'other' ? (other?.address ?? '') : address;
+  const ownerAddress = ownerMode === 'other' ? (other?.address ?? '') : (msig?.address ?? address);
+  const msigActive = ownerMode === 'self' && msig !== undefined;
 
   // The mosaics / namespaces that account owns (the possible targets).
   useEffect(() => {
@@ -235,11 +245,11 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
     const quiet = lastOthersKey.current === targetKey;
     lastOthersKey.current = targetKey;
     if (!quiet) setOthers('loading');
-    fetchMetadataFromOthers(target, [address])
+    fetchMetadataFromOthers(target, [msigActive ? ownerAddress : address])
       .then((res) => { if (!cancelled) setOthers(res); })
       .catch(() => { if (!cancelled && !quiet) setOthers('failed'); });
     return () => { cancelled = true; };
-  }, [target, address, network, reloadTick, liveRev]);
+  }, [target, address, msigActive, ownerAddress, network, reloadTick, liveRev]);
   const othersGroups = useMemo(() => (typeof others === 'string' ? [] : groupBySource(others.entries)), [others]);
   // A source that is in the address book is shown by its name (and flagged when it is on the trust / block list).
   const contactOf = (source: string) => contacts.find((c) => c.chain === 'symbol' && c.network === network && normalizeAddress(c.address) === source);
@@ -263,7 +273,21 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
     setTxFee(null);
     setOtherQuote(null);
     const length = Math.max(valueLength, existingLength);
-    if (ownerMode === 'other') {
+    if (msigActive && msig) {
+      // A multisig account's own target: the entry travels inside an aggregate signed by this wallet.
+      const zeros = new Uint8Array(length);
+      const metaTarget: MetadataTarget = type === 'account' ? { type: 'account' }
+        : type === 'mosaic' ? { type: 'mosaic', mosaicId: '0'.repeat(16) } : { type: 'namespace', namespaceId: '0'.repeat(16) };
+      WalletsHelper.getActive().then((w) => {
+        const wal = account ?? w;
+        return wal ? quoteAggregate(wal.publicKey, wal.address, [{ uid: 'meta', kind: 'metadata', signer: msig, target: metaTarget, key: 0n, oldValue: new Uint8Array(0), newValue: zeros }]) : null;
+      }).then((q) => {
+        if (cancelled || !q) return;
+        const quote = q.fees[getDefaultFeeSpeed()];
+        setOtherQuote({ fee: quote.fee, lockFee: q.lockFees[getDefaultFeeSpeed()], lockAmount: q.lockAmount, bonded: q.bonded, multiplier: quote.multiplier });
+        setTxFee(quote.fee);
+      }).catch(() => { /* shown as unavailable */ });
+    } else if (ownerMode === 'other') {
       if (other === null) return undefined;
       quoteMetadataForOther(type, [length], other)
         .then((q) => { if (!cancelled) { setOtherQuote(q); setTxFee(q.fee); } })
@@ -274,7 +298,7 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
         .catch(() => { /* shown as unavailable */ });
     }
     return () => { cancelled = true; };
-  }, [type, valueLength, existingLength, network, ownerMode, other]);
+  }, [type, valueLength, existingLength, network, ownerMode, other, msig, msigActive]);
 
   // The hash lock deposit and its fee are paid from the wallet too, on top of the aggregate's fee.
   const lockTotal = otherQuote === null ? 0n : otherQuote.lockAmount + otherQuote.lockFee;
@@ -295,7 +319,7 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
     try {
       const wallet = account ?? await WalletsHelper.getActive();
       if (!wallet) return;
-      const privateKey = await WalletsHelper.decryptKey(wallet.id, password);
+      const privateKey = wallet.sss && msigActive ? '' : await WalletsHelper.decryptKey(wallet.id, password);
       if (privateKey == null) {
         setErrorMessage(t('wallet.invalid_key'));
         return;
@@ -303,6 +327,22 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
       const metadataTarget: MetadataTarget = type === 'account'
         ? { type: 'account' }
         : type === 'mosaic' ? { type: 'mosaic', mosaicId: targetId } : { type: 'namespace', namespaceId: targetId };
+      if (msigActive && msig) {
+        // A multisig account's own target: the account itself is the source, so its signature is collected through the aggregate.
+        const oldValue = await fetchMetadataValue(target, key);
+        const sentAgg = await sendAggregate({
+          privateKey,
+          keyless: wallet.sss ? { kind: 'sss' } : undefined,
+          publicKey: wallet.publicKey,
+          address: wallet.address,
+          items: [{ uid: 'meta', kind: 'metadata', signer: msig, target: metadataTarget, key, oldValue, newValue: valueBytes }],
+          feeSpeed: getDefaultFeeSpeed(),
+        });
+        notifyDone(sentAgg.hash, sentAgg.bonded);
+        onAnother();
+        onSent?.();
+        return;
+      }
       if (ownerMode === 'other') {
         if (wallet.sss) {
           // 他のアカウントのメタデータは、ロックと連署の複数の署名が要る。SSS Extension はまだ未対応。
@@ -378,6 +418,7 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
   if (step === 'confirm') {
     const rows: { label: string; value: string; big?: boolean }[] = [
       { label: t('metadata.target_label'), value: `${t(`metadata.type_${type}`)}\n${targetName}`, big: true },
+      ...(msigActive && msig ? [{ label: t('cosign_account.label'), value: msig.address }] : []),
       ...(ownerMode === 'other' && other !== null ? [{
         label: t('metadata.owner_row'),
         value: `${other.address}${otherState.status === 'ok' && otherState.alias ? `\n@${otherState.alias}` : ''}`,
@@ -450,6 +491,8 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
     <Box sx={rootSx}>
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
         <Alert severity="info" sx={{ mb: 2 }}>{t(ownerMode === 'other' ? 'metadata.caution_other' : 'metadata.caution_owner')}</Alert>
+
+        {ownerMode === 'self' && <CosignAccountPicker accounts={accounts} onPick={() => setTargetId('')} lockText={otherQuote && otherQuote.bonded ? xym(otherQuote.lockAmount) : null} />}
 
         {/* 付ける相手: 左に自分/他のアカウントの選択、「他のアカウント」のときは右に対象アカウントの入力を並べる */}
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: ownerMode === 'other' ? 'repeat(2, minmax(0, 1fr))' : 'minmax(0, 1fr)' }, columnGap: 3, rowGap: 1.5, alignItems: 'start', mb: 2 }}>
