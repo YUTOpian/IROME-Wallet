@@ -1,14 +1,14 @@
 # IROME Wallet
 
-[![Deploy](https://github.com/YUTOpian/IROME-Wallet/actions/workflows/deploy.yml/badge.svg)](https://github.com/YUTOpian/IROME-Wallet/actions/workflows/deploy.yml)
-[![CodeQL](https://github.com/YUTOpian/IROME-Wallet/actions/workflows/codeql.yml/badge.svg)](https://github.com/YUTOpian/IROME-Wallet/actions/workflows/codeql.yml)
+[![Deploy](https://github.com/YUTOpian/KASANE-Wallet/actions/workflows/deploy.yml/badge.svg)](https://github.com/YUTOpian/KASANE-Wallet/actions/workflows/deploy.yml)
+[![CodeQL](https://github.com/YUTOpian/KASANE-Wallet/actions/workflows/codeql.yml/badge.svg)](https://github.com/YUTOpian/KASANE-Wallet/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **Symbol** と **NEM** に対応したブラウザウォレット。ビルドすると **HTML 1 ファイル**になり、サーバーなしで（ダブルクリックでも、GitHub Pages でも）動きます。
 
 > ⚠️ 個人開発のソフトウェアで、無保証です。ニーモニック・秘密鍵の扱いには十分注意してください。脆弱性の報告は [SECURITY.md](SECURITY.md) へ。
 
-**公開版:** `https://YUTOpian.github.io/IROME-Wallet/`
+**公開版:** `https://YUTOpian.github.io/KASANE-Wallet/`
 
 ## 特長
 
