@@ -544,7 +544,7 @@ export class WalletsHelper {
   static async addNextDerivedAccount(
     profileWalletId: string,
     password: string,
-  ): Promise<{ status: 'added'; index: number; walletIds: Record<string, string> } | { status: 'no-mnemonic' | 'wrong-password' }> {
+  ): Promise<{ status: 'added'; index: number; walletIds: Record<string, string> } | { status: 'no-mnemonic' } | { status: 'wrong-password' }> {
     const stored = await Storage.loadWallets();
     const target = stored.get(profileWalletId);
     if (target == null) {
