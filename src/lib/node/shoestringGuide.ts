@@ -42,7 +42,7 @@ friendlyName = My Symbol Node
 `;
 
 export const SHOESTRING_STEPS: readonly GuideStep[] = [
-  { id: 'req', lines: ['docker --version', 'docker compose version', 'node --version', 'openssl version'] },
+  { id: 'req', lines: ['irome install docker', 'docker --version', 'docker compose version', 'node --version', 'openssl version'] },
   { id: 'install', lines: ['irome install python', 'python3 -m pip install symbol-shoestring', 'irome install shoestring', 'python3 -m shoestring --help', 'python3 -m shoestring init --help'] },
   { id: 'workdir' },
   { id: 'init', lines: ['python3 -m shoestring init --package mainnet config.ini', 'python3 -m shoestring init --package sai config.ini', 'shoestring wizard'] },

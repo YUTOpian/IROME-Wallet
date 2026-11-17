@@ -1,3 +1,77 @@
+## 修正: 「この PC の環境」 — 「あり」・バージョン・「入れる」のボタンが枠からはみ出ないよう、左へ寄せた
+- 困りごと: 名前の欄を 140px（広い画面は 260px）に固定したため、「あり」・バージョン・「tools/ に専用を入れる」が右へ押され、枠からはみ出す幅があった。
+- 対応: 名前の欄を、狭い画面は 96px・広い画面は 180px に縮めて、3 つを左へ寄せた（長い名前は、欄の中で折り返す）。バージョンは、引き続き折り返さない。
+- 変更したファイル: `src/pages/node/NodePage.tsx`。
+- **確認できていないこと**: 実際の画面幅での表示（ビルド・表示確認はしていません）。
+
+## 修正: 「この PC の環境」 — 狭い画面で、Node.js・Python のバージョンが途中で折り返してずれるのを直した
+- 困りごと: 画面が狭いと、`v26.5.0`・`Python 3.13.9` のようなバージョンが文字の途中で折り返され、行ごとに「あり」の位置もずれていた。
+- 対応: バージョンは折り返さず（`white-space: nowrap`）、1 つの塊として次の行へ回るようにした。狭い画面での名前の欄は、幅を 140px に固定して、「あり」の位置を行ごとにそろえた（広い画面は、これまでの 260px）。
+- 変更したファイル: `src/pages/node/NodePage.tsx`。
+- **確認できていないこと**: 実際の画面幅での表示（`node_modules` が無く、ビルド・表示確認はしていません）。
+
+## 変更: ノード構築 — リンクの文言を「Shoestring でノードを建てる手順の詳細」に改めた
+- 対応: 「ノード構築」のカードのリンク（`service.node_oc_...` の下の `service.node_ss_open`）を、ja「Shoestring でノードを建てる手順の詳細 →」、en「Details: Building a node with Shoestring →」にした。ko・zh・ru も同じ趣旨に直した（「開く」→「詳細」）。リンク先・動作は変えていない。
+
+## 変更: ノード構築 — カードの題を「ワンクリックで構築する」から「ノード構築」に改めた
+- 対応: 画面の題（`service.node_oc_title`）を、ja「ノード構築」・en「Build a node」にした。コード内のコメント・`docs/NODE.md` の呼び名も合わせた。ボタン・手順・動作は変えていない。
+- 注意: 過去の変更記録の「ワンクリックで構築する」は、当時の呼び名のまま残している。
+
+## 変更: ノード構築 — 「Shoestring でノードを建てる手順」へのリンクを、「この PC の環境」から「ノード構築」へ移した
+- 要望: 手順は、具体的な構築の説明として、「ノード構築」のところから開けるようにしたい。「この PC の環境」からは、リンクを外したい。
+- 対応: 「この PC の環境」の Shoestring の行にあった「Shoestring でノードを建てる手順を開く →」を削除し、同じリンクを「ノード構築」のカード（ボタンの下）に置いた。リンク先（`?view=shoestring` の手順の画面）は、これまでのまま。構築中は押せない。
+- 変更したファイル: `src/pages/node/NodePage.tsx`・`src/pages/node/OneClickCard.tsx`。翻訳は、既存の `node_ss_open` をそのまま使う（追加・削除なし）。
+- **確認できていないこと**: `npm run check` は、この環境に `node_modules` が無く実行していません。
+
+## 追加: ノード構築 — Windows でも、Docker を画面の「入れる」から入れられるようにした
+- 困りごと: Windows では、Docker に「入れる」ボタンが無く、「公式サイト」のリンクだけだった（Docker Desktop のインストーラーが管理者権限を要し、このエージェントは昇格しない決まりのため、案内だけの作りだった）。
+- 対応:
+  - **Windows に「入れる」ボタンを出した**（`irome install docker` も同じ）。流れは、Docker 公式（`desktop.docker.com`）から `Docker Desktop Installer.exe`（x64 / ARM64）を取得 → Windows の署名（Authenticode）を確かめる（署名が有効で、発行元が `Docker Inc` のときだけ先へ）→ `install --quiet` で起動 → 入ったかを確かめる。**エージェント自身は昇格しない**。管理者権限は、`Start-Process -Verb RunAs` で Windows に UAC を出してもらい、**ご自身が「はい」を押す**。「いいえ」なら、何も入らずに終わる。
+  - 署名が合わない（無署名・改ざん・信頼できない・別の発行元）ときは、UAC の前に止まる。署名を確かめたあと、起動の直前に、取得したときの SHA-256 と同じかをもう一度確かめ、差し替わっていれば起動しない。動かす外部コマンドは、`System32` の PowerShell（絶対パス・`-EncodedCommand` の固定のスクリプト）だけ。ファイルの場所は、環境変数で渡す。使用許諾（`--accept-license`）は付けず、初回の起動でご自身が同意する。
+  - すでに `docker` が使える・Docker Desktop が入っているときは、何もしない。WSL 2 の準備で再起動を求められたとき（終了コード 3010）は、そう伝える。インストーラーが足した `docker.exe` の場所を、すでに動いているエージェントも PATH の末尾に足して見つける（`dockerDesktopBinDirs` を Windows に対応）。
+  - 押すと、Windows 用の確認ダイアログが出る（することの全部・絞っていること・入れたあとのこと）。Linux の確認ダイアログ（sudo・docker グループ）と、Mac の確認ダイアログは、そのまま。ログイン用のパスワード入力欄は、Linux だけで開く。
+  - 翻訳（ja・en・zh・ko・ru）: Windows 用の確認ダイアログ 8 キー（`node_dkw_*`）を追加。`node_docker_howto`・`node_pre_install_docker`・`node_dk_limits_body`・`node_dkm_limits_body`・`node_allowed_body`・`node_ss_req_body` の、「Windows は画面から入れられない」の記述を直した。
+  - ドキュメント: `docs/NODE.md`（表・Windows の手順・Windows ネイティブの注記）、`docs/FEATURES.md`。
+- 確認したこと: `node-docker-install.test` 302 項目（Windows: 呼ぶ順番〔署名の確認が起動より先〕・呼ぶコマンドが PowerShell〔絶対パス〕だけ・署名が合わないとき〔無署名・改ざん・信頼できない・別の発行元・紛らわしい名前・出力の崩れ・PowerShell の失敗〕に起動せず一時フォルダを消すこと・確認のあとの差し替えを断ること・UAC で「いいえ」のとき何も入らないこと・再起動が要るとき・取得の失敗・対応外の CPU・停止）。`npm test` 全 140 本、`tsc -b` が通る。Linux・Mac の手順は変えていない（既存の試験が、そのまま通る）。
+- **確認できていないこと**: **実物の Windows での実行**（PowerShell の `Get-AuthenticodeSignature`・`Start-Process -Verb RunAs`・実際のインストーラー・WSL 2 の準備・初回の起動）。**発行元の名前（`Docker Inc`）は、実物の `Docker Desktop Installer.exe` に `Get-AuthenticodeSignature` をかけて、合うか確かめてください**（合わないと、安全側に止まるだけで、入りません。画面に、見つかった名前が出ます）。画面の見え方（ダイアログの長さ・折り返し）も未確認。
+
+## 追加: ノード構築 — Mac でも、Docker を画面の「入れる」から入れられるようにした
+- 困りごと: Mac で「この PC の環境」を開くと、Docker に「入れる」ボタンが無く、「公式サイト」のリンクだけだった（Docker の導入は Linux の Ubuntu・Debian 系だけで、Mac・Windows は案内だけの作りだった）。
+- 対応:
+  - **Mac に「入れる」ボタンを出した**（`irome install docker` も同じ）。**`sudo`・パスワードは使わない**。Docker 公式（`desktop.docker.com`）から `Docker.dmg` を取得 → 読み取り専用で開き、Apple の署名（開発元 Docker Inc の Team ID・識別子 `com.docker.docker`・`codesign --verify --deep --strict`・`spctl` の公証）を確かめる → `/Applications`（書けなければ `~/Applications`）に `Docker.app` を置く → ディスクイメージを閉じて一時フォルダを消し、Docker Desktop を起動する。**署名が 1 つでも合わなければ、何も置かずに止まる。** すでに `Docker.app` があれば、上書きせず、起動だけする。
+  - 押すと、Mac 用の確認ダイアログが出る（することの全部・絞っていること・初回の起動で Docker 自身が使用許諾と macOS のパスワードを聞くこと）。Linux の確認ダイアログ（sudo・docker グループ）は、そのまま。
+  - Windows は、これまでどおり案内だけ（Docker Desktop のインストーラーが管理者権限と WSL2 の設定を要するため）。
+  - エージェントの内部: 大きなファイルを、メモリに溜めずにディスクへ直接書く取得（`downloadToFile`。上限・ホスト・リダイレクトの確認は、これまでと同じ）を足した。取得の待ち時間は、全体ではなく「何も届かない時間」で数える。取得先は `desktop.docker.com` の 1 つだけで、Node.js・Python・Linux の鍵の取得先には足していない。Mac の子プロセスの `PATH` の末尾に `Docker.app/Contents/Resources/bin` を足し、Docker Desktop が `/usr/local/bin` に `docker` を作る前でも、「あり」と出る。
+  - 翻訳（ja・en・zh・ko・ru）: Mac 用の確認ダイアログ 8 キー（`node_dkm_*`）を追加。`node_docker_howto`・`node_pre_install_docker`・`node_dk_limits_body`・`node_allowed_body`・`node_ss_req_body` を、Mac でも入れられる書き方に直した。
+  - ドキュメント: `docs/NODE.md`（表・Mac の手順・Windows の注記）、`docs/FEATURES.md`。
+- 確認したこと: `node-docker-install.test` 243 項目（Mac: 呼ぶ順番・呼ぶコマンドが絶対パスの 5 つだけ・sudo もシェルも使わない・署名が合わないとき〔署名の検証・Team ID・識別子・Gatekeeper・コピー後の検証〕に何も置かない・ディスクイメージを必ず閉じる・一時フォルダを消す・閉じられなければ触らない・別ホストへのリダイレクトを断る・停止・すでに入っているとき何もしない・Docker.app があれば起動だけ・Linux・Windows の手順が変わっていない）、`node-provision.test` 78 項目、サーバー側の 3 ファイルとテストの型検査、5 言語のキーの過不足 0・JSON の構文。
+- **確認できていないこと**: **実物の Mac での実行**（`hdiutil`・`codesign`・`spctl`・`ditto`・`open`、実際の Docker.dmg の取得、Docker Desktop の初回の起動）。署名の確認に使う Team ID（`9BNSXJN65R`）は、実物の `Docker.app` に `codesign -dv` をかけて合うか確かめてください（合わないときは、安全側に止まるだけで、入りません）。`NodePage.tsx` の `tsc -b`・画面の表示（ダイアログの長さ・折り返し）も未確認（依存パッケージが無い環境）。
+
+## 修正: ノード構築 — Docker を画面から入れられるようにしたことに合わせて、説明・コマンド・翻訳の取りこぼしを直した
+- 困りごと: Docker を画面から入れられるようにしたのに、画面の説明が古いまま・実際より多くを約束する書き方で、入れるコマンドも載っていなかった。
+- 対応:
+  - **「この PC の環境」の Docker の説明**（`node_docker_howto`）: Linux（Ubuntu・Debian 系）は、「入れる」または `irome install docker` で、Docker Engine を入れて起動し、いまのユーザーを docker グループに入れる。daemon.json など、これ以外の設定は変えないと明記。入ったかは `docker --version`・`docker compose version`・`docker info`（この画面で打てる）で確かめる。Linux は、ログインし直してエージェントも起動し直すまで、画面から docker のデーモンに繋げない。Mac・Windows は、Docker Desktop を入れて**起動**する（Mac も）。
+  - **Shoestring の「必要なもの」**（`node_ss_req_body`）: 「Docker は画面からは入れられません」を、Linux の Ubuntu・Debian 系は入れられる、Mac・Windows は Docker Desktop、に直した。手順 1 のひな型に `irome install docker` を足した。
+  - **許可しているコマンドの一覧**（`node_allowed_body`）に、`irome install docker`（sudo を 1 回・確認つき・uninstall は通さない）を足した。
+  - **zh・ko・ru**: Docker の導入の確認ダイアログとひな型の注記 12 キー（`node_dk_*`・`node_pre_install_docker`）が無く、英語のまま出ていたので、翻訳を追加。`node_rej_irome_usage` に `docker` が無かったのと、`irome upgrade` の対象が古かったのも、ja・en に合わせた。
+  - ドキュメント: `docs/FEATURES.md` の「Docker は案内だけ」、`docs/NODE.md` の手順 1・コマンドの表を直した。
+- 確認したこと: 5 言語とも、キーの過不足 0・JSON の構文。**画面の表示（長さ・折り返し）と、実物の Ubuntu・Debian での Docker 導入は未確認**。
+
+## 追加: 翻訳（中国語・韓国語・ロシア語）の未翻訳キーを補完
+- 困りごと: zh・ko・ru に、英語のまま表示されるキーが各 396 件残っていた（ノード構築画面 `service.node_*` 380 件、実行アカウント・ハーベストのマルチシグ案内 15 件、ほか）。
+- 対応: 3 言語とも 396 件を翻訳して `zh.json`・`ko.json`・`ru.json` に追加。既存の用語に合わせた（zh: 共同签名者・收割・多重签名、ko: 공동 서명자·하베스팅·멀티시그、ru: соподписант・харвестинг・мультиподпись）。
+- 確認したこと: 3 言語とも英語に対する不足 0・余分 0、`{{...}}` の差し替え文字が原文と一致、複数行の配列の要素数が一致、JSON の構文。**画面での表示は未確認**（見た目の長さで崩れる箇所があれば調整が要る）。
+
+## 修正: ハーベスト（Symbol）をマルチシグアカウントでも使えるように
+- 困りごと: ハーベスト画面は、ウォレット自身のアカウントから直接送る作りだけだった。マルチシグアカウントのキーリンク・投票鍵・開始・停止は `Failure_Multisig_Operation_Prohibited_By_Account` で拒否され、連署者側でも選べなかった。
+- 対応:
+  - 画面に「実行するアカウント」を追加。マルチシグを選ぶと、そのアカウントの状態を読み、リンク／解除は**連署者のウォレットが署名するアグリゲートの中の取引**（`key_link`）として送る。他の連署が要るときは bonded＋ハッシュロック。
+  - 手数料・ロックは連署者のウォレットの残高で判定（アカウント自身には最低残高だけ求める）。承認待ちの分の連署の大きさも手数料に入れる。
+  - 開始: リモート / VRF の鍵を新しく作ってリンクし、他の連署が不要なら続けて委任リクエストを送る。リモート / VRF の秘密鍵は**この端末に保存せず**、送信後に一度表示する（承認待ちのときは、承認後に「委任リクエストの再送」へ入力）。
+  - 自分のアカウントがマルチシグのウォレットでは、送る操作を止めて案内する。拒否のエラーも案内にした。
+- 変更: `lib/symbol/harvestMultisig.ts`（新規）・`aggregate.ts`（`key_link`）・`tx.ts`・`api.ts`（`sendHarvestDelegationRequest`、手数料見積もりの余白）・`pages/harvest/` 3ファイル・`AggregatePage.tsx`・`messages.json`（ja・en）。
+- 確認したこと: 型検査（依存の型が無いため、`any` になる部分は未検証）、`messages.json` の構文。**既存テストの実行・画面の表示・実際のノードでの動作は未確認**。
+
 ## 修正: マルチシグアカウントで使えなかった機能を使えるように（ソーシャルメタデータ・投票）
 - 困りごと: サービスの機能のうち、マルチシグアカウントの名前で実行できないものがあった（自分のアカウントでしか送れず、マルチシグ口座を選べない／選んでも `Failure_Multisig_Operation_Prohibited_By_Account` で拒否される）。
 - 対応（どちらも、連署しているマルチシグアカウントを「実行するアカウント」から選ぶ。自分の署名だけで足りれば complete、他の連署が要れば bonded＋ハッシュロック）:
@@ -7,7 +81,7 @@
   - 拒否のエラーは、汎用の失敗ではなく「マルチシグアカウントからは送信できません」の案内にする。
 - 変更: `hooks/useCosignAccounts.ts`・`lib/symbol/votingApi.ts`（`signer` を追加、`sendSymbolVotesAsMultisig`）・`pages/social/SocialMetadataEditor.tsx`・`pages/voting/SymbolVotingCreate.tsx`・`SymbolVotingDetail.tsx`。
 - 確認したこと: 変更したファイルの構文。**型検査・画面の表示・実際のノードでの動作は未確認**（依存パッケージの無い環境）。
-- まだ対応していないもの: Symbol のハーベスト関連（リモート / VRF / ノードのキーリンク、投票鍵リンク、委任リクエストの再送）。キーリンクをアグリゲートの中の取引にする作りの追加が要る。
+- ハーベスト関連は、次の項目で対応。
 
 ## 修正: ネームスペース — 連署しているマルチシグアカウントのネームスペースを、一覧から更新・エイリアス設定できるように
 - 困りごと: 連署者のウォレットから、マルチシグアカウントのネームスペースを更新しようとしても、そのアカウントを選べなかった。一覧が「自分のアカウント」の分しか出さず、更新・エイリアスのポップアップは一覧の行から開く作りのため、連署者に自分のネームスペースが無いとポップアップ自体が開けなかった。マルチシグアカウントが自分で送った形になると `Failure_Multisig_Operation_Prohibited_By_Account` で拒否される。

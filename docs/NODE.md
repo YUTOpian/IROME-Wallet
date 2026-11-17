@@ -51,7 +51,7 @@ IROME ノード構築エージェント
 ウォレットの **サービス > ノード** を開き、接続先とトークンを入れて「接続」。公開ページ（https）から `http://127.0.0.1` に繋ぐときは、ブラウザの「ローカルネットワークへのアクセス」の確認が出ることがある（許可する）。
 
 1. 「この PC の環境」で、Docker・Node.js・Python・symbol-bootstrap・Shoestring・Nodewatch の有無を確認する。
-2. 無いツールは「入れる」（または `irome install bootstrap | shoestring | nodewatch | node | python`）。作業場所の `tools/` の中に入る（`sudo` は使わない）。
+2. 無いツールは「入れる」（または `irome install bootstrap | shoestring | nodewatch | node | python`）。作業場所の `tools/` の中に入る（`sudo` は使わない。**Docker だけは別**で、Linux の Ubuntu・Debian 系で、`sudo` を 1 回だけ使う `irome install docker`。下の「Node.js・Python・Docker」を見る）。
    - symbol-bootstrap・symbol-node-watcher: `npm install --prefix <作業場所>/tools …`
    - Shoestring: `<作業場所>/tools/venv`（Python の仮想環境）に `pip install symbol-shoestring`
    - Node.js・Python: 下の「Node.js・Python・Docker」を見る。
@@ -97,7 +97,7 @@ npm run node-agent-service -- uninstall    # 登録を外す（--purge で、設
 |---|---|---|---|
 | Node.js | できる（`irome install node`） | `tools/node` | 画面の「削除」（`irome uninstall node`） |
 | Python | できる（`irome install python`） | `tools/python` | 画面の「削除」（`irome uninstall python`） |
-| Docker | **できない**（案内だけ） | — | **できない**（OS 側で） |
+| Docker | **Linux の Ubuntu・Debian 系**・**Mac**・**Windows** できる（`irome install docker`。Linux は**`sudo` を 1 回使う**。Mac は **`sudo` を使わず** Docker Desktop を置く。Windows は、署名を確かめて、**Windows の確認画面（UAC）をご自身が押す**。エージェントは昇格しない） | Linux: OS（apt）。Mac: `/Applications`（書けなければ `~/Applications`）の `Docker.app`。Windows: `C:\Program Files\Docker\Docker`。どれも `tools/` ではない | **できない**（OS 側で） |
 
 **Node.js・Python は「専用のコピーを tools/ に足す」もの。** この PC に元から入っていても、足せる（元のものは触らない）。足したあとは、ツールの実行で、`tools/` のものを先に使う（子プロセスの `PATH` の先頭に `tools/node/bin`・`tools/python/bin` を足す）。
 
@@ -110,7 +110,44 @@ npm run node-agent-service -- uninstall    # 登録を外す（--purge で、設
 - 削除は `tools/node`・`tools/python` だけ。シンボリックリンクなら消さない。作業場所の外を指していても消さない。**`tools/venv`（Shoestring）があるあいだは、Python を消せない**（venv がその Python を使っているため。先に `irome uninstall shoestring`）。
 - Windows ネイティブでも入れられる（x64・arm64）。Node.js は `node-vX-win-x64.zip`、Python は python-build-standalone の `…-pc-windows-msvc-install_only.tar.gz`。展開は、標準の `C:\Windows\System32\tar.exe`（zip も読める。Git for Windows の GNU tar は、zip を読めず、`C:` をホスト名と取り違えるので使わない）。Windows 10（1803）以降が要る。入れ先は `tools\node`（直下の `node.exe`・`npm`）と `tools\python`（直下の `python.exe`・`Scripts\`）。Python の確認は `venv` と `ssl` だけ（Windows には `pty`・`termios` が無い）。`tar` が無い環境では、導入できない。
 
-**Docker は、画面から入れない。** Docker の導入は、管理者権限（`sudo` や、Docker Desktop のインストーラー）が要る。このエージェントは、root で起動せず、`sudo` も使わない決まりなので、入れる・消す操作は持たない。「この PC の環境」で Docker が「なし」のとき、公式の手順（Linux: `docs.docker.com/engine/install/`、Mac・Windows: Docker Desktop）を画面に出す。入れたあとに「更新」を押すと、「あり」になる。
+**Docker は、Linux の Ubuntu・Debian 系だけ、画面から入れられる（`irome install docker`）。ここだけ `sudo` を使う。** Docker は OS 全体に入れるもので、管理者権限が要る。このエージェントは、root で起動せず、画面から打った `sudo …` も通さない（許可リストに無い）。そのうえで、この 1 つの手順にだけ、次のように範囲を絞って `sudo` を使う。
+
+- **押すと、先に確認ダイアログが出る**（ボタンからでも、`irome install docker` と打っても）。することを全部並べ、docker グループの注意を読んで、チェックを入れないと進めない。
+- **`sudo` を起動するのは 1 回だけ**（パスワードも 1 回。ターミナルの入力欄で聞かれる。入力は自動で「パスワード」扱い＝画面に出さない）。**エージェントが決めた固定のスクリプト**（`src/server/node-agent/dockerInstall.ts` の `SUDO_SCRIPT`）を `/bin/sh -c` で動かすだけで、**この画面から入る文字は 1 文字も入らない**。渡すのは、確かめ済みの 5 つの値（`ubuntu`|`debian`・コードネーム・CPU・ユーザー名・公式の公開鍵）で、位置引数として渡す（シェルの式としては評価しない）。値は、エージェントで形を確かめ、スクリプトの中でもう一度確かめる。
+- **`sudo` は絶対パス**（`/usr/bin/sudo`、なければ `/bin/sudo`）で呼ぶ。子プロセスの `PATH` の先頭には `tools/node_modules/.bin` が足されているので、名前だけで呼ぶと、そこに紛れた `sudo` という名前のものに、パスワードを渡すおそれがあるため。スクリプトの中も、`PATH` を `/usr/sbin:/usr/bin:/sbin:/bin` に固定してから始める。
+- **root でやることは、これだけ**: ① `apt-get update` と、`ca-certificates`・`gnupg` の導入 ② 公式の鍵を `/etc/apt/keyrings/docker.asc` に置く ③ `/etc/apt/sources.list.d/docker.sources` に `download.docker.com` のリポジトリを書く ④ `apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin` ⑤ `systemctl enable --now docker`（systemd がある環境だけ）⑥ `usermod -aG docker <いまのユーザー>`。ほかのファイル・パッケージは、消さず、変えない。
+- **鍵の確かめ**: 鍵は、`download.docker.com`（https だけ。この 1 つのホストに絞った取得で、Node.js・Python の取得先の一覧には足していない）から取る。root だけが入れる一時フォルダに書き、`gpg` で、**指紋が公式の `9DC8 5822 9FC7 DD38 854A E2D8 8D81 803C 0EBF CD88` と同じで、鍵が 1 つだけ**であることを確かめてから置く。合わなければ、何も足さずに止まる（終了コード 3）。
+- **すでに docker が使えるときは、`sudo` を起動せずに終わる**。Ubuntu・Debian 系以外（Fedora など）・コードネームが決まらない Debian（testing / unstable）・対応していない CPU・root で動いているとき・`sudo` が無いときも、何もせずに止まり、公式の手順（`docs.docker.com/engine/install/`）を案内する。Linux Mint などの派生は、元の Ubuntu / Debian として扱う（Docker 公式の対応は Ubuntu・Debian）。
+- **Mac・Windows は、別の手順**（下の「Mac で Docker Desktop を入れる」「Windows で Docker Desktop を入れる」）。
+- **docker グループについて（大事）**: グループに入ると、そのユーザーは docker を通して root と同じことができる。ノードのコマンド（`docker compose …`）を `sudo` なしで動かすために入れる。望まないときは、確認で「やめる」を押し、公式の手順（rootless Docker など）で入れる。グループの変更は、**ログインし直したあと**に効く。そのあと、**エージェントも起動し直す**（それまでは、画面の最後の確認で「まだ docker のデーモンに繋げません」と出ることがある）。
+- **消す操作は持たない**。`irome uninstall docker` は通さない（OS の apt の管理下で、管理者権限が要るため）。消すときは、OS 側で（公式の「Uninstall」）。`/var/lib/docker`（コンテナ・イメージ）は、画面からは触らない。
+- 「更新」を押すと、「この PC の環境」で Docker が「あり」になる。
+- **実物の Ubuntu / Debian で `apt-get` を動かしては確認していない**。試験は、本物の `sh` と `gpg` で、固定のスクリプトを動かすもの（`apt-get`・`usermod`・`systemctl`・`id` は偽物に差し替え。指紋が合わない・鍵が 2 つ・値が不正なときに、何も足さずに止まること、呼ぶ特権コマンドが上の一覧だけであることを確かめる）。
+
+**Mac で Docker Desktop を入れる（`irome install docker`。`sudo` は使わない）。** Mac でも、同じ「入れる」ボタン（または `irome install docker`）で入れられる。管理者権限（パスワード）は、このエージェントは使わない。Docker.app を、ユーザー自身の権限だけで置く。
+
+- **押すと、先に確認ダイアログが出る**（Linux と同じ。文面は Mac 用）。することを全部並べ、初回の起動の注意を読んで、チェックを入れないと進めない。
+- **取得先は `desktop.docker.com` の `Docker.dmg` だけ**（https のみ。Apple シリコンは `…/mac/main/arm64/Docker.dmg`、Intel は `…/amd64/Docker.dmg`）。この 1 つのホストに絞った取得で、Node.js・Python・Linux の鍵の取得先の一覧には足していない。リダイレクト先も毎回確かめる。1 GB 前後あるので、メモリに溜めず、作業場所の `tools/.docker-tmp-*` に直接書く（上限 2GB。届かないまま 120 秒で止まる）。終わったら（失敗・停止でも）一時フォルダを消す。
+- **置く前に、Apple の署名で確かめる**。ディスクイメージを読み取り専用（`hdiutil attach -nobrowse -readonly -noautoopen`）で開き、中の `Docker.app` を、①`codesign --verify --deep --strict`（壊れ・すり替え）②開発元が Docker Inc（**Team ID `9BNSXJN65R`**）で、識別子が `com.docker.docker` であること（`codesign -dv --verbose=2`）③`spctl --assess --type execute`（Gatekeeper・Apple の公証）で確かめる。**1 つでも合わなければ、何も置かずに止まる**。コピー（`ditto`）のあとにも、`codesign --verify` をもう一度かける。
+- **置き場所**は `/Applications`（書き込めるとき。Mac の管理者ユーザーは、パスワードなしで書ける）か、`~/Applications`。別の名前（`.Docker-irome-tmp.app`）にコピーして確かめてから、`Docker.app` に付け替えるので、途中で止まっても壊れた `Docker.app` は残らない。**すでに `Docker.app` があれば、上書きせず、起動だけする**。すでに `docker` が使えるときは、何もせずに終わる。
+- 動かす外部コマンドは、**絶対パスの `hdiutil`・`codesign`・`spctl`・`ditto`・`open` だけ**（シェルなし・`PATH` 固定・引数は固定）。この画面から打った文字は、どの引数にも入らない。ディスクイメージは、必ず閉じる（閉じられなかったときは、開いたままのものに触らず、取り出すよう案内する）。
+- **起動したあと**（`open`）、初回は Docker 自身が使用許諾と macOS のパスワードの入力を求める。**そこは、ご自身で操作する**（エージェントはパスワードに触れない）。メニューバーの Docker のアイコンが止まったら、「更新」を押す。
+- 子プロセスの `PATH` の**末尾**に、`Docker.app/Contents/Resources/bin`（`/Applications` と `~/Applications`）を足す。Docker Desktop が `/usr/local/bin` に `docker` を作る前でも、「この PC の環境」に出て、`docker --version` が打てる（PC に元からある `docker` が先）。
+- `docker` グループはない（Linux だけの話）。**消す操作は持たない**（Docker Desktop の「Troubleshoot > Uninstall」か、`Docker.app` を捨てる）。
+- **実物の Mac で、署名の確認・コピー・起動を動かしては確認していない**。試験は、`hdiutil`・`codesign`・`spctl`・`ditto`・`open` を偽物に差し替え、呼ぶ順番（署名の確認がコピーより先）・呼ぶコマンドがこの 5 つだけであること・署名（Team ID・識別子・Gatekeeper・コピー後の検証）が 1 つでも合わなければ何も置かず、ディスクイメージを閉じ、一時フォルダを消すこと・別ホストへのリダイレクトを断ることを確かめる。**Team ID（`9BNSXJN65R`）は、実物の `/Applications/Docker.app` に `codesign -dv` をかけて、合うか確かめてください**（合わないと、安全側に止まるだけで、入りません）。
+
+**Windows で Docker Desktop を入れる（`irome install docker`。エージェントは昇格しない。UAC は、ご自身が押す）。** Windows でも、同じ「入れる」ボタン（または `irome install docker`）で入れられる。Docker Desktop のインストーラーは管理者権限（と WSL2 の準備）を要する。このエージェントは昇格しない決まりなので、**Windows 自身の確認画面（UAC）を出して、ご自身が「はい」を押す**形にする。押すと、先に確認ダイアログが出る（することの全部・絞っていること・入れたあとのこと）。
+
+- **取得先は `desktop.docker.com` の `Docker Desktop Installer.exe` だけ**（https のみ。x64 は `…/win/main/amd64/`、ARM64 は `…/win/main/arm64/`）。この 1 つのホストに絞った取得で、Node.js・Python・Linux の鍵の取得先の一覧には足していない（Mac と同じホストの一覧を使う）。リダイレクト先も毎回確かめる。数百 MB あるので、メモリに溜めず、作業場所の `tools/.docker-tmp-*` に直接書く（上限 2GB）。終わったら（失敗・停止でも）一時フォルダを消す。
+- **起動する前に、Windows の署名（Authenticode）で確かめる**。`Get-AuthenticodeSignature` で、①署名が **Valid**（壊れ・すり替え・信頼できない発行元ではない）②発行元（証明書の名前）が **`Docker Inc`**（または `Docker, Inc.`）であること、の両方を確かめる。**1 つでも合わなければ、何も実行せずに止まる**（UAC も出ない）。
+- **確認のあとの差し替えも防ぐ**。取得したときの SHA-256 を覚えておき、起動の直前にもう一度計算して、**同じでなければ起動しない**。
+- **`install --quiet` で起動する**（引数は、この 2 つだけ。`--accept-license` は付けない＝使用許諾は、初回の起動でご自身が読んで同意する）。管理者権限は、PowerShell の `Start-Process -Verb RunAs`（Windows が UAC を出す）で得る。**「はい」を押したときだけ入る。「いいえ」なら、何も入らずに終わる**（そう画面に出る）。UAC が他の窓の後ろに隠れたら、タスクバーで点滅しているアイコンを開く。待つ上限は 30 分。
+- **動かす外部コマンドは、`System32` の PowerShell だけ**（絶対パス・`-EncodedCommand` の固定のスクリプト・`-NonInteractive`・`-NoProfile`・シェルなし）。ファイルの場所は、スクリプトの文字ではなく、環境変数（`IROME_FILE`）で渡す（文字としては評価されない）。子プロセスの環境変数は、必要なものだけ（PowerShell のモジュールの探し先などは、引き継がない）。画面から入る文字は、どのコマンドにも入らない。
+- **エージェント自身は、昇格しない**。昇格した状態で起動すると、そもそも起動しない（これまでと同じ）。
+- **すでに `docker` が使えるとき、または Docker Desktop（`C:\Program Files\Docker\Docker` か `%LOCALAPPDATA%\Programs\DockerDesktop`）が入っているときは、何もせずに終わる**（入れ直さない）。対応外の CPU も、何もせずに止まり、公式の手順を案内する。
+- **入れたあと**: Docker Desktop が WSL 2 を準備するとき、**Windows の再起動**を求められることがある（終了コード 3010 は「入った。再起動が要る」として扱う）。スタートメニューから Docker Desktop を起動して、使用許諾に同意し、起動しきったら「更新」を押す。インストーラーが PATH に足した `…\Docker\resources\bin` は、すでに動いているエージェントには届かないので、エージェントは、その場所を PATH の末尾に足して `docker` を探す。`docker` グループの変更はない（このエージェントは、Windows のグループには触れない）。
+- **消す操作は持たない**（Windows の「設定 > アプリ」から、Docker Desktop を消す）。
+- **実物の Windows で、署名の確認・UAC・インストーラーの実行を動かしては確認していない**。試験は、PowerShell を偽物に差し替え、呼ぶ順番（署名の確認が起動より先）・呼ぶコマンドが PowerShell（絶対パス）だけであること・署名が 1 つでも合わない（無署名・改ざん・信頼できない・別の発行元・紛らわしい名前・出力が崩れている・PowerShell の失敗）とき、起動せずに止まり、一時フォルダを消すこと・確認のあとの差し替えを断ること・UAC で「いいえ」のとき何も入らないこと・別ホストへのリダイレクトを断ることを確かめる。**発行元の名前（`Docker Inc`）は、実物の `Docker Desktop Installer.exe` に `Get-AuthenticodeSignature` をかけて、合うか確かめてください**（合わないと、安全側に止まるだけで、入りません。画面に、見つかった名前が出ます）。
 
 ### Windows ネイティブ
 
@@ -127,7 +164,7 @@ WSL2 なしの Windows（PowerShell・コマンドプロンプト）で、エー
 
 **Windows で使えない・違うこと**
 - **パスワードを聞くコマンドと wizard。** 本物の端末（pty）が使えない（Python の `pty` は Linux / macOS だけ）。画面に注意が出る。`symbol-bootstrap` は `--noPassword`、`encrypt`・`decrypt`・`wizard` は、PowerShell など別のターミナルで直接動かす。ConPTY を使う方法は、まだ入れていない。
-- **Docker。** Docker Desktop を入れて、起動しておく（画面からは入れられない）。Docker Desktop の WSL2・Hyper-V の設定は、Docker 側のこと。
+- **Docker。** Docker Desktop を入れて、起動しておく（画面の「入れる」で入れられる。Windows は、署名を確かめたあと、Windows の確認画面〔UAC〕をご自身が押す）。Docker Desktop の WSL2・Hyper-V の設定は、Docker 側のこと。
 - **Shoestring。** 公式がサーバー（Linux）での利用を想定している。Windows ネイティブでの動作は、確かめていない。
 - **CPU の負荷の平均**（`loadavg`）は、Windows には無いので出ない。
 - ファイルの権限（`0600`）は、Windows では効かない。作業場所は、自分だけが読めるフォルダに置く。
@@ -265,11 +302,11 @@ symbol-bootstrap start -p mainnet -a dual -d --upgrade
 
 ### Shoestring でノードを建てる手順
 
-画面の **「Shoestring でノードを建てる手順」** に、Shoestring 公式ドキュメント（インストール / ノードの作成と実行 / ノードの保守）の順番で、説明とひな型を並べている（`src/lib/node/shoestringGuide.ts`・`src/pages/node/ShoestringGuide.tsx`）。ひな型は、押すと入力欄に入るだけ（実行は Enter）。説明は、エージェントに繋がっていなくても読める。先頭に、番号なしの「Shoestring とは（概要）」（何をするツールか・symbol-bootstrap との違い・基本の流れ・Docker が前提であること）がある。
+画面の **「Shoestring でノードを建てる手順」**（**「ノード構築」のカードのリンク**から開く。「この PC の環境」には置かない）に、Shoestring 公式ドキュメント（インストール / ノードの作成と実行 / ノードの保守）の順番で、説明とひな型を並べている（`src/lib/node/shoestringGuide.ts`・`src/pages/node/ShoestringGuide.tsx`）。ひな型は、押すと入力欄に入るだけ（実行は Enter）。説明は、エージェントに繋がっていなくても読める。先頭に、番号なしの「Shoestring とは（概要）」（何をするツールか・symbol-bootstrap との違い・基本の流れ・Docker が前提であること）がある。
 
 | 手順 | やること | 主なひな型 |
 |---|---|---|
-| 1. 必要なもの | Python 3.10 以降・Docker（Compose v2）・OpenSSL。ノードの種類ごとの CPU・RAM・ディスク | `docker --version` `docker compose version` |
+| 1. 必要なもの | Python 3.10 以降・Docker（Compose v2）・OpenSSL。ノードの種類ごとの CPU・RAM・ディスク。Docker は、Linux の Ubuntu・Debian 系なら画面の「入れる」（`irome install docker`。`sudo` を 1 回使う）で入る | `irome install docker` `docker --version` `docker compose version` |
 | 2. インストール | 公式: `python3 -m pip install symbol-shoestring` → `python3 -m shoestring --help`。この画面の「入れる」（`irome install shoestring`）は、`tools/venv` に入れる別の方法 | `irome install python` `python3 -m pip install symbol-shoestring` `irome install shoestring` `python3 -m shoestring --help` `python3 -m shoestring init --help`（更新は 14 の「ノードをアップデートする」） |
 | 3. 作業フォルダ | ノード専用のフォルダ（公式の例は `symbol-node`）を、画面の「作業フォルダ」に入れる | — |
 | 4. init | ネットワークの標準設定から `config.ini` を作る | `shoestring init --package mainnet config.ini`（テストネットは `sai`）。ウィザードを使うなら `shoestring wizard`（wizard を有効にしたとき） |
@@ -338,7 +375,7 @@ shoestring health --config config.ini --directory .
 
 **本物の端末（pty）で動かす。** `symbol-bootstrap` `shoestring` `symbol-node-watcher` の、画面から打ったコマンドは、エージェントが端末の中で動かす。パスワードを聞くコマンド（鍵を暗号化するための入力など）も動く。パスワードを入力しても、端末が画面に返さない。
 
-- 仕組み: `python3 -c <小さな補助>` が `pty.fork()` で端末を作り、その中でコマンドを動かす。ネイティブの追加パッケージは要らない。シェルは通さず、引数の配列をそのまま渡す（許可リストの判定は、これまでと同じ）。`docker` と `irome install / uninstall` は、これまでどおりパイプ。
+- 仕組み: `python3 -c <小さな補助>` が `pty.fork()` で端末を作り、その中でコマンドを動かす。ネイティブの追加パッケージは要らない。シェルは通さず、引数の配列をそのまま渡す（許可リストの判定は、これまでと同じ）。`docker` と `irome install / uninstall` は、これまでどおりパイプ（**例外**: `irome install docker` の `sudo` の 1 手順だけは、パスワードを聞かれるので、端末の中で動かす）。
 - 使える条件: Linux / macOS で、`python3` の `pty` が読み込めること（画面の状態の `pty`）。Windows ネイティブ・`python3` が無い環境では、これまでどおりパイプで動く（パスワードを聞くコマンドは、うまく動かないことがある。`--noPassword` のように、聞かせない書き方にする）。`IROME_NODE_AGENT_PTY=0` で、使わない設定にもできる。
 - 出力は、エスケープ列（色・カーソル移動）を消し、改行をそろえて画面に出す。端末の幅は 120 桁、高さは 40 行。`TERM=dumb`。
 - **wizard（対話式の設定）は、画面で「有効」にしたときだけ使える**（下の「wizard の設定」）。無効のあいだは、画面もエージェントも `symbol-bootstrap wizard` と `shoestring wizard` を断る（`wizard_disabled`）。
@@ -367,7 +404,7 @@ shoestring health --config config.ini --directory .
 | `symbol-node-watcher` | `start [config]` `stop` |
 | `docker` | 見る系: `--version` `version` `info` `ps` `logs` `stats --no-stream` `compose version/ps/logs`。運用: `start` `stop` `restart`（`-t 秒`）・`rm`・`pull`（対象の指定が必須）、`compose up` `down` `start` `stop` `restart` `pull`（サービス名は任意）。`run` `exec` `cp` `build` `compose run/exec/config` は通さない |
 | `node` | `--version` だけ |
-| `irome install` / `irome uninstall` | `bootstrap` / `shoestring` / `nodewatch` / `node` / `python`（エージェントが固定の手順で実行。uninstall は `tools/` の中だけ）。`irome upgrade shoestring`（`tools/venv` の Shoestring を `pip install --upgrade symbol-shoestring` で最新にする）・`irome upgrade bootstrap`（公式の手順 `git clone` → `npm install` → `npm run build` → `npm pack --ignore-scripts` → `npm install` を、`tools/` の中だけで行う。`git` が要る。取得先は公式リポジトリに固定）・`irome upgrade nodewatch`（`tools/` の symbol-node-watcher を `@latest` で入れ直す）。ほかの対象・版の指定は通さない |
+| `irome install` / `irome uninstall` | `bootstrap` / `shoestring` / `nodewatch` / `node` / `python`（エージェントが固定の手順で実行。uninstall は `tools/` の中だけ）。`irome install docker`（Linux の Ubuntu・Debian 系だけ。`sudo` を 1 回使い、確認つき。`irome uninstall docker` は通さない）。`irome upgrade shoestring`（`tools/venv` の Shoestring を `pip install --upgrade symbol-shoestring` で最新にする）・`irome upgrade bootstrap`（公式の手順 `git clone` → `npm install` → `npm run build` → `npm pack --ignore-scripts` → `npm install` を、`tools/` の中だけで行う。`git` が要る。取得先は公式リポジトリに固定）・`irome upgrade nodewatch`（`tools/` の symbol-node-watcher を `@latest` で入れ直す）。ほかの対象・版の指定は通さない |
 
 通さないもの: シェルの記号（`| ; & > < $ \``）、任意のコマンド。確認のポップアップを通したときだけ通すもの: 秘密鍵を画面に出す `--show-private` と `openssl pkey -in <名前>.pem -text`。用途を絞って通すもの（`openssl` の 3 つの形・`mkdir` / `cd`・復旧用の `docker compose -f`・`shoestring wizard`）は、下の「Shoestring でノードを建てる手順」と、このあとの注記を参照。
 シェルは使わず、引数の配列をそのまま実行ファイルに渡す。
@@ -429,6 +466,7 @@ ssh -L 7391:127.0.0.1:7391 you@your-server
 - `npx tsx dev-tests/node-shoestring-guide.test.ts` … 「Shoestring でノードを建てる手順」（手順のひな型がすべて許可の判定を通る・通さないものは通らない・`pemview` と `--show-private`・説明文が ja / en に揃っている・手順の順番。206 項目）
 - `npx tsx dev-tests/node-windows.test.ts` … Windows ネイティブ対応（OS の種類を引数で渡して、Linux 上で Windows の分岐を確かめる。パスの内外・環境変数の二重・`package.json` の `bin` の探し方と外へ出る指定の拒否・`.cmd` を使わない手順・Windows 向けの配布物の入れ方・予約名やドライブ名の拒否・`Tools\` の大文字小文字。141 項目）。**本物の Windows での起動・停止・展開は、ここでは確かめられない**
 - `npx tsx dev-tests/node-provision.test.ts` … Node.js・Python の導入と削除（取得先の決まり・リダイレクト・サイズ上限・SHA-256 の一致/不一致・壊れた tar・既存の `tools/` を壊さない・一時フォルダの片づけ・シンボリックリンクを辿らない・venv があるあいだは Python を消さない。75 項目）。外部には繋がず、偽の fetch と本物の `tar` で確認する。
+- `npx tsx dev-tests/node-docker-install.test.ts` … Docker の導入（`sudo` を 1 回だけ使う手順）。許可リスト（`irome install docker` は通る・`irome uninstall docker` と画面から打つ `sudo …` は通さない）、`/etc/os-release` の読み取り、鍵の形、`sudo` に渡すものが固定のスクリプトと確かめ済みの 5 つの値だけであること、鍵の取得先が `download.docker.com` だけであること、手順の止まる条件（root・対応外の OS・`sudo` なし・すでに入っている）、**Mac と Windows の手順**（Windows は、PowerShell を偽物にして、署名の確認が起動より先・合わない署名で止まる・確認のあとの差し替えを断る・UAC で「いいえ」なら何も入らない）、そして**固定のスクリプトを本物の `sh` と `gpg` で動かし**、指紋の不一致・鍵が 2 つ・不正な値・鍵本文の中のシェルの記号で、何も足さずに止まることを確かめる（`apt-get` などは偽物。`gpg` が無いと、この部分は動かない）。
 - `npx tsx dev-tests/node-service.test.ts` … エージェントの常駐化（systemd・launchd・タスク スケジューラの登録ファイルの中身と、呼ぶコマンド・設定ファイルとトークンのファイルの権限・root と制御文字と `tsx` 無しの拒否・再登録でトークンを変えない・トークンの作り直し・解除と `--purge`・本物の `run.ts` を `--config` で起動して、トークンのファイルの認証と、ログにトークンが出ないこと。98 項目）
 - `npx tsx dev-tests/node-shoestring-keys.test.ts` … Shoestring の鍵ファイルからの公開鍵の取り出し（確認なしでは読まない・秘密鍵が返事の本文に出ない・暗号化された PEM・`tools/` とシンボリックリンクを見ない・証明書のノードに重ねる。28 項目）
 - `npx tsx dev-tests/node-keys.test.ts` … ノードの鍵の連携（`addresses.yml` から公開鍵だけを読む・秘密鍵が結果にもエージェントの返事にも出ない・長さ違いを捨てる・`tools/` とシンボリックリンクと `target/` の外を読まない・認証・画面側の再検証・渡し先のストア。38 項目）

@@ -1845,11 +1845,12 @@ export async function quoteHarvestFees(linkCount: number, withDelegation: boolea
 }
 
 /** Fee of a one-key change and of a replacement (two keys) at each of the five levels (one node request). */
-export async function quoteHarvestLinkFees(): Promise<Record<FeeSpeed, { one: bigint; two: bigint }>> {
+export async function quoteHarvestLinkFees(extraBytes = 0): Promise<Record<FeeSpeed, { one: bigint; two: bigint }>> {
   const multipliers = await feeMultipliers();
+  // `extraBytes`: room for the cosignatures when a multisig account's links wait for its other cosigners.
   const at = (speed: FeeSpeed) => ({
-    one: BigInt(harvestLinkSize(1)) * BigInt(multipliers[speed]),
-    two: BigInt(harvestLinkSize(2)) * BigInt(multipliers[speed]),
+    one: BigInt(harvestLinkSize(1) + extraBytes) * BigInt(multipliers[speed]),
+    two: BigInt(harvestLinkSize(2) + extraBytes) * BigInt(multipliers[speed]),
   });
   const out = {} as Record<FeeSpeed, { one: bigint; two: bigint }>;
   for (const speed of FEE_SPEEDS) out[speed] = at(speed);
@@ -2022,6 +2023,39 @@ export async function resendHarvestDelegation(input: ResendDelegationInput): Pro
   return { hash: signed.hash };
 }
 
+export interface SendDelegationRequestInput {
+  privateKey: string; // the signing wallet's key (the request is a plain transfer to the node; any account may send it)
+  publicKey: string;
+  keyless?: KeylessSigner;
+  nodePublicKey: string;
+  remotePrivateKey: string;
+  vrfPrivateKey: string;
+}
+
+/**
+ * Sends the node the encrypted harvesting request (FormPersistentDelegationRequest) for the given keys, signed by this wallet.
+ * It carries only the remote / VRF keys for the node, so it can be sent for a multisig account's keys by one of its cosigners
+ * (the multisig account itself cannot send a transaction). The keys are not checked against the chain here.
+ */
+export async function sendHarvestDelegationRequest(input: SendDelegationRequestInput): Promise<{ hash: string }> {
+  const cfg = getNetworkConfig();
+  const multipliers = await feeMultipliers();
+  const deadline = BigInt(await networkTimeMs()) + 2n * 60n * 60n * 1000n;
+  const params = {
+    signerPublicKey: input.publicKey,
+    networkByte: cfg.networkByte,
+    nodePublicKey: input.nodePublicKey,
+    remotePrivateKey: input.remotePrivateKey,
+    vrfPrivateKey: input.vrfPrivateKey,
+    feeMultiplier: multipliers[getDefaultFeeSpeed()],
+    deadline,
+    message: input.keyless ? encodeHarvestDelegationMessage({ nodePublicKey: input.nodePublicKey, remotePrivateKey: input.remotePrivateKey, vrfPrivateKey: input.vrfPrivateKey }) : undefined,
+  };
+  const signed = await signWithAny(input.privateKey, input.keyless, input.publicKey, cfg.networkByte, () => signHarvestDelegation(input.privateKey, cfg.generationHash, params));
+  await announceSigned(signed);
+  return { hash: signed.hash };
+}
+
 // --- voting keys (finalization) ------------------------------------------------------------
 export interface VotingContext {
   currentEpoch: number | null; // the latest finalized epoch (null when the node does not tell)
@@ -2048,9 +2082,9 @@ export async function fetchVotingContext(): Promise<VotingContext> {
 }
 
 /** Transaction fee (atomic XYM, standard level) of a voting key link aggregate holding `linkCount` links. */
-export async function quoteVotingFee(linkCount: number): Promise<FeeQuote> {
+export async function quoteVotingFee(linkCount: number, extraBytes = 0): Promise<FeeQuote> {
   const multipliers = await feeMultipliers();
-  const size = votingLinkSize(linkCount);
+  const size = votingLinkSize(linkCount) + extraBytes;
   return { multiplier: multipliers[getDefaultFeeSpeed()], size, fee: BigInt(size) * BigInt(multipliers[getDefaultFeeSpeed()]) };
 }
 

@@ -9,6 +9,7 @@ import { normalizeWatchUrl } from '../../lib/node/nodeWatch';
 import { validateSubdir } from '../../lib/node/nodeCommands';
 import { WATCHDOG_INTERVALS_SEC, normalizeNotifyUrl } from '../../lib/node/nodeWatchdog';
 import type { WatchdogSnapshot } from '../../lib/node/nodeWatchdog';
+import GuideText from './GuideText';
 
 // 「常駐の見張り」: エージェントが、この画面を閉じていても、ノードの REST を見て、止まっている・落ちているときに `docker compose restart` を流す。
 // 設定（URL・作業フォルダ・間隔）はエージェント側に保存され、エージェントを再起動しても続く。再起動するコマンドは固定で、ここでは変えられない。
@@ -80,7 +81,7 @@ export default function WatchdogPanel({ agent, url, dir, onDir, onEnabled }: { a
 
   return (
     <Box>
-      <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', mb: 1 }}>{t('service.node_wd_intro', { min: AUTO_RESTART_LIMITS.cooldownMs / 60_000, max: AUTO_RESTART_LIMITS.maxAttempts })}</Typography>
+      <Box sx={{ color: 'text.secondary', mb: 1 }}><GuideText size="0.85rem" text={t('service.node_wd_intro', { min: AUTO_RESTART_LIMITS.cooldownMs / 60_000, max: AUTO_RESTART_LIMITS.maxAttempts })} /></Box>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' }, mb: 1 }}>
         <TextField select size="small" label={t('service.node_watch_interval')} value={interval} onChange={(e) => setIntervalSec(Number(e.target.value))} disabled={busy} sx={{ minWidth: 150 }}>
           {WATCHDOG_INTERVALS_SEC.map((n) => <MenuItem key={n} value={n}>{t('service.node_watch_interval_n', { n })}</MenuItem>)}

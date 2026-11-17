@@ -39,8 +39,9 @@ export interface KeyChangeRequest { links: HarvestLink[]; fee: bigint | null; fe
  * link a key by its public key, unlink it, or replace it (unlink + link in one transaction). 「開始（自動生成）」と「全解除」は
  * 「デリゲートハーベスティング」タブ。その下に、投票鍵（ファイナライズ用のVoting Key）のリンク／解除（VotingKeyPanel）。
  */
-export default function KeyLinkPanel({ status, ownPublicKey, busy, hasStored, onRequest, onVotingRequest, onReveal }: {
+export default function KeyLinkPanel({ status, ownPublicKey, busy, hasStored, extraFeeBytes = 0, onRequest, onVotingRequest, onReveal }: {
   status: HarvestStatus; ownPublicKey: string; busy: boolean; onRequest: (request: KeyChangeRequest) => void;
+  extraFeeBytes?: number; // for a multisig account: room in the fee for the cosignatures the other cosigners attach
   onVotingRequest: (request: VotingChangeRequest) => void;
   hasStored: boolean; // this wallet kept the remote / VRF private keys of the start (encrypted)
   onReveal: () => void; // show the kept keys (after the password)
@@ -58,12 +59,12 @@ export default function KeyLinkPanel({ status, ownPublicKey, busy, hasStored, on
     let cancelled = false;
     (async () => {
       try {
-        const quoted = await quoteHarvestLinkFees();
+        const quoted = await quoteHarvestLinkFees(extraFeeBytes);
         if (!cancelled) setAllFees(quoted);
       } catch { /* shown as unavailable */ }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [extraFeeBytes]);
 
   // The links on the chain changed (a change went through, or the status was reloaded): start the fields afresh
   // (with the keys handed over from the node screen, for the kinds that are not linked to them yet).
@@ -193,7 +194,7 @@ export default function KeyLinkPanel({ status, ownPublicKey, busy, hasStored, on
       </FormRow>
       <Alert severity="warning" sx={{ mt: 2 }}>{t('harvest.keys_private_note')}</Alert>
       <Divider sx={{ my: 3 }} />
-      <VotingKeyPanel status={status} busy={busy} onRequest={onVotingRequest} />
+      <VotingKeyPanel status={status} busy={busy} extraFeeBytes={extraFeeBytes} onRequest={onVotingRequest} />
     </Box>
   );
 }

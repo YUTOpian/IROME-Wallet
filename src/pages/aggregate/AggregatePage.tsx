@@ -194,6 +194,11 @@ export default function AggregatePage() {
           title: t('metadata.target_label'),
           lines: [`${item.target.type}: ${item.target.type === 'mosaic' ? item.target.mosaicId : item.target.type === 'namespace' ? item.target.namespaceId : ''}`.replace(/: $/, ''), `${item.key.toString(16).toUpperCase().padStart(16, '0')}`],
         };
+      case 'key_link':
+        return {
+          title: item.spec.type === 'voting' ? t('harvest.voting_title') : t(`harvest.keys_kind_${item.spec.kind}`),
+          lines: [item.spec.publicKey],
+        };
       case 'alias':
         return {
           title: t(item.action === 'link' ? 'namespace.alias_link' : 'namespace.alias_unlink'),

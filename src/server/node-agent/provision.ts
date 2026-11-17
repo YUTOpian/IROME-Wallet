@@ -1,11 +1,11 @@
 // ノード構築エージェント: Node.js・Python を、作業場所の tools/ の中だけに入れる／消す。
-// - sudo は使わない。OS 全体には何も入れない（Docker は、管理者権限が要るため、ここでは扱わない）。
+// - sudo は使わない。OS 全体には何も入れない（Docker は、管理者権限が要るため、ここでは扱わない。Docker は dockerInstall.ts の、sudo を 1 回だけ使う別の手順）。
 // - 取りに行く先は、決まったホストの https だけ。ダウンロードしたものは、配布元の SHA-256 の一覧と合わせてから展開する。
 //   （この確認は、転送の破損と、ファイル単体のすり替えを防ぐもの。配布元そのものが侵害された場合は防げない。）
 // - シェルは通さない。展開は、固定の引数で `tar` を呼ぶだけ（Windows は標準の System32\tar.exe。zip も読める）。
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 import { isInside, localNodeExe, localPythonExe, systemTar } from './platform';
 
@@ -37,24 +37,29 @@ export interface ProvisionCtx {
   arch?: string;
   /** 展開（試験用に差し替える。省略は、tar）。 */
   extract?: (archive: string, dest: string) => Promise<boolean>;
+  /** 取りに行ってよいホスト（省略は DOWNLOAD_HOSTS）。Docker の鍵の取得は、download.docker.com の 1 つだけに絞って渡す。 */
+  allowedHosts?: readonly string[];
+  /** 何も届かないまま待ってよい時間（ミリ秒）。省略は 120 秒。大きなファイルは、届くたびに数え直す（全体の時間ではない）。 */
+  idleTimeoutMs?: number;
 }
 
 export const toolsPath = (ws: string) => join(ws, 'tools');
 
-export function hostAllowed(url: string): boolean {
+export function hostAllowed(url: string, hosts: readonly string[] = DOWNLOAD_HOSTS): boolean {
   let u: URL;
   try { u = new URL(url); } catch { return false; }
-  return u.protocol === 'https:' && u.port === '' && u.username === '' && u.password === '' && DOWNLOAD_HOSTS.includes(u.hostname);
+  return u.protocol === 'https:' && u.port === '' && u.username === '' && u.password === '' && hosts.includes(u.hostname);
 }
 
-/** 許可したホストだけ、リダイレクトも手で追って（最大 5 回）取得する。サイズの上限と、停止の確認つき。 */
-export async function download(url: string, ctx: ProvisionCtx, maxBytes: number): Promise<Buffer> {
+/** 許可したホストだけ、リダイレクトも手で追って（最大 5 回）取得し、届いた分を onChunk に渡す。サイズの上限と、停止の確認つき。 */
+async function fetchChunks(url: string, ctx: ProvisionCtx, maxBytes: number, onChunk: (chunk: Buffer) => void): Promise<void> {
   const f = ctx.fetchImpl ?? fetch;
+  const idleMs = ctx.idleTimeoutMs ?? TIMEOUT_MS;
   let cur = url;
   for (let hop = 0; hop <= 5; hop++) {
-    if (!hostAllowed(cur)) throw new Error(`許可していない取得先です: ${cur}`);
+    if (!hostAllowed(cur, ctx.allowedHosts)) throw new Error(`許可していない取得先です: ${cur}`);
     const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), TIMEOUT_MS);
+    let timer = setTimeout(() => ac.abort(), idleMs);
     try {
       const res = await f(cur, { redirect: 'manual', signal: ac.signal, headers: { 'User-Agent': 'irome-node-agent', Accept: '*/*' } });
       if (res.status >= 300 && res.status < 400) {
@@ -67,23 +72,47 @@ export async function download(url: string, ctx: ProvisionCtx, maxBytes: number)
       const len = Number(res.headers.get('content-length') ?? '0');
       if (len > maxBytes) throw new Error('ファイルが大きすぎます');
       if (!res.body) throw new Error('本文がありません');
-      const chunks: Buffer[] = [];
       let total = 0;
       const reader = res.body.getReader();
       for (;;) {
         if (ctx.stopped()) { ac.abort(); throw new Error('停止しました'); }
         const { done, value } = await reader.read();
         if (done) break;
+        clearTimeout(timer);
+        timer = setTimeout(() => ac.abort(), idleMs);
         total += value.byteLength;
         if (total > maxBytes) { ac.abort(); throw new Error('ファイルが大きすぎます'); }
-        chunks.push(Buffer.from(value));
+        onChunk(Buffer.from(value));
       }
-      return Buffer.concat(chunks);
+      return;
     } finally {
       clearTimeout(timer);
     }
   }
   throw new Error('リダイレクトが多すぎます');
+}
+
+/** 許可したホストだけから取得して、メモリに返す（小さいファイル用）。 */
+export async function download(url: string, ctx: ProvisionCtx, maxBytes: number): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  await fetchChunks(url, ctx, maxBytes, (c) => chunks.push(c));
+  return Buffer.concat(chunks);
+}
+
+/** 許可したホストだけから取得して、ファイルに直接書く（大きいファイル用。メモリに溜めない）。dest は、まだ無いパス。失敗・停止のときは、書きかけを消す。 */
+export async function downloadToFile(url: string, dest: string, ctx: ProvisionCtx, maxBytes: number, onProgress?: (bytes: number) => void): Promise<{ bytes: number; sha256: string }> {
+  const fd = openSync(dest, 'wx', 0o600);
+  const hash = createHash('sha256');
+  let bytes = 0;
+  try {
+    await fetchChunks(url, ctx, maxBytes, (c) => { writeSync(fd, c); hash.update(c); bytes += c.length; onProgress?.(bytes); });
+  } catch (e) {
+    closeSync(fd);
+    rmSync(dest, { force: true });
+    throw e;
+  }
+  closeSync(fd);
+  return { bytes, sha256: hash.digest('hex') };
 }
 
 export const sha256 = (buf: Buffer) => createHash('sha256').update(buf).digest('hex');
@@ -279,6 +308,8 @@ export function sweepTmp(ws: string): void {
   const tools = toolsPath(ws);
   if (!existsSync(tools)) return;
   for (const e of readdirSync(tools)) {
-    if (/^\.(node|python)-tmp-/.test(e)) rmSync(join(tools, e), { recursive: true, force: true });
+    if (!/^\.(node|python|docker)-tmp-/.test(e)) continue;
+    // 開いたままのディスクイメージ（読み取り専用）が残っていると消せない。起動を止めないよう、消せなければ、そのままにする
+    try { rmSync(join(tools, e), { recursive: true, force: true }); } catch { /* そのまま */ }
   }
 }

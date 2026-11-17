@@ -3,9 +3,11 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useTranslation } from 'react-i18next';
 import { COMMAND_PRESETS } from '../../lib/node/nodeCommands';
 import { SHOESTRING_STEPS } from '../../lib/node/shoestringGuide';
+import GuideText from './GuideText';
 
 // 「Shoestring でノードを建てる手順」: 公式ドキュメント（インストール / ノードの作成と実行 / ノードの保守）の順に、
 // 説明とコマンドのひな型を並べる。ひな型は、押すと入力欄に入るだけ（実行は Enter）。中身は lib/node/shoestringGuide.ts。
+// 説明文は GuideText で、見出し・箇条書き・番号・補足の枠・等幅のコードに分けて見せる（書き方は lib/node/guideText.ts）。
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
 
 interface Props {
@@ -26,7 +28,9 @@ export default function ShoestringGuide({ cardSx, connected, running, onPickLine
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontWeight: 700 }}>{t('service.node_ss_title')}</Typography>
-      <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', mt: 0.5, mb: 1.5, whiteSpace: 'pre-line' }}>{t('service.node_ss_intro')}</Typography>
+      <Box sx={{ color: 'text.secondary', mt: 0.5, mb: 1.5 }}>
+        <GuideText text={t('service.node_ss_intro')} size="0.85rem" />
+      </Box>
       {!connected && <Alert severity="info" sx={{ mb: 1.5 }}>{t('service.node_ss_not_connected')}</Alert>}
       <Box>
         {/* 概要（番号なし。手順の番号は変えない） */}
@@ -35,7 +39,7 @@ export default function ShoestringGuide({ cardSx, connected, running, onPickLine
             <Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('service.node_ss_overview_title')}</Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ textAlign: 'left' }}>
-            <Typography sx={{ fontSize: '0.9rem', whiteSpace: 'pre-line' }}>{t('service.node_ss_overview_body')}</Typography>
+            <GuideText text={t('service.node_ss_overview_body')} />
           </AccordionDetails>
         </Accordion>
         {SHOESTRING_STEPS.map((step, i) => {
@@ -49,9 +53,9 @@ export default function ShoestringGuide({ cardSx, connected, running, onPickLine
               </Stack>
             </AccordionSummary>
             <AccordionDetails sx={{ textAlign: 'left' }}>
-              <Typography sx={{ fontSize: '0.9rem', whiteSpace: 'pre-line' }}>{t(`service.node_ss_${step.id}_body`)}</Typography>
+              <GuideText text={t(`service.node_ss_${step.id}_body`)} />
               {step.snippet && (
-                <Box component="pre" sx={{ mt: 1.5, mb: 0, p: 1.5, borderRadius: 1, bgcolor: 'action.hover', fontFamily: MONO, fontSize: '0.8rem', overflowX: 'auto' }}>{step.snippet}</Box>
+                <Box component="pre" sx={{ mt: 2, mb: 0, p: 1.5, borderRadius: 1, bgcolor: 'action.hover', fontFamily: MONO, fontSize: '0.8rem', lineHeight: 1.7, overflowX: 'auto' }}>{step.snippet}</Box>
               )}
               {(step.openConfig || tpl) && (
                 <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap', rowGap: 1 }}>
@@ -60,14 +64,14 @@ export default function ShoestringGuide({ cardSx, connected, running, onPickLine
                 </Stack>
               )}
               {step.lines && (
-                <Stack spacing={0.75} sx={{ mt: 1.5 }}>
+                <Stack spacing={1.5} sx={{ mt: 2, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
                   {step.lines.map((line) => {
                     const note = noteOf(line);
                     return (
-                      <Stack key={line} direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}>
-                        <Button size="small" variant="outlined" disabled={!connected || running} onClick={() => onPickLine(line)} sx={{ fontFamily: MONO, textTransform: 'none', textAlign: 'left', wordBreak: 'break-all' }}>{line}</Button>
-                        {note && <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>{t(note)}</Typography>}
-                      </Stack>
+                      <Box key={line}>
+                        <Button size="small" variant="outlined" disabled={!connected || running} onClick={() => onPickLine(line)} sx={{ fontFamily: MONO, textTransform: 'none', textAlign: 'left', justifyContent: 'flex-start', wordBreak: 'break-all', maxWidth: '100%' }}>{line}</Button>
+                        {note && <Typography sx={{ color: 'text.secondary', fontSize: '0.82rem', lineHeight: 1.7, mt: 0.5, pl: 0.5, textAlign: 'left' }}>{t(note)}</Typography>}
+                      </Box>
                     );
                   })}
                 </Stack>

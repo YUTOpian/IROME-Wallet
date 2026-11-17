@@ -19,6 +19,7 @@ import { MijinReadFailure, detectNodeNetwork } from '../../lib/symbol/mijin';
 import { useAppStore } from '../../store/appStore';
 import { useSssProfile, useWatchOnly } from '../../hooks/useWatchOnly';
 import { useSssAccount } from '../../hooks/useSssAccount';
+import GuideText from './GuideText';
 
 // 「ノードの状態」: 自分のノードの REST（既定 http://127.0.0.1:3000）を一定間隔で見て、正常 / 注意 / 異常を出す。
 // ブラウザから REST を直接読む（エージェントは要らない）。エージェントに繋がっているときだけ、Docker のコンテナの状態も出す。
@@ -228,7 +229,7 @@ export default function NodeWatchCard({ agent, cardSx }: { agent: AgentConn | nu
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontWeight: 700, mb: 0.5 }}>{t('service.node_watch_title')}</Typography>
-      <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', mb: 1.5 }}>{t('service.node_watch_intro')}</Typography>
+      <Box sx={{ color: 'text.secondary', mb: 1.5 }}><GuideText size="0.85rem" text={t('service.node_watch_intro')} /></Box>
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'flex-start' }, mb: 1 }}>
         <TextField
@@ -248,7 +249,7 @@ export default function NodeWatchCard({ agent, cardSx }: { agent: AgentConn | nu
       <FormControlLabel control={<Switch size="small" checked={autoRestart} disabled={wdOn} onChange={(e) => setAutoRestart(e.target.checked)} />} label={<Typography sx={{ fontSize: '0.85rem' }}>{t('service.node_ar_label')}</Typography>} />
       {autoRestart && (
         <Box sx={{ ml: 4, mb: 1 }}>
-          <Alert severity={agent || wdOn ? 'info' : 'warning'} sx={{ mb: 1 }}>{wdOn ? t('service.node_ar_wd_on') : agent ? t('service.node_ar_note', { min: AUTO_RESTART_LIMITS.cooldownMs / 60_000, max: AUTO_RESTART_LIMITS.maxAttempts }) : t('service.node_ar_need_agent')}</Alert>
+          <Alert severity={agent || wdOn ? 'info' : 'warning'} sx={{ mb: 1 }}><GuideText size="inherit" text={wdOn ? t('service.node_ar_wd_on') : agent ? t('service.node_ar_note', { min: AUTO_RESTART_LIMITS.cooldownMs / 60_000, max: AUTO_RESTART_LIMITS.maxAttempts }) : t('service.node_ar_need_agent')} /></Alert>
           <TextField
             label={t('service.node_ar_dir')} value={restartDir} onChange={(e) => setRestartDir(e.target.value)} fullWidth size="small"
             error={!validateSubdir(restartDir).ok} helperText={validateSubdir(restartDir).ok ? t('service.node_ar_dir_hint') : t('service.node_rej_subdir_invalid')}
@@ -389,7 +390,7 @@ export default function NodeWatchCard({ agent, cardSx }: { agent: AgentConn | nu
           </Stack>
         </Box>
       )}
-      <Typography sx={{ color: 'text.secondary', fontSize: '0.78rem', mt: 2 }}>{t('service.node_watch_note')}</Typography>
+      <Box sx={{ color: 'text.secondary', mt: 2 }}><GuideText size="0.78rem" text={t('service.node_watch_note')} /></Box>
     </Box>
   );
 }

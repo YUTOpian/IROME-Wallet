@@ -30,6 +30,8 @@ import { mergeShoestringKeys, readShoestringKeys } from './shoestringKeys';
 import type { NodeKeySet } from '../../lib/node/nodeKeys';
 import type { InstallTarget, ToolName } from '../../lib/node/nodeCommands';
 import { installNode, installPython, probeCmd, removeTool, sweepTmp } from './provision';
+import { dockerInstallSteps } from './dockerInstall';
+import type { DockerInstallEnv } from './dockerInstall';
 import { childEnv, envPathKey, globalNpmTool, isInside, isWindows, killTree, localNodeExe, localNpmTool, localPythonExe, npmBinPath, npmCommand, venvPythonPath } from './platform';
 import type { Resolved } from './platform';
 
@@ -64,7 +66,7 @@ export interface AgentOptions {
 
 export type { Resolved };
 /** run があるときは、外部コマンドを起動せず、この関数を実行する（tools/ の中の削除・確認だけに使う）。戻り値は終了コード。 */
-interface Step { label: string; cmd: string; args: string[]; cwd: string; run?: (out: (text: string) => void, ctl: { stopped: () => boolean }) => number | Promise<number>; /** 端末（pty）で動かす（symbol-bootstrap / shoestring / symbol-node-watcher の、画面から打ったコマンドだけ） */ pty?: boolean; /** 出力を、エスケープ列を消さずに生のまま返す（画面の簡易ターミナルが描く。wizard を有効にして、画面が頼んだときだけ） */ raw?: boolean }
+export interface Step { label: string; cmd: string; args: string[]; cwd: string; /** 起動の直前に、引数を決める（Docker の導入の sudo 用）。配列なら、その引数で起動する。'skip' は、何もせず成功。null は、失敗。 */ prepare?: (out: (text: string) => void, ctl: { stopped: () => boolean }) => Promise<string[] | 'skip' | null>; run?: (out: (text: string) => void, ctl: { stopped: () => boolean }) => number | Promise<number>; /** 端末（pty）で動かす（symbol-bootstrap / shoestring / symbol-node-watcher の、画面から打ったコマンドだけ） */ pty?: boolean; /** 出力を、エスケープ列を消さずに生のまま返す（画面の簡易ターミナルが描く。wizard を有効にして、画面が頼んだときだけ） */ raw?: boolean }
 
 interface Job {
   id: string;
@@ -264,7 +266,7 @@ function versionStep(ws: string, pl: NodeJS.Platform, pkg: string, execPath: str
 }
 
 /** `irome install …` の手順。エージェントが固定で組む（画面から任意の引数は入らない）。 */
-export interface ProvisionEnv { fetch?: typeof fetch; platform?: NodeJS.Platform; arch?: string; /** このエージェント自身の node（試験用）。省略は process.execPath */ execPath?: string }
+export interface ProvisionEnv { fetch?: typeof fetch; platform?: NodeJS.Platform; arch?: string; /** このエージェント自身の node（試験用）。省略は process.execPath */ execPath?: string; /** Docker の導入の差し替え（試験用） */ docker?: DockerInstallEnv['hooks'] }
 
 export function installSteps(target: InstallTarget, ws: string, env: ProvisionEnv = {}): Step[] {
   const tools = toolsDir(ws);
@@ -275,6 +277,7 @@ export function installSteps(target: InstallTarget, ws: string, env: ProvisionEn
     case 'node': return [
       { label: 'Node.js を tools/node に入れます（nodejs.org から取得し、SHA-256 を確かめます）', cmd: '', args: [], cwd: ws, run: (out, ctl) => { sweepTmp(ws); return installNode(prov(out, ctl)); } },
     ];
+    case 'docker': return dockerInstallSteps(ws, { platform: env.platform, fetch: env.fetch, hooks: env.docker });
     case 'python': return [
       { label: 'Python を tools/python に入れます（python-build-standalone を GitHub から取得し、SHA-256 を確かめます）', cmd: '', args: [], cwd: ws, run: (out, ctl) => { sweepTmp(ws); return installPython(prov(out, ctl)); } },
     ];
@@ -493,6 +496,8 @@ export function uninstallSteps(target: InstallTarget, ws: string, pl: NodeJS.Pla
   switch (target) {
     case 'node': return [{ label: 'tools/node を削除します', cmd: '', args: [], cwd: ws, run: (out) => removeTool(ws, 'node', out, pl) }];
     case 'python': return [{ label: 'tools/python を削除します', cmd: '', args: [], cwd: ws, run: (out) => removeTool(ws, 'python', out, pl) }];
+    // Docker は、画面から消さない（OS の apt の管理下で、管理者権限が要る。許可リストでも、`irome uninstall docker` は通さない）。念のための断り。
+    case 'docker': return [{ label: 'Docker は、この画面からは削除しません', cmd: '', args: [], cwd: ws, run: (out) => { out('Docker は、この画面からは削除しません。OS 側の手順で消してください（Linux: https://docs.docker.com/engine/install/ の「Uninstall」。Mac: Docker Desktop の「Troubleshoot > Uninstall」）。\n'); return 1; } }];
     case 'bootstrap': return [
       npmStepFor(ws, pl, 'symbol-bootstrap を tools/ から削除します', ['uninstall', '--prefix', tools, 'symbol-bootstrap']),
       gone('消えたか確認します', npmBinPath(ws, 'symbol-bootstrap', pl), 'symbol-bootstrap'),
@@ -568,6 +573,17 @@ export function createAgent(opts: AgentOptions): Agent {
 
   const runStep = (job: Job, step: Step, ptyOn: boolean): Promise<number> =>
     new Promise((done) => {
+      if (step.prepare) {
+        const fail = (e: unknown) => { append(job, `実行できません: ${(e as Error).message}\n`); done(1); };
+        try {
+          Promise.resolve(step.prepare((text) => append(job, text), { stopped: () => job.stopRequested })).then((r) => {
+            if (r === 'skip') { done(0); return; }
+            if (r === null) { done(1); return; }
+            void runStep(job, { ...step, prepare: undefined, args: r }, ptyOn).then(done);
+          }, fail);
+        } catch (e) { fail(e); }
+        return;
+      }
       if (step.run) {
         const fail = (e: unknown) => { append(job, `実行できません: ${(e as Error).message}\n`); done(1); };
         try { Promise.resolve(step.run((text) => append(job, text), { stopped: () => job.stopRequested })).then(done, fail); } catch (e) { fail(e); }

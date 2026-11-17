@@ -12,6 +12,7 @@
 // - root の代わりに、管理者権限（昇格）で動かさない。
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 export interface Resolved { cmd: string; args: string[]; local?: boolean }
@@ -69,6 +70,18 @@ export function envPathKey(env: NodeJS.ProcessEnv, plat: NodeJS.Platform): strin
   return Object.keys(env).find((k) => k.toLowerCase() === 'path') ?? 'Path';
 }
 
+/** Mac / Windows: Docker Desktop の docker コマンドの置き場（Mac は Docker.app の中。Windows は resources\bin）。あるものだけ。PATH の末尾に足す（先頭には足さない。PC に元からある docker を、先に使う）。
+ *  Windows は、インストーラーが PATH に足すが、すでに動いているエージェントの PATH には入らないので、ここで足す。 */
+export function dockerDesktopBinDirs(plat: NodeJS.Platform, home: string = homedir(), env: NodeJS.ProcessEnv = process.env): string[] {
+  if (plat === 'win32') {
+    const pf = env.ProgramFiles ?? env.PROGRAMFILES ?? 'C:\\Program Files';
+    const la = env.LOCALAPPDATA ?? join(home, 'AppData', 'Local');
+    return [join(pf, 'Docker', 'Docker', 'resources', 'bin'), join(la, 'Programs', 'DockerDesktop', 'resources', 'bin')].filter((d) => existsSync(d));
+  }
+  if (plat !== 'darwin') return [];
+  return ['/Applications/Docker.app/Contents/Resources/bin', join(home, 'Applications', 'Docker.app', 'Contents', 'Resources', 'bin')].filter((d) => existsSync(d));
+}
+
 /** 子プロセス用の環境変数。PATH の先頭に tools/ のものを足す。Windows は、`Path` と `PATH` の二重を作らない。 */
 export function childEnv(ws: string, plat: NodeJS.Platform, env: NodeJS.ProcessEnv, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const key = envPathKey(env, plat);
@@ -77,7 +90,7 @@ export function childEnv(ws: string, plat: NodeJS.Platform, env: NodeJS.ProcessE
     if (isWindows(plat) && k !== key && k.toLowerCase() === 'path') continue;
     base[k] = v;
   }
-  const dirs = [...toolDirs(ws, plat), ...(base[key] ? [base[key] as string] : [])];
+  const dirs = [...toolDirs(ws, plat), ...(base[key] ? [base[key] as string] : []), ...dockerDesktopBinDirs(plat)];
   return { ...base, [key]: dirs.join(pathDelimiter(plat)), ...extra };
 }
 

@@ -5,6 +5,7 @@
 // - シェルは使わない。1 行を引数の配列に分けて、そのまま実行ファイルに渡す（`|` `;` `&` `>` `$` `` ` `` は使えない）。
 // - 実行できるのは、決まった 6 種類（symbol-bootstrap / shoestring / symbol-node-watcher / docker の確認系 / node --version / openssl の 2 つの形）と、
 //   エージェントが用意した導入・削除・更新のレシピ（irome install … / irome uninstall … / irome upgrade shoestring / bootstrap / nodewatch）だけ。任意のコマンドは通さない。
+//   `irome install docker` だけは、Linux の Ubuntu / Debian 系では管理者権限（sudo）を 1 回使い、Mac では sudo を使わずに Docker Desktop を置く（Windows は案内だけ）。`sudo` を打っても通らず、使う範囲は src/server/node-agent/dockerInstall.ts の固定のスクリプトだけ。`irome uninstall docker` は通さない。
 // - docker は、見る系（ps / logs / info / stats）と、ノードの運用に要る操作（コンテナの start / stop / restart / rm、pull、compose の up / down / start / stop / restart / pull）だけ。
 //   `run` `exec` `cp` `build` と、`-f`（compose ファイルの指定）・`-v`（ボリューム削除）・`--privileged` などのフラグは通さない
 //   （`docker run -v /:/host …` は、ホスト全体を触れてしまうため）。compose は、実行する作業フォルダの compose ファイルだけを使う。
@@ -24,11 +25,13 @@
 //   `shoestring wizard` は、この画面の呼び名で、エージェントが Shoestring の wizard モジュールに置き換えて動かす（引数は付けられない）。
 
 export type ToolName = 'symbol-bootstrap' | 'shoestring' | 'symbol-node-watcher' | 'docker' | 'node' | 'irome' | 'openssl' | 'pip' | 'mkdir' | 'cd';
-export type InstallTarget = 'bootstrap' | 'shoestring' | 'nodewatch' | 'node' | 'python';
+export type InstallTarget = 'bootstrap' | 'shoestring' | 'nodewatch' | 'node' | 'python' | 'docker';
 
 export const MAX_LINE_LENGTH = 2000;
 export const MAX_ARGS = 40;
-export const INSTALL_TARGETS: readonly InstallTarget[] = ['bootstrap', 'shoestring', 'nodewatch', 'node', 'python'];
+export const INSTALL_TARGETS: readonly InstallTarget[] = ['bootstrap', 'shoestring', 'nodewatch', 'node', 'python', 'docker'];
+/** `irome uninstall …` で消せるもの。Docker は、OS の apt の管理下で管理者権限が要るので、この画面からは消さない（それ以外は、tools/ に入れたものだけ）。 */
+export const UNINSTALL_TARGETS: readonly InstallTarget[] = ['bootstrap', 'shoestring', 'nodewatch', 'node', 'python'];
 /** `irome install …` / `irome uninstall …` / `irome upgrade …` の動詞。uninstall は、作業場所の tools/ に入れたものを消すだけ（画面では、確認の注意を出してから実行する）。 */
 export const IROME_VERBS = ['install', 'uninstall', 'upgrade'] as const;
 /** `irome upgrade …` で更新できるもの。Shoestring（tools/venv の pip install --upgrade symbol-shoestring）と、symbol-bootstrap（公式の手順どおり、git clone → build → pack して tools/ に入れる）と、symbol-node-watcher（tools/ に npm の最新版を入れ直す）だけ。 */
@@ -270,8 +273,11 @@ function validateArgvInner(argv: string[], opts: ValidateOptions): Validated {
   if (tool === 'docker') return validateDocker(argv);
   if (tool === 'irome') {
     const okShape = argv.length === 3 && (IROME_VERBS as readonly string[]).includes(argv[1]) && (INSTALL_TARGETS as readonly string[]).includes(argv[2]);
-    // upgrade は、Shoestring・bootstrap・nodewatch だけ
-    return okShape && (argv[1] !== 'upgrade' || (UPGRADE_TARGETS as readonly string[]).includes(argv[2])) ? { ok: true, tool, argv } : bad('irome_usage');
+    // upgrade は、Shoestring・bootstrap・nodewatch だけ。uninstall は、Docker 以外（Docker は、OS 側の手順で）
+    return okShape
+      && (argv[1] !== 'upgrade' || (UPGRADE_TARGETS as readonly string[]).includes(argv[2]))
+      && (argv[1] !== 'uninstall' || (UNINSTALL_TARGETS as readonly string[]).includes(argv[2]))
+      ? { ok: true, tool, argv } : bad('irome_usage');
   }
   if (tool === 'openssl') {
     if (argv.length === 2 && argv[1] === 'version') return { ok: true, tool, argv };
@@ -362,6 +368,7 @@ export const COMMAND_PRESETS: readonly CommandPreset[] = [
   { group: 'install', line: 'irome upgrade bootstrap', noteKey: 'service.node_pre_upgrade_bootstrap' },
   { group: 'install', line: 'irome upgrade nodewatch', noteKey: 'service.node_pre_upgrade_nodewatch' },
   { group: 'install', line: 'irome install nodewatch', noteKey: 'service.node_pre_install_nodewatch' },
+  { group: 'install', line: 'irome install docker', noteKey: 'service.node_pre_install_docker' },
   { group: 'install', line: 'irome install node', noteKey: 'service.node_pre_install_node' },
   { group: 'install', line: 'irome install python', noteKey: 'service.node_pre_install_python' },
   { group: 'bootstrap', line: 'symbol-bootstrap config -p testnet -a dual --noPassword', noteKey: 'service.node_pre_bs_config' },

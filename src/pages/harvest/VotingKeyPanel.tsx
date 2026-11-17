@@ -26,8 +26,9 @@ const epochState = (key: LinkedVotingKey, currentEpoch: number | null): EpochSta
  * (BLS public key of 96 hex characters + the range of finalization epochs it is valid for). An unlink names the key and the range
  * exactly as they are on the chain, so it is never typed.
  */
-export default function VotingKeyPanel({ status, busy, onRequest }: {
+export default function VotingKeyPanel({ status, busy, extraFeeBytes = 0, onRequest }: {
   status: HarvestStatus; busy: boolean; onRequest: (request: VotingChangeRequest) => void;
+  extraFeeBytes?: number; // for a multisig account: room in the fee for the cosignatures the other cosigners attach
 }) {
   const { t } = useTranslation();
   const [ctx, setCtx] = useState<VotingContext | null>(null);
@@ -44,13 +45,13 @@ export default function VotingKeyPanel({ status, busy, onRequest }: {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [context, quote] = await Promise.all([fetchVotingContext(), quoteVotingFee(1).catch(() => null)]);
+      const [context, quote] = await Promise.all([fetchVotingContext(), quoteVotingFee(1, extraFeeBytes).catch(() => null)]);
       if (cancelled) return;
       setCtx(context);
       setFee(quote ? quote.fee : null);
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [extraFeeBytes]);
 
   const limits = ctx?.limits ?? DEFAULT_VOTING_LIMITS;
   const linked = status.votingKeys;

@@ -237,7 +237,8 @@ async function main() {
   // --- 手順（installSteps / uninstallSteps）と、許可リスト
   {
     for (const line of ['irome install node', 'irome install python', 'irome uninstall node', 'irome uninstall python']) ok(parseCommandLine(line).ok, `allowed: ${line}`);
-    for (const line of ['irome install docker', 'irome install node extra', 'irome install ../node', 'irome install', 'irome install node; ls']) ok(!parseCommandLine(line).ok, `rejected: ${line}`);
+    // `irome install docker` は、sudo を 1 回だけ使う別の手順として通す（dev-tests/node-docker-install.test.ts）。消す・更新するは、Docker には通さない。
+    for (const line of ['irome uninstall docker', 'irome upgrade docker', 'irome install node extra', 'irome install ../node', 'irome install', 'irome install node; ls']) ok(!parseCommandLine(line).ok, `rejected: ${line}`);
 
     const ws = newWs('steps');
     const tgz = makeTarGz('node-v22.5.0-linux-x64', { 'bin/node': '#!/bin/sh\necho v22.5.0\n' }, ['bin/node']);

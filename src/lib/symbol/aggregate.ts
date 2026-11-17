@@ -5,8 +5,10 @@
 // (no cosignatures, no hash lock); aggregates that need other accounts' signatures are the multisig screens.
 import { Address, SymbolFacade, generateMosaicId, generateNamespaceId, models } from 'symbol-sdk/symbol';
 import { bytesToHex, facadeFor, normalizeAddress } from './crypto';
-import { COSIGNATURE_SIZE, createMetadataEmbedded, isValidNamespaceName, MAX_MESSAGE_BYTES, messageField, signingKeyPair } from './tx';
-import type { MetadataTarget, SignedTransaction } from './tx';
+import {
+  COSIGNATURE_SIZE, createHarvestLinkEmbedded, createMetadataEmbedded, createVotingLinkEmbedded, isValidNamespaceName, MAX_MESSAGE_BYTES, messageField, signingKeyPair,
+} from './tx';
+import type { HarvestLink, MetadataTarget, SignedTransaction, VotingKeyLink } from './tx';
 
 /** The network accepts at most this many inner transactions in one aggregate (maxTransactionsPerAggregate). */
 export const MAX_AGGREGATE_INNER = 100;
@@ -23,6 +25,9 @@ export interface AggregateSigner {
   selfSufficient: boolean; // the wallet's own signature is enough (multisig account with minApproval 1 and the wallet as cosigner)
   cosignatures: number; // signatures still to be collected from others, for the fee
 }
+
+/** A harvesting key link (remote / VRF / node) or a voting key link, as one inner transaction. */
+export type KeyLinkSpec = ({ type: 'harvest' } & HarvestLink) | ({ type: 'voting' } & VotingKeyLink);
 
 export type AggregateItem =
   | {
@@ -73,6 +78,12 @@ export type AggregateItem =
     namespaceId: string; // 16 hex chars
     action: 'link' | 'unlink';
     target: AliasItemTarget; // what is linked (link) / what is linked now (unlink)
+  }
+  | {
+    uid: string;
+    kind: 'key_link';
+    signer?: AggregateSigner; // omitted = the wallet's own account; set for a multisig account the wallet cosigns for (ハーベスト / 投票鍵)
+    spec: KeyLinkSpec;
   }
   | {
     uid: string;
@@ -190,6 +201,12 @@ function buildEmbedded(facade: SymbolFacade, signerPublicKey: string, ownerAddre
       return createMetadataEmbedded(facade, item.signer?.publicKey ?? signerPublicKey, item.signer?.address ?? ownerAddress, {
         target: item.target, key: item.key, oldValue: item.oldValue, newValue: item.newValue,
       });
+    case 'key_link': {
+      const key = item.signer?.publicKey ?? signerPublicKey;
+      return item.spec.type === 'harvest'
+        ? createHarvestLinkEmbedded(facade, key, item.spec)
+        : createVotingLinkEmbedded(facade, key, item.spec);
+    }
     case 'alias': {
       const common = {
         signerPublicKey: item.signer?.publicKey ?? signerPublicKey,

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, InputBase, MenuItem, Stack, Switch, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, InputBase, MenuItem, Stack, Switch, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined';
 import StopOutlinedIcon from '@mui/icons-material/StopOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
+import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import TextField from '../../components/TextField';
@@ -18,6 +20,8 @@ import { useNodeKeysStore } from '../../store/nodeKeysStore';
 import { pushHistory, stepHistory } from '../../lib/console/repl';
 import NodeWatchCard from './NodeWatchCard';
 import ShoestringGuide from './ShoestringGuide';
+import OneClickCard from './OneClickCard';
+import GuideText from './GuideText';
 
 // 「ノード」(Symbol): symbol-bootstrap・Shoestring・Nodewatch を、ウォレットからコマンドで動かして、ノードの環境を作る。
 // ブラウザはシェルも Docker も触れないので、同じ PC で起動した「ノード構築エージェント」（`npm run node-agent`）に繋ぎ、
@@ -41,8 +45,9 @@ const EMU_KEYS: Partial<Record<string, TtyKey>> = { ArrowUp: 'up', ArrowDown: 'd
 
 type ToolKey = keyof AgentStatus['tools'];
 // optional: この PC に元からあっても、tools/ に専用のものを入れられる（入れたものだけ「削除」で消せる）
-const TOOL_ROWS: Array<{ key: ToolKey; labelKey: string; install?: string; target?: InstallTarget; optional?: boolean }> = [
-  { key: 'docker', labelKey: 'service.node_tool_docker' },
+const TOOL_ROWS: Array<{ key: ToolKey; labelKey: string; install?: string; target?: InstallTarget; optional?: boolean; platforms?: readonly string[] }> = [
+  // Docker は、Linux（Ubuntu・Debian 系。sudo を 1 回使う）・Mac（Docker Desktop。sudo は使わない）・Windows（Docker Desktop。署名を確かめ、Windows の確認画面〔UAC〕をご自身が押す。エージェントは昇格しない）で、確認ダイアログを通して入れられる。消すのは OS 側（この画面からは消さない）
+  { key: 'docker', labelKey: 'service.node_tool_docker', install: 'irome install docker', target: 'docker', platforms: ['linux', 'darwin', 'win32'] },
   { key: 'node', labelKey: 'service.node_tool_node', install: 'irome install node', target: 'node', optional: true },
   { key: 'python', labelKey: 'service.node_tool_python', install: 'irome install python', target: 'python', optional: true },
   { key: 'symbol-bootstrap', labelKey: 'service.node_tool_bootstrap', install: 'irome install bootstrap', target: 'bootstrap' },
@@ -74,6 +79,10 @@ export default function NodePage() {
   const [input, setInput] = useState('');
   const [secret, setSecret] = useState(false);
   const [running, setRunning] = useState(false);
+  // 「ノード構築」の実行中（手順の合間も、ほかのコマンドを受け付けない）と、その中止の印
+  const buildingRef = useRef(false);
+  const buildCancelRef = useRef(false);
+  const [building, setBuilding] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   // wizard を使うか（画面の設定。このブラウザに保存）と、いま簡易ターミナルで描いているか
   const wizardOn = useNodeSettingsStore((st) => st.wizard);
@@ -92,6 +101,17 @@ export default function NodePage() {
   // 秘密鍵が画面に出るコマンド（--show-private・openssl pkey … -text）の確認。同意（チェック）してから、その 1 回だけ実行する。
   const [secretLine, setSecretLine] = useState<string | null>(null);
   const [secretAgree, setSecretAgree] = useState(false);
+  // Docker を入れる（sudo を 1 回使う）前の確認。することと、docker グループの注意を読んで同意してから実行する。
+  const [dockerAsk, setDockerAsk] = useState(false);
+  const [dockerAgree, setDockerAgree] = useState(false);
+  // Docker の入れ方の説明は長いので、「入れる」の右の「!」を押したときだけ出す
+  const [dockerHowtoOpen, setDockerHowtoOpen] = useState(false);
+  // 入れたあとの進め方（Mac・Windows。前半）は「!」、入れ方の説明（後半）は、その右の「?」で出す
+  const [dockerGuideOpen, setDockerGuideOpen] = useState(false);
+  const dockerMac = status?.platform === 'darwin';
+  const dockerWin = status?.platform === 'win32';
+  // 確認ダイアログの文言の組（Linux: node_dk_*・Mac: node_dkm_*・Windows: node_dkw_*）
+  const dkp = dockerWin ? 'service.node_dkw_' : dockerMac ? 'service.node_dkm_' : 'service.node_dk_';
 
   // ウォレットへの連携: ノードの公開鍵を読み込み、ハーベスト > キーリンクへ渡す（公開鍵だけ。ウォレットの秘密鍵はここに来ない）
   const navigate = useNavigate();
@@ -239,6 +259,15 @@ export default function NodePage() {
   };
 
   const disconnect = () => {
+    if (buildingRef.current) {
+      // 構築の途中で切るときは、動いているコマンドも止める（続きは実行しない）
+      buildCancelRef.current = true;
+      buildingRef.current = false;
+      setBuilding(false);
+      const cc = connRef.current;
+      const jid = jobRef.current;
+      if (cc && jid) void stopJob(cc, jid).catch(() => { /* すでに終わっている */ });
+    }
     jobRef.current = null;
     endTty();
     connRef.current = null;
@@ -294,10 +323,13 @@ export default function NodePage() {
   const runLine = async (raw: string, confirmed = false, secretOk = false) => {
     const c = connRef.current;
     const line = raw.trim();
-    if (!c || line === '' || jobRef.current) return;
+    if (!c || line === '' || jobRef.current || buildingRef.current) return;
     // 確認が要るかを見るためだけの、事前の判定（secret: true は、通る形かどうかを見るため。実行の判定は、下で同意の有無どおりにかけ直す）
     const pre = parseCommandLine(line, { wizard: wizardOn, secret: true });
     if (pre.ok && pre.tool === 'irome' && pre.argv[1] === 'uninstall' && !confirmed) { askUninstall(pre.argv[2] as InstallTarget); return; }
+    // Docker を入れる（sudo を使う）は、打っても、ボタンからでも、必ず確認を通す。実行したら、最初のパスワードの入力が画面に出ないようにする
+    const isDockerInstall = pre.ok && pre.tool === 'irome' && pre.argv[1] === 'install' && pre.argv[2] === 'docker';
+    if (isDockerInstall && !confirmed) { setDockerAgree(false); setDockerAsk(true); return; }
     if (pre.ok && isSecretArgv(pre.argv) && !secretOk) { askSecret(line); return; }
     push('cmd', `$ ${line}\n`);
     setHistory((h) => pushHistory(h, line));
@@ -315,6 +347,8 @@ export default function NodePage() {
       return;
     }
     const isSecret = secretOk && isSecretArgv(parsed.argv);
+    // パスワードを聞かれるのは、Linux の sudo だけ（Mac は Docker Desktop 自身の画面で、Windows は Windows の確認画面〔UAC〕で入れる）
+    if (isDockerInstall && status?.platform === 'linux') setSecret(true);
     try {
       // wizard を有効にしているときだけ、wizard を通し、出力を生で受け取って簡易ターミナルで描く。secret は、確認ポップアップで同意したときだけ付く
       const { id, raw } = await startJob(c, line, sub.value, { wizard: wizardOn, emulate: wizardOn && isWizardArgv(parsed.argv), secret: isSecret });
@@ -337,6 +371,7 @@ export default function NodePage() {
   };
 
   const submit = async () => {
+    if (buildingRef.current) return;
     const value = input;
     histIndex.current = history.length + (value.trim() === '' ? 0 : 1);
     const c = connRef.current;
@@ -383,10 +418,83 @@ export default function NodePage() {
   };
 
   const stop = async () => {
+    if (buildingRef.current) buildCancelRef.current = true;
     const c = connRef.current;
     const id = jobRef.current;
     if (!c || !id) return;
     try { await stopJob(c, id); } catch (e) { push('err', `${describeError(e)}\n`); }
+  };
+
+  // 「ノード構築」用: 1 行を実行して、終わるまで待つ（終了コードを返す。実行できなかったときは null）。
+  // 通る経路は、ターミナルの「実行」と同じ（画面の許可の判定 → エージェントがもう一度判定）。wizard・秘密鍵が出る形は使わない。
+  const execStep = useCallback(async (line: string, sub: string): Promise<number | null> => {
+    const c = connRef.current;
+    if (!c) return null;
+    push('cmd', `$ ${line}\n`);
+    const parsed = parseCommandLine(line, {});
+    if (!parsed.ok) { push('err', `${t(`service.node_rej_${parsed.reason}`)}\n`); return null; }
+    const dir = validateSubdir(sub);
+    if (!dir.ok) { push('err', `${t(`service.node_rej_${dir.reason}`)}\n`); return null; }
+    let id: string;
+    try {
+      ({ id } = await startJob(c, line, dir.value, {}));
+    } catch (e) {
+      push('err', `${describeError(e)}\n`);
+      return null;
+    }
+    jobRef.current = id;
+    let from = 0;
+    try {
+      for (;;) {
+        const chunk = await readJob(c, id, from);
+        if (!alive.current) return null;
+        if (chunk.truncated) push('sys', `${t('service.node_truncated')}\n`);
+        if (chunk.text) push('out', chunk.text);
+        from = chunk.next;
+        if (chunk.done) {
+          push('sys', `${t('service.node_exit', { code: chunk.exitCode ?? '?' })}\n`);
+          return chunk.exitCode;
+        }
+        await new Promise((r) => setTimeout(r, POLL_MS));
+      }
+    } catch (e) {
+      if (alive.current) push('err', `${describeError(e)}\n`);
+      return null;
+    } finally {
+      if (jobRef.current === id) jobRef.current = null;
+    }
+  }, [describeError, push, t]);
+
+  // Docker の確認: `docker --version`・`docker compose version`・`docker info` を、自動で順に実行する（打たなくてよい）。
+  // 実行中は、ほかのコマンドを受け付けない（構築と同じ印を使う）。1 つでも失敗したら、そこで止める。
+  const [dockerChecking, setDockerChecking] = useState(false);
+  const checkDocker = async () => {
+    if (buildingRef.current || jobRef.current || !connRef.current) return;
+    buildingRef.current = true;
+    buildCancelRef.current = false;
+    setDockerChecking(true);
+    setRunning(true);
+    try {
+      for (const line of ['docker --version', 'docker compose version', 'docker info']) {
+        if (buildCancelRef.current || !alive.current) break;
+        if ((await execStep(line, '')) !== 0) break;
+      }
+    } finally {
+      buildingRef.current = false;
+      if (alive.current) {
+        setDockerChecking(false);
+        setRunning(false);
+        const c = connRef.current;
+        if (c) void refreshStatus(c);
+      }
+    }
+  };
+
+  const setBuildingState = (b: boolean) => {
+    buildingRef.current = b;
+    if (b) buildCancelRef.current = false;
+    setBuilding(b);
+    setRunning(b);
   };
 
   // ノードの公開鍵を読む（target/addresses.yml の publicKey だけ。秘密鍵は、エージェントも返さない）。投票鍵は、出ていれば拾う。
@@ -482,8 +590,8 @@ export default function NodePage() {
                     control={<Switch checked={wizardOn} disabled={running} onChange={(e) => setWizard(e.target.checked)} />}
                     label={<Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('service.node_wizard_enable')}</Typography>}
                   />
-                  <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>{t('service.node_wizard_hint')}</Typography>
-                  {wizardOn && !status?.pty && <Alert severity="warning" sx={{ mt: 1 }}>{t('service.node_wizard_needs_pty')}</Alert>}
+                  <Box sx={{ color: 'text.secondary' }}><GuideText size="0.85rem" text={t('service.node_wizard_hint')} /></Box>
+                  {wizardOn && !status?.pty && <Alert severity="warning" sx={{ mt: 1 }}><GuideText size="inherit" text={t('service.node_wizard_needs_pty')} /></Alert>}
                   {wizardOn && (
                     <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', rowGap: 1 }}>
                       {['symbol-bootstrap wizard', 'shoestring wizard'].map((w) => (
@@ -541,7 +649,7 @@ export default function NodePage() {
                   <Typography sx={{ fontWeight: 700 }}>{t('service.node_files_title')}</Typography>
                   <Button size="small" startIcon={<RefreshOutlinedIcon />} onClick={() => { if (connRef.current) void refreshFiles(connRef.current); }}>{t('service.node_files_refresh')}</Button>
                 </Stack>
-                <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', mb: 1.5 }}>{t('service.node_files_hint')}</Typography>
+                <Box sx={{ color: 'text.secondary', mb: 1.5 }}><GuideText size="0.85rem" text={t('service.node_files_hint')} /></Box>
                 {files.length === 0 ? (
                   <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', mb: 1.5 }}>{t('service.node_files_empty')}</Typography>
                 ) : (
@@ -580,14 +688,14 @@ export default function NodePage() {
                     </Stack>
                   ))}
                 </Stack>
-                {presetGroup === 'bootstrap' && <Alert severity="info" sx={{ mt: 1 }}>{t('service.node_warn_testnet')}</Alert>}
+                {presetGroup === 'bootstrap' && <Alert severity="info" sx={{ mt: 1 }}><GuideText size="inherit" text={t('service.node_warn_testnet')} /></Alert>}
               </Box>
   );
 
   const connCard = (
     <Box sx={cardSx}>
       <Typography sx={{ fontWeight: 700, mb: 1 }}>{t('service.node_conn_title')}</Typography>
-      {!connected && <Typography sx={{ mb: 2, color: 'text.secondary', fontSize: '0.9rem', whiteSpace: 'pre-line' }}>{t('service.node_conn_howto')}</Typography>}
+      {!connected && <Box sx={{ mb: 2, color: 'text.secondary' }}><GuideText size="0.9rem" text={t('service.node_conn_howto')} /></Box>}
       {connected ? (
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
           <Chip color="success" size="small" label={t('service.node_connected')} />
@@ -663,23 +771,40 @@ export default function NodePage() {
                     {TOOL_ROWS.map((row) => {
                       const st = status.tools[row.key];
                       const pcTool: PcTool | null = row.key === 'docker' || row.key === 'node' || row.key === 'python' ? row.key : null;
+                      const noWrap = row.optional || row.key === 'docker';
                       return (
-                        <Stack key={row.key} direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5, minHeight: 32 }}>
-                          <Typography sx={{ width: { xs: 'auto', sm: 260 }, minWidth: 0 }}>{t(row.labelKey)}</Typography>
-                          <Chip size="small" color={st.found ? 'success' : 'default'} variant={st.found ? 'filled' : 'outlined'} label={st.found ? t('service.node_tool_found') : t('service.node_tool_missing')} />
-                          {st.found && st.version && <Typography sx={{ fontFamily: MONO, fontSize: '0.8rem', color: 'text.secondary', wordBreak: 'break-all' }}>{st.version}</Typography>}
-                          {!st.found && pcTool !== null && <Button size="small" variant="outlined" href={OFFICIAL_URL[pcTool]} target="_blank" rel="noopener noreferrer">{t('service.node_official_site')}</Button>}
-                          {row.install && (row.optional ? !st.local : !st.found) && <Button size="small" variant="outlined" disabled={running} onClick={() => void runLine(row.install as string)}>{t(row.optional && st.found ? 'service.node_install_local' : 'service.node_install')}</Button>}
+                        <Box key={row.key}><Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: noWrap ? 'nowrap' : 'wrap', rowGap: 0.5, minHeight: 32 }}>
+                          <Typography sx={{ width: { xs: 96, sm: 180 }, minWidth: 0, flexShrink: 0 }}>{t(row.labelKey)}</Typography>
+                          <Chip size="small" sx={{ flexShrink: 0 }} color={st.found ? 'success' : 'default'} variant={st.found ? 'filled' : 'outlined'} label={st.found ? t('service.node_tool_found') : t('service.node_tool_missing')} />
+                          {st.found && st.version && <Typography sx={{ fontFamily: MONO, fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap', flexShrink: 0 }}>{st.version}</Typography>}
+                          {!st.found && pcTool !== null && <Button size="small" variant="outlined" sx={{ flexShrink: 0, whiteSpace: 'nowrap' }} href={pcTool === 'docker' && status.platform === 'linux' ? 'https://docs.docker.com/engine/install/' : OFFICIAL_URL[pcTool]} target="_blank" rel="noopener noreferrer">{t('service.node_official_site')}</Button>}
+                          {row.install && (!row.platforms || row.platforms.includes(status.platform)) && (row.optional ? !st.local : !st.found) && <Button size="small" variant="outlined" sx={noWrap ? { flexShrink: 0, whiteSpace: 'nowrap' } : undefined} disabled={running} onClick={() => void runLine(row.install as string)}>{t(row.optional && st.found ? 'service.node_install_local' : 'service.node_install')}</Button>}
+                          {row.key === 'docker' && !st.found && (dockerMac || dockerWin) && <IconButton size="small" sx={{ flexShrink: 0 }} aria-label={t('service.node_docker_guide_toggle')} aria-expanded={dockerGuideOpen} onClick={() => setDockerGuideOpen((v) => !v)}><ErrorOutlineOutlinedIcon fontSize="small" /></IconButton>}
+                          {row.key === 'docker' && !st.found && <IconButton size="small" sx={{ flexShrink: 0 }} aria-label={t('service.node_docker_howto_toggle')} aria-expanded={dockerHowtoOpen} onClick={() => setDockerHowtoOpen((v) => !v)}><HelpOutlineIcon fontSize="small" /></IconButton>}
                           {st.found && row.target && st.local && <Button size="small" variant="outlined" color="error" disabled={running} onClick={() => askUninstall(row.target as InstallTarget)}>{t('service.node_uninstall')}</Button>}
+                          {row.key === 'docker' && st.found && <Button size="small" variant="outlined" sx={{ flexShrink: 0, whiteSpace: 'nowrap' }} disabled={running} onClick={() => void checkDocker()}>{dockerChecking ? t('service.node_docker_checking') : t('service.node_docker_check')}</Button>}
                           {st.found && row.target && !st.local && !row.optional && <Typography sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>{t('service.node_uninstall_outside')}</Typography>}
-                          {row.key === 'docker' && !st.found && <Typography sx={{ color: 'text.secondary', fontSize: '0.8rem', width: '100%', wordBreak: 'break-all' }}>{t('service.node_docker_howto')}</Typography>}
-                          {row.key === 'shoestring' && <Button size="small" variant="text" onClick={openGuide} sx={{ width: '100%', justifyContent: 'flex-start', textTransform: 'none' }}>{t('service.node_ss_open')}</Button>}
                         </Stack>
+                        {row.key === 'docker' && !st.found && (dockerMac || dockerWin) && dockerGuideOpen && (
+                          <Box sx={{ color: 'text.secondary', mt: 0.5 }}><GuideText size="0.8rem" text={t(`${dkp}guide`)} /></Box>
+                        )}
+                        {row.key === 'docker' && !st.found && dockerHowtoOpen && (
+                          <Box sx={{ color: 'text.secondary', mt: 0.5 }}><GuideText size="0.8rem" text={t('service.node_docker_howto')} /></Box>
+                        )}
+                        </Box>
                       );
                     })}
                   </Stack>
-                  <Typography sx={{ color: 'text.secondary', fontSize: '0.8rem', mt: 1.5 }}>{t('service.node_uninstall_hint')}</Typography>
+                  <Box sx={{ color: 'text.secondary', mt: 1.5 }}><GuideText size="0.8rem" text={t('service.node_uninstall_hint')} /></Box>
                 </Box>
+                {/* ワンクリックで構築する（Docker・Python・Shoestring が入っているときだけ押せる） */}
+                {conn && (
+                  <OneClickCard
+                    cardSx={cardSx} status={status} agent={conn} otherBusy={running && !building}
+                    exec={execStep} note={push} onBuilding={setBuildingState} onStop={() => void stop()} isCancelled={() => buildCancelRef.current}
+                    describeError={describeError} onFinished={() => { const c = connRef.current; if (c) { void refreshStatus(c); void refreshFiles(c); } }} onOpenGuide={openGuide}
+                  />
+                )}
                   </>
                 )}
 
@@ -699,9 +824,9 @@ export default function NodePage() {
                       {keysLoading ? t('service.node_link_loading') : t('service.node_link_load')}
                     </Button>
                   </Stack>
-                  <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', mb: 1.5 }}>{t('service.node_link_hint')}</Typography>
+                  <Box sx={{ color: 'text.secondary', mb: 1.5 }}><GuideText size="0.85rem" text={t('service.node_link_hint')} /></Box>
                   {keysError && <Alert severity="error" sx={{ mb: 1.5 }}>{keysError}</Alert>}
-                  {keySets !== null && keySets.length === 0 && <Alert severity="info" sx={{ mb: 1.5 }}>{t('service.node_link_none')}</Alert>}
+                  {keySets !== null && keySets.length === 0 && <Alert severity="info" sx={{ mb: 1.5 }}><GuideText size="inherit" text={t('service.node_link_none')} /></Alert>}
                   {keySets !== null && keySets.length > 1 && (
                     <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.75, mb: 1.5 }}>
                       {keySets.map((k, i) => (
@@ -759,7 +884,7 @@ export default function NodePage() {
                       <Button variant="contained" disabled={!canHandOver} onClick={handOverKeys}>{t('service.node_link_go')}</Button>
                     </Stack>
                   )}
-                  <Alert severity="info" sx={{ mt: 1.5 }}>{t('service.node_link_note')}</Alert>
+                  <Alert severity="info" sx={{ mt: 1.5 }}><GuideText size="inherit" text={t('service.node_link_note')} /></Alert>
                 </Box>
 
                     {presetsCard}
@@ -769,7 +894,7 @@ export default function NodePage() {
             {/* 実行できるコマンド */}
             <Box sx={cardSx}>
               <Typography sx={{ fontWeight: 700, mb: 0.5 }}>{t('service.node_allowed_title')}</Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '0.9rem' }}>{t('service.node_allowed_body')}</Typography>
+              <Box sx={{ color: 'text.secondary' }}><GuideText size="0.9rem" text={t('service.node_allowed_body')} /></Box>
             </Box>
               </>
             )}
@@ -815,6 +940,24 @@ export default function NodePage() {
             <Button color="error" variant="contained" disabled={!secretAgree || running} onClick={() => { const line = secretLine; setSecretLine(null); if (line !== null) void runLine(line, false, true); }}>{t('service.node_secret_go')}</Button>
           </DialogActions>
         </Dialog>
+        {/* Docker を入れる前の確認。Linux は sudo を 1 回使う。Mac は sudo を使わず、Docker Desktop を置いて起動する。Windows は、署名を確かめて、Windows の確認画面（UAC）でご自身が「はい」を押す */}
+        <Dialog open={dockerAsk} onClose={() => setDockerAsk(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>{t(`${dkp}title`)}</DialogTitle>
+          <DialogContent>
+            <Alert severity={dockerMac || dockerWin ? 'info' : 'warning'} sx={{ mb: 2 }}>{t(`${dkp}lead`)}</Alert>
+            <Typography sx={{ fontWeight: 700, fontSize: '0.9rem' }}>{t(`${dkp}does_title`)}</Typography>
+            <Box sx={{ mb: 1.5 }}><GuideText size="0.9rem" text={t(`${dkp}does_body`)} /></Box>
+            <Typography sx={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('service.node_dk_limits_title')}</Typography>
+            <Box sx={{ mb: 1.5 }}><GuideText size="0.9rem" text={t(`${dkp}limits_body`)} /></Box>
+            <Typography sx={{ fontWeight: 700, fontSize: '0.9rem' }}>{t(dockerMac || dockerWin ? `${dkp}first_title` : 'service.node_dk_group_title')}</Typography>
+            <Box sx={{ mb: 1.5 }}><GuideText size="0.9rem" text={t(dockerMac || dockerWin ? `${dkp}first_body` : 'service.node_dk_group_body')} /></Box>
+            <FormControlLabel control={<Checkbox checked={dockerAgree} onChange={(e) => setDockerAgree(e.target.checked)} />} label={<Typography sx={{ fontSize: '0.9rem' }}>{t('service.node_dk_agree')}</Typography>} />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDockerAsk(false)}>{t('service.node_dk_cancel')}</Button>
+            <Button color={dockerMac || dockerWin ? 'primary' : 'warning'} variant="contained" disabled={!dockerAgree || running} onClick={() => { setDockerAsk(false); void runLine('irome install docker', true); }}>{t(`${dkp}do`)}</Button>
+          </DialogActions>
+        </Dialog>
         {/* アンインストールの注意（確認ダイアログ） */}
         <Dialog open={unTarget !== null} onClose={() => setUnTarget(null)} maxWidth="sm" fullWidth>
           {unTarget && (
@@ -825,7 +968,7 @@ export default function NodePage() {
                 <Typography sx={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('service.node_un_removes_title')}</Typography>
                 <Typography sx={{ fontSize: '0.9rem', mb: 1.5 }}>{t(`service.node_un_removes_${unTarget}`)}</Typography>
                 <Typography sx={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('service.node_un_keeps_title')}</Typography>
-                <Typography sx={{ fontSize: '0.9rem', mb: 1.5 }}>{t('service.node_un_keeps_body')}</Typography>
+                <Box sx={{ mb: 1.5 }}><GuideText size="0.9rem" text={t('service.node_un_keeps_body')} /></Box>
                 <Typography sx={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('service.node_un_before_title')}</Typography>
                 <Box component="ul" sx={{ mt: 0.5, mb: 1.5, pl: 2.5, fontSize: '0.9rem' }}>
                   <li>{t('service.node_un_before_stop')}</li>

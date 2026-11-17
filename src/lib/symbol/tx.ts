@@ -697,6 +697,16 @@ const HARVEST_LINK_TYPES: Record<HarvestLinkKind, 'account_key_link_transaction_
   node: 'node_key_link_transaction_v1',
 };
 
+/** One embedded key link (remote / VRF / node), signed in the name of `signerPublicKey` (an aggregate's own signer or a multisig account). */
+export function createHarvestLinkEmbedded(facade: SymbolFacade, signerPublicKey: string, l: HarvestLink) {
+  return facade.transactionFactory.createEmbedded({
+    type: HARVEST_LINK_TYPES[l.kind],
+    signerPublicKey,
+    linkedPublicKey: new PublicKey(l.publicKey),
+    linkAction: l.link ? models.LinkAction.LINK : models.LinkAction.UNLINK,
+  });
+}
+
 export interface HarvestLinkParams {
   signerPublicKey: string;
   networkByte: number;
@@ -711,12 +721,7 @@ export function signHarvestLinks(privateKey: string, generationHash: string, p: 
     throw new Error('generation_hash_mismatch');
   }
   if (p.links.length === 0) throw new Error('no_links');
-  const embedded = p.links.map((l) => facade.transactionFactory.createEmbedded({
-    type: HARVEST_LINK_TYPES[l.kind],
-    signerPublicKey: p.signerPublicKey,
-    linkedPublicKey: new PublicKey(l.publicKey),
-    linkAction: l.link ? models.LinkAction.LINK : models.LinkAction.UNLINK,
-  }));
+  const embedded = p.links.map((l) => createHarvestLinkEmbedded(facade, p.signerPublicKey, l));
   const tx = facade.transactionFactory.create({
     type: 'aggregate_complete_transaction_v3',
     signerPublicKey: p.signerPublicKey,
@@ -747,6 +752,21 @@ export function votingLinkSize(linkCount: number): number {
   return 128 + 40 + 96 * linkCount;
 }
 
+/** One embedded voting key link, signed in the name of `signerPublicKey` (an aggregate's own signer or a multisig account). */
+export function createVotingLinkEmbedded(facade: SymbolFacade, signerPublicKey: string, l: VotingKeyLink) {
+  if (!/^[0-9a-fA-F]{64}$/.test(l.publicKey)) throw new Error('invalid_voting_key');
+  return facade.transactionFactory.createEmbedded({
+    type: 'voting_key_link_transaction_v1',
+    signerPublicKey,
+    // symbol-sdk 3.3.3 の descriptor は、linkedPublicKey を「16 進文字列かバイト列」から作る。models.VotingPublicKey のオブジェクトを渡すと、
+    // 鍵の長さに関係なく 'bytes was size undefined' で署名に失敗する（dev-tests/node-voting-trees.test.ts で確認）。
+    linkedPublicKey: l.publicKey.toUpperCase(),
+    startEpoch: new models.FinalizationEpoch(l.startEpoch),
+    endEpoch: new models.FinalizationEpoch(l.endEpoch),
+    linkAction: l.link ? models.LinkAction.LINK : models.LinkAction.UNLINK,
+  });
+}
+
 export interface VotingKeyLinkParams {
   signerPublicKey: string;
   networkByte: number;
@@ -761,19 +781,7 @@ export function signVotingKeyLinks(privateKey: string, generationHash: string, p
     throw new Error('generation_hash_mismatch');
   }
   if (p.links.length === 0) throw new Error('no_links');
-  const embedded = p.links.map((l) => {
-    if (!/^[0-9a-fA-F]{64}$/.test(l.publicKey)) throw new Error('invalid_voting_key');
-    return facade.transactionFactory.createEmbedded({
-      type: 'voting_key_link_transaction_v1',
-      signerPublicKey: p.signerPublicKey,
-      // symbol-sdk 3.3.3 の descriptor は、linkedPublicKey を「16 進文字列かバイト列」から作る。models.VotingPublicKey のオブジェクトを渡すと、
-      // 鍵の長さに関係なく 'bytes was size undefined' で署名に失敗する（dev-tests/node-voting-trees.test.ts で確認）。
-      linkedPublicKey: l.publicKey.toUpperCase(),
-      startEpoch: new models.FinalizationEpoch(l.startEpoch),
-      endEpoch: new models.FinalizationEpoch(l.endEpoch),
-      linkAction: l.link ? models.LinkAction.LINK : models.LinkAction.UNLINK,
-    });
-  });
+  const embedded = p.links.map((l) => createVotingLinkEmbedded(facade, p.signerPublicKey, l));
   const tx = facade.transactionFactory.create({
     type: 'aggregate_complete_transaction_v3',
     signerPublicKey: p.signerPublicKey,

@@ -1,4 +1,6 @@
 import { useLiveRefresh } from '../../hooks/useLiveRefresh';
+import { useCosignAccounts } from '../../hooks/useCosignAccounts';
+import CosignAccountPicker from '../../components/CosignAccountPicker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Alert, Box, Button, CircularProgress, IconButton, MenuItem, Tab, Tabs, Tooltip, Typography } from '@mui/material';
@@ -16,9 +18,17 @@ import { ensureLedgerConnected, ledgerErrorKey, preferredLedgerLink } from '../.
 import type { KeylessSigner } from '../../lib/symbol/sssSign';
 import {
   SymbolSendError, explorerAccountUrl, fetchConnectedHarvestNode, fetchHarvestNodeCandidates,
-  changeHarvestKeys, changeVotingKeys, checkHarvestNode, fetchHarvestNodeByUrl, fetchHarvestStatus, normalizeNodeUrl, quoteHarvestFees, resendHarvestDelegation, startHarvesting, stopHarvesting,
+  changeHarvestKeys, changeVotingKeys, checkHarvestNode, fetchBalances, fetchHarvestNodeByUrl, fetchHarvestStatus, normalizeNodeUrl, quoteHarvestFees, resendHarvestDelegation, startHarvesting, stopHarvesting,
 } from '../../lib/symbol/api';
 import type { HarvestLink } from '../../lib/symbol/tx';
+import type { AggregateQuote } from '../../lib/symbol/aggregateApi';
+import { getDefaultFeeSpeed } from '../../lib/symbol/feeSpeed';
+import { getNetworkConfig } from '../../lib/symbol/network';
+import {
+  changeHarvestKeysForMultisig, changeVotingKeysForMultisig, cosignatureBytes, harvestLinkItems, probeLinks, quoteMultisigLinks,
+  startHarvestingForMultisig, stopHarvestingForMultisig,
+} from '../../lib/symbol/harvestMultisig';
+import type { CosignerWallet } from '../../lib/symbol/harvestMultisig';
 import { unlinksStillMatch } from '../../lib/symbol/votingKeys';
 import type { VotingLink } from '../../lib/symbol/votingKeys';
 import type { FeeSpeed, HarvestNode, HarvestNodeCheck, HarvestStatus } from '../../lib/symbol/api';
@@ -48,6 +58,7 @@ function classifyError(error: unknown): { kind: string; detail: string } {
   if (code === 'Failure_Core_Future_Deadline' || code === 'Failure_Core_Past_Deadline') return { kind: 'deadline', detail };
   if (code === 'Failure_Core_Wrong_Network') return { kind: 'wrong_network', detail };
   if (code === 'Failure_Link_Already_Linked') return { kind: 'already_linked', detail };
+  if (code === 'Failure_Multisig_Operation_Prohibited_By_Account') return { kind: 'prohibited', detail: code };
   if (code === 'delegation_keys_mismatch' || code === 'not_linked') return { kind: 'resend_keys', detail };
   return { kind: 'unknown', detail: code && code !== detail ? `${code}: ${detail}` : detail };
 }
@@ -59,6 +70,15 @@ const shortKey = (key: string) => `${key.slice(0, 8)}…${key.slice(-8)}`;
 export default function HarvestSettings() {
   const { t } = useTranslation();
   const network = useAppStore((s) => s.network);
+  // The account harvesting is set up for: this wallet's own account, or a multisig account it cosigns for. A multisig account cannot
+  // send a transaction by itself (Failure_Multisig_Operation_Prohibited_By_Account), so its links go inside an aggregate this wallet signs.
+  const accounts = useCosignAccounts();
+  const { accountAddr, signer: msSigner } = accounts;
+  // This wallet's own account is a multisig account: nothing can be sent from it (the picker explains).
+  const cannotSendAlone = accounts.blocked;
+  // For a multisig account the cosigner (this wallet) pays the fees: what it holds, and the fee / hash lock of the links.
+  const [payerBalance, setPayerBalance] = useState<bigint | null>(null);
+  const [msQuote, setMsQuote] = useState<AggregateQuote | null>(null);
 
   const [address, setAddress] = useState('');
   // SSS Extension / Ledger のアカウントは秘密鍵が端末に無い: パスワードの代わりに、拡張 / デバイスで署名する。
@@ -100,14 +120,16 @@ export default function HarvestSettings() {
   const [resendKeys, setResendKeys] = useState<ResendRequest | null>(null);
   // This wallet kept the remote / VRF private keys of the start (encrypted); and the keys while they are shown to be written down.
   const [hasStoredKeys, setHasStoredKeys] = useState(false);
-  const [revealed, setRevealed] = useState<{ remotePrivateKey: string; vrfPrivateKey: string } | null>(null);
+  const [revealed, setRevealed] = useState<{ remotePrivateKey: string; vrfPrivateKey: string; multisig?: 'bonded' | 'sent' } | null>(null);
   const [resendNonce, setResendNonce] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [working, setWorking] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [sendError, setSendError] = useState<{ kind: string; detail: string } | null>(null);
-  const [done, setDone] = useState<{ action: Action } | null>(null);
+  const [done, setDone] = useState<{ action: Action; bonded?: boolean } | null>(null);
+  // 開始したマルチシグアカウントのリモート／VRF秘密鍵（この端末には保存しない）: 完了の案内のあとで見せる。
+  const [pendingReveal, setPendingReveal] = useState<{ remotePrivateKey: string; vrfPrivateKey: string; bonded: boolean } | null>(null);
 
   const load = useCallback(async (silent?: unknown) => {
     const quiet = silent === true;
@@ -119,26 +141,28 @@ export default function HarvestSettings() {
         setStatus(null);
         return;
       }
-      setAddress(wallet.address);
-      setPublicKey(wallet.publicKey);
+      const target = accountAddr || wallet.address;
+      setAddress(target);
+      setPublicKey(accountAddr ? (msSigner?.publicKey ?? '') : wallet.publicKey);
       setKeyless(wallet.sss ? { kind: 'sss' } : wallet.ledger && wallet.accountIndex !== null ? { kind: 'ledger', index: wallet.accountIndex } : null);
-      setHasStoredKeys(wallet.encryptedHarvestKeys !== '');
-      setStatus(await fetchHarvestStatus(wallet.address));
+      // The kept remote / VRF keys belong to this wallet's own account, not to a multisig account.
+      setHasStoredKeys(!accountAddr && wallet.encryptedHarvestKeys !== '');
+      setStatus(await fetchHarvestStatus(target));
     } catch (e) {
       console.error('Failed to load harvest status', e);
       if (!quiet) setFailed(true);
     } finally {
       if (!quiet) setLoading(false);
     }
-  }, []);
+  }, [accountAddr, msSigner]);
 
   // 画面を開いたまま、取引を受け取ったとき（LiveUpdates）に、静かに読み直す。
   useLiveRefresh(() => { if (!failed) void load(true); });
 
   // Reload when the network changes (the links belong to one network).
   useEffect(() => {
-    load();
-  }, [load, network]);
+    if (accounts.ready) load();
+  }, [load, network, accounts.ready]);
 
   // Look the typed URL up (after a short pause) to get the node's public key.
   const urlValid = normalizeNodeUrl(urlText) !== null;
@@ -179,8 +203,23 @@ export default function HarvestSettings() {
     let cancelled = false;
     setStartFee(null);
     setStopFee(null);
+    setMsQuote(null);
     (async () => {
       try {
+        if (msSigner) {
+          // A multisig account: the fee of the aggregate (room for the cosignatures) and, when others must sign, the hash lock fee are paid by this wallet.
+          const w = await WalletsHelper.getActive();
+          if (!w) return;
+          const [quote, delegation] = await Promise.all([quoteMultisigLinks(w, msSigner, 3), quoteHarvestFees(0, true)]);
+          if (cancelled) return;
+          const speed = getDefaultFeeSpeed();
+          const links = quote.fees[speed].fee + quote.lockFees[speed];
+          setMsQuote(quote);
+          // The request to the node is sent right away only when no other cosigner has to sign first.
+          setStartFee(quote.bonded ? links : links + (delegation.delegation?.fee ?? 0n));
+          setStopFee(links);
+          return;
+        }
         const [start, stop] = await Promise.all([quoteHarvestFees(3, true), quoteHarvestFees(3, false)]);
         if (cancelled) return;
         setStartFee(start.links.fee + (start.delegation?.fee ?? 0n));
@@ -188,7 +227,22 @@ export default function HarvestSettings() {
       } catch { /* shown as unavailable */ }
     })();
     return () => { cancelled = true; };
-  }, [network]);
+  }, [network, msSigner]);
+
+  // A multisig account: what the paying wallet holds (the links' fees and the hash lock come from it, not from the multisig account).
+  useEffect(() => {
+    setPayerBalance(null);
+    if (!msSigner) return undefined;
+    let cancelled = false;
+    (async () => {
+      const w = await WalletsHelper.getActive();
+      if (!w) return;
+      const balances = await fetchBalances(w.address).catch(() => null);
+      const xymBalance = balances?.find((b) => b.id === getNetworkConfig(network).currencyMosaicId);
+      if (!cancelled && balances) setPayerBalance(xymBalance?.amount ?? 0n);
+    })();
+    return () => { cancelled = true; };
+  }, [msSigner, network, status]);
 
   // The list shown in the picker: the node we are connected to first, then the others.
   const options = useMemo(() => {
@@ -218,8 +272,18 @@ export default function HarvestSettings() {
   const xym = (amount: bigint) => `${formatAtomic(amount, CURRENCY_DIVISIBILITY)} ${CURRENCY_SYMBOL}`;
   const balanceShort = status !== null && status.xymBalance < status.minBalance;
   // Starting needs the minimum balance AND enough XYM left to pay the start fee (the quote may be unavailable: then the minimum alone is checked).
-  const startRequired = status !== null ? status.minBalance + (startFee ?? 0n) : 0n;
-  const startShort = status !== null && status.xymBalance < startRequired;
+  // (For a multisig account the fees come from the paying wallet, so only the minimum is asked of the account itself.)
+  const startRequired = status !== null ? status.minBalance + (msSigner ? 0n : (startFee ?? 0n)) : 0n;
+  const payerStartNeeds = (startFee ?? 0n) + (msQuote?.lockAmount ?? 0n);
+  const payerStartShort = msSigner !== undefined && payerBalance !== null && startFee !== null && payerBalance < payerStartNeeds;
+  const startShort = status !== null && (status.xymBalance < startRequired || payerStartShort);
+  // The fee checks of the panels compare the status' balance with the fee: for a multisig account that is the paying wallet's balance.
+  const hashLockReserve = msQuote?.bonded ? msQuote.lockAmount : 0n;
+  const panelStatus: HarvestStatus | null = status !== null && msSigner && payerBalance !== null
+    ? { ...status, xymBalance: payerBalance > hashLockReserve ? payerBalance - hashLockReserve : 0n }
+    : status;
+  // Room in the fee for the cosignatures of the other cosigners (a multisig account only).
+  const extraFeeBytes = msSigner ? cosignatureBytes(harvestLinkItems(msSigner, probeLinks(1))) : 0;
   // 開始前の資格チェック: the account (balance range, importance) and the chosen node.
   const accountChecks = status === null ? [] : planAccountChecks({ balance: status.xymBalance, min: status.minBalance, max: status.maxBalance, importance: status.importance });
   const nodeChecks = nodeCheck === null || nodeCheck === 'loading' ? [] : planNodeChecks(nodeCheck);
@@ -290,7 +354,22 @@ export default function HarvestSettings() {
         setRevealed({ remotePrivateKey: keys.remotePrivateKey, vrfPrivateKey: keys.vrfPrivateKey });
         return;
       }
-      if (action === 'start') {
+      // A multisig account: its links travel inside an aggregate that this wallet signs (the multisig account cannot send by itself).
+      const ms = msSigner;
+      const cosigner: CosignerWallet = { privateKey, keyless: signer, publicKey: wallet.publicKey, address: wallet.address };
+      const targetAddress = ms ? ms.address : wallet.address;
+      if (action === 'start' && ms) {
+        const result = await startHarvestingForMultisig(cosigner, ms, nodeKey);
+        // The remote / VRF private keys are not kept on this device (they belong to the multisig account): they are shown once after the notice.
+        const keys = { remotePrivateKey: result.remotePrivateKey, vrfPrivateKey: result.vrfPrivateKey };
+        if (result.delegationError) {
+          setRevealed({ ...keys, multisig: 'sent' });
+          setSendError(classifyError(result.delegationError));
+        } else {
+          setPendingReveal({ ...keys, bonded: result.bonded });
+          setDone({ action, bonded: result.bonded });
+        }
+      } else if (action === 'start') {
         // The throw-away keys are kept (encrypted with this password) so the request can be sent again later.
         await startHarvesting({
           privateKey, publicKey: wallet.publicKey, nodePublicKey: nodeKey, keyless: signer,
@@ -301,7 +380,7 @@ export default function HarvestSettings() {
       } else if (action === 'keys') {
         if (!keyChange) return;
         // The unlink of a key must name what is linked now: check the chain once more right before signing.
-        const latest = await fetchHarvestStatus(wallet.address);
+        const latest = await fetchHarvestStatus(targetAddress);
         const stale = keyChange.some((l) => {
           const now = l.kind === 'remote' ? latest.remotePublicKey : l.kind === 'vrf' ? latest.vrfPublicKey : latest.nodePublicKey;
           return !l.link && now?.toUpperCase() !== l.publicKey.toUpperCase();
@@ -311,38 +390,50 @@ export default function HarvestSettings() {
           setErrorMessage(t('harvest.keys_changed'));
           return;
         }
-        await changeHarvestKeys({ privateKey, publicKey: wallet.publicKey, keyless: signer, links: keyChange, feeSpeed: keyFeeSpeed });
-        // The kept private keys belong to the old remote / VRF keys: forget them when one of those changed.
-        if (keyChange.some((l) => l.kind === 'remote' || l.kind === 'vrf')) await WalletsHelper.clearHarvestKeys(wallet.id);
-        setDone({ action });
+        let bonded = false;
+        if (ms) {
+          bonded = (await changeHarvestKeysForMultisig(cosigner, ms, keyChange, keyFeeSpeed)).bonded;
+        } else {
+          await changeHarvestKeys({ privateKey, publicKey: wallet.publicKey, keyless: signer, links: keyChange, feeSpeed: keyFeeSpeed });
+          // The kept private keys belong to the old remote / VRF keys: forget them when one of those changed.
+          if (keyChange.some((l) => l.kind === 'remote' || l.kind === 'vrf')) await WalletsHelper.clearHarvestKeys(wallet.id);
+        }
+        setDone({ action, bonded });
       } else if (action === 'voting') {
         if (!votingChange) return;
         // An unlink must name the key and the epochs exactly as they are on the chain: check once more right before signing.
-        const latest = await fetchHarvestStatus(wallet.address);
+        const latest = await fetchHarvestStatus(targetAddress);
         if (!unlinksStillMatch(latest.votingKeys, votingChange)) {
           setStatus(latest);
           setErrorMessage(t('harvest.keys_changed'));
           return;
         }
-        await changeVotingKeys({ privateKey, publicKey: wallet.publicKey, keyless: signer, links: votingChange });
-        setDone({ action });
+        let bonded = false;
+        if (ms) bonded = (await changeVotingKeysForMultisig(cosigner, ms, votingChange)).bonded;
+        else await changeVotingKeys({ privateKey, publicKey: wallet.publicKey, keyless: signer, links: votingChange });
+        setDone({ action, bonded });
       } else if (action === 'resend') {
         if (!resendKeys) return;
         // The keys must fit the keys linked on the chain now: check once more right before signing.
-        const latest = await fetchHarvestStatus(wallet.address);
+        const latest = await fetchHarvestStatus(targetAddress);
         let keys: { remotePrivateKey: string; vrfPrivateKey: string } | null = null;
         if (resendKeys.source === 'typed') keys = resendKeys;
-        else keys = signer ? null : await WalletsHelper.loadHarvestKeys(wallet.id, password);
+        else keys = signer || ms ? null : await WalletsHelper.loadHarvestKeys(wallet.id, password);
         if (!keys) throw new SymbolSendError('delegation_keys_mismatch', 'no_keys');
         await resendHarvestDelegation({ privateKey, publicKey: wallet.publicKey, keyless: signer, remotePrivateKey: keys.remotePrivateKey, vrfPrivateKey: keys.vrfPrivateKey, status: latest });
         if (resendKeys.source === 'typed') setResendNonce((n) => n + 1); // a new panel: the typed private keys are gone from the screen
         setDone({ action });
       } else {
         // Re-read the links right before signing so exactly what is on the chain gets removed.
-        const latest = await fetchHarvestStatus(wallet.address);
-        await stopHarvesting({ privateKey, publicKey: wallet.publicKey, keyless: signer, status: latest });
-        await WalletsHelper.clearHarvestKeys(wallet.id); // nothing is linked any more: the kept keys are of no use
-        setDone({ action });
+        const latest = await fetchHarvestStatus(targetAddress);
+        let bonded = false;
+        if (ms) {
+          bonded = (await stopHarvestingForMultisig(cosigner, ms, latest)).bonded;
+        } else {
+          await stopHarvesting({ privateKey, publicKey: wallet.publicKey, keyless: signer, status: latest });
+          await WalletsHelper.clearHarvestKeys(wallet.id); // nothing is linked any more: the kept keys are of no use
+        }
+        setDone({ action, bonded });
       }
       load();
     } catch (error) {
@@ -385,6 +476,12 @@ export default function HarvestSettings() {
     ...(t('harvest.resend_confirm_message', { returnObjects: true }) as string[]),
   ];
 
+  // 実行するアカウント (a multisig account): the confirmation names it, and says when other cosigners still have to sign.
+  const multisigConfirmTexts = msSigner === undefined ? [] : [
+    t('harvest.multisig_confirm_line', { address: msSigner.address }),
+    ...(msSigner.selfSufficient ? [] : [t('cosign_account.bonded_notice', { lock: msQuote ? xym(msQuote.lockAmount) : '–' })]),
+  ];
+
   const errorTitle = sendError ? t(`harvest.error_${sendError.kind}_title`) : '';
   const errorTexts = sendError
     ? (t(`harvest.error_${sendError.kind}_message`, { returnObjects: true, detail: sendError.detail }) as string[])
@@ -422,13 +519,14 @@ export default function HarvestSettings() {
       {tab === 'stats' ? (
         <HarvestBlocksPanel status={status} address={address} publicKey={publicKey} />
       ) : tab === 'keylink' ? (
-        <KeyLinkPanel status={status} ownPublicKey={publicKey} busy={working} hasStored={hasStoredKeys} onRequest={askKeys} onVotingRequest={askVoting} onReveal={askReveal} />
+        <KeyLinkPanel status={panelStatus ?? status} ownPublicKey={publicKey} busy={working || cannotSendAlone} hasStored={hasStoredKeys} extraFeeBytes={extraFeeBytes} onRequest={askKeys} onVotingRequest={askVoting} onReveal={askReveal} />
       ) : (
         <>
 
-      {needsNode && startShort
-        ? <Alert severity="warning" sx={{ mb: 2 }}>{t('harvest.start_balance_short', { min: xym(status.minBalance), fee: startFee === null ? '–' : xym(startFee), total: xym(startRequired) })}</Alert>
-        : balanceShort && <Alert severity="warning" sx={{ mb: 2 }}>{t('harvest.balance_short', { amount: xym(status.minBalance) })}</Alert>}
+      {needsNode && payerStartShort && <Alert severity="warning" sx={{ mb: 2 }}>{t('harvest.multisig_payer_short', { amount: xym(payerStartNeeds) })}</Alert>}
+      {needsNode && startShort && !payerStartShort
+        ? <Alert severity="warning" sx={{ mb: 2 }}>{t('harvest.start_balance_short', { min: xym(status.minBalance), fee: msSigner ? xym(0n) : startFee === null ? '–' : xym(startFee), total: xym(startRequired) })}</Alert>
+        : !payerStartShort && balanceShort && <Alert severity="warning" sx={{ mb: 2 }}>{t('harvest.balance_short', { amount: xym(status.minBalance) })}</Alert>}
       {status.linked && <Alert severity="info" sx={{ mb: 2 }}>{t('harvest.activation_note')}</Alert>}
       {status.partial && <Alert severity="warning" sx={{ mb: 2 }}>{t('harvest.partial_note')}</Alert>}
 
@@ -520,7 +618,7 @@ export default function HarvestSettings() {
               color="primary"
               size="large"
               fullWidth
-              disabled={working || nodeKey === '' || startShort || checkBlocked}
+              disabled={working || cannotSendAlone || nodeKey === '' || startShort || checkBlocked}
               onClick={() => ask('start')}
               startIcon={<LockOutlinedIcon />}
               sx={{ py: 1.25, width: { md: 'auto' }, px: { md: 4 } }}
@@ -547,7 +645,7 @@ export default function HarvestSettings() {
               variant="contained"
               color="primary"
               size="large"
-              disabled={working}
+              disabled={working || cannotSendAlone}
               onClick={() => ask('stop')}
               startIcon={<LockOutlinedIcon />}
               sx={{ py: 1.25, px: { md: 4 } }}
@@ -555,7 +653,7 @@ export default function HarvestSettings() {
               {working ? t('harvest.stopping') : t('harvest.stop_button')}
             </Button>
           </Box>
-          {status.linked && <ResendDelegationPanel key={resendNonce} status={status} busy={working} hasStored={hasStoredKeys} onRequest={askResend} onReveal={askReveal} />}
+          {status.linked && <ResendDelegationPanel key={resendNonce} status={panelStatus ?? status} busy={working || cannotSendAlone} hasStored={hasStoredKeys} onRequest={askResend} onReveal={askReveal} />}
         </>
       )}
         </>
@@ -566,6 +664,7 @@ export default function HarvestSettings() {
   return (
     <Box sx={{ minHeight: '100vh', pb: 4 }}>
       <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
+        <CosignAccountPicker accounts={accounts} onPick={() => setStatus(null)} lockText={msQuote ? xym(msQuote.lockAmount) : null} />
         {loading && status === null ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress size={26} />
@@ -608,7 +707,8 @@ export default function HarvestSettings() {
         selectable
         title={action === 'stop' ? t('harvest.stop_confirm_title') : action === 'resend' ? t('harvest.resend_confirm_title') : action === 'keys' ? t('harvest.keys_confirm_title') : action === 'voting' ? t('harvest.voting_confirm_title') : t('harvest.start_confirm_title')}
         texts={[
-          ...(action === 'keys' ? keysConfirmTexts : action === 'voting' ? votingConfirmTexts : action === 'resend' ? resendConfirmTexts : t(action === 'stop' ? 'harvest.stop_confirm_message' : 'harvest.start_confirm_message', { returnObjects: true }) as string[]),
+          ...(action === 'keys' ? keysConfirmTexts : action === 'voting' ? votingConfirmTexts : action === 'resend' ? resendConfirmTexts : t(action === 'stop' ? 'harvest.stop_confirm_message' : msSigner ? 'harvest.multisig_start_confirm_message' : 'harvest.start_confirm_message', { returnObjects: true }) as string[]),
+          ...(action === 'start' || action === 'stop' || action === 'keys' || action === 'voting' ? multisigConfirmTexts : []),
           ...(keyless === null ? [] : [t(keyless.kind === 'ledger' ? 'harvest.keyless_note_ledger' : 'harvest.keyless_note_sss')]),
           ...(keyless !== null && action === 'start' ? [t('harvest.keyless_start_note')] : []),
         ]}
@@ -625,9 +725,13 @@ export default function HarvestSettings() {
       />
       <MessageDialog
         open={done !== null}
-        title={done?.action === 'stop' ? t('harvest.done_stop_title') : done?.action === 'resend' ? t('harvest.resend_done_title') : done?.action === 'keys' ? t('harvest.keys_done_title') : done?.action === 'voting' ? t('harvest.voting_done_title') : t('harvest.done_start_title')}
-        texts={t(done?.action === 'stop' ? 'harvest.done_stop_message' : done?.action === 'resend' ? 'harvest.resend_done_message' : done?.action === 'keys' ? 'harvest.keys_done_message' : done?.action === 'voting' ? 'harvest.voting_done_message' : 'harvest.done_start_message', { returnObjects: true }) as string[]}
-        onClose={() => setDone(null)}
+        title={done?.bonded ? t('harvest.multisig_done_bonded_title') : done?.action === 'stop' ? t('harvest.done_stop_title') : done?.action === 'resend' ? t('harvest.resend_done_title') : done?.action === 'keys' ? t('harvest.keys_done_title') : done?.action === 'voting' ? t('harvest.voting_done_title') : t('harvest.done_start_title')}
+        texts={t(done?.bonded ? 'harvest.multisig_done_bonded_message' : done?.action === 'stop' ? 'harvest.done_stop_message' : done?.action === 'resend' ? 'harvest.resend_done_message' : done?.action === 'keys' ? 'harvest.keys_done_message' : done?.action === 'voting' ? 'harvest.voting_done_message' : 'harvest.done_start_message', { returnObjects: true }) as string[]}
+        onClose={() => {
+          setDone(null);
+          // The new remote / VRF private keys of a multisig account's start: shown now, since this device does not keep them.
+          if (pendingReveal) { setRevealed({ remotePrivateKey: pendingReveal.remotePrivateKey, vrfPrivateKey: pendingReveal.vrfPrivateKey, multisig: pendingReveal.bonded ? 'bonded' : 'sent' }); setPendingReveal(null); }
+        }}
       />
       <MessageDialog
         open={revealed !== null}
@@ -636,6 +740,8 @@ export default function HarvestSettings() {
           t('harvest.reveal_remote_line', { key: revealed.remotePrivateKey }),
           t('harvest.reveal_vrf_line', { key: revealed.vrfPrivateKey }),
           t('harvest.reveal_note'),
+          ...(revealed?.multisig ? [t('harvest.multisig_keys_note')] : []),
+          ...(revealed?.multisig === 'bonded' ? [t('harvest.multisig_keys_note_bonded')] : []),
         ]}
         onClose={() => setRevealed(null)}
       />
