@@ -9,6 +9,7 @@ import { getChain } from './chain';
 import type { ChainKey } from './chain';
 import { addressBody } from './watchAddress';
 import { nemAccountFromMnemonic } from './nem/hd';
+import { MnemonicHelper, SYMBOL_TESTNET_COIN_TYPE } from './symbol/hd';
 import { purgeAccountData } from './accountPurge';
 import { encryptString, decryptString } from './secretCrypto';
 import { compareAccounts, Wallet, Wallets } from './wallet';
@@ -531,6 +532,64 @@ export class WalletsHelper {
     stored.setActive(stored.getActive('symbol')?.id ?? target.id);
     await Storage.saveWallets(stored);
     return 'added';
+  }
+
+  /**
+   * プロファイルのニーモニックから、まだ使っていない最小のインデックスのアカウントをその場で導出して追加する
+   * （作成時にあらかじめ導出してあるのは 0〜9 だけ。10 以降はこれで作る）。パスワードでニーモニックを開く。
+   * プロファイルが持っているチェーン（Symbol / NEM）すべてに同じインデックスで作り、チェーンを切り替えても
+   * 同じ番号が並ぶようにする。テストネット用の鍵（コイン種別 1）を持つプロファイルは、それも導出して持たせる。
+   * 'no-mnemonic': 秘密鍵・Ledger のプロファイルなど、ニーモニックが無く導出できない。
+   */
+  static async addNextDerivedAccount(
+    profileWalletId: string,
+    password: string,
+  ): Promise<{ status: 'added'; index: number; walletIds: Record<string, string> } | { status: 'no-mnemonic' | 'wrong-password' }> {
+    const stored = await Storage.loadWallets();
+    const target = stored.get(profileWalletId);
+    if (target == null) {
+      throw new Error('profile not found');
+    }
+    const profileWallets = stored.getProfileWallets(profileWalletId);
+    const source = profileWallets.find((wallet) => wallet.hasMnemonic());
+    if (!source) {
+      return { status: 'no-mnemonic' };
+    }
+    const phrase = await source.decryptMnemonic(password);
+    if (phrase === null) {
+      return { status: 'wrong-password' };
+    }
+    // 使われていない最小のインデックス（途中が欠けていればそこから埋める）。
+    const used = new Set(profileWallets.map((wallet) => wallet.accountIndex).filter((i): i is number => i !== null));
+    let index = 0;
+    while (used.has(index)) index++;
+
+    const chains = [...new Set(profileWallets.filter((wallet) => wallet.accountIndex !== null).map((wallet) => wallet.chain))];
+    const withTestnet = profileWallets.some((wallet) => wallet.chain === 'symbol' && wallet.testnetPublicKey);
+    const usedIds = new Set(stored.gets().map((wallet) => wallet.id));
+    const walletIds: Record<string, string> = {};
+    for (const chain of chains) {
+      const account = chain === 'nem' ? nemAccountFromMnemonic(phrase, index) : MnemonicHelper.accountFromMnemonic(phrase, index);
+      const wallet = await Wallet.createWithKeys(target.name, account.publicKey, account.privateKey, password, chain);
+      while (usedIds.has(wallet.id)) {
+        wallet.id = Wallet.createId();
+      }
+      usedIds.add(wallet.id);
+      wallet.profileId = target.profileKey;
+      wallet.accountIndex = index;
+      wallet.accountName = '';
+      wallet.hidden = false;
+      wallet.encryptedMnemonic = source.encryptedMnemonic;
+      if (chain === 'symbol' && withTestnet) {
+        const testnet = MnemonicHelper.accountFromMnemonic(phrase, index, SYMBOL_TESTNET_COIN_TYPE);
+        wallet.testnetPublicKey = testnet.publicKey;
+        wallet.encryptedTestnetSecret = await encryptString(testnet.privateKey, password);
+      }
+      stored.add(wallet);
+      walletIds[chain] = wallet.id;
+    }
+    await Storage.saveWallets(stored);
+    return { status: 'added', index, walletIds };
   }
 
   /** Changes one account's own settings: its index name and whether it is shown when switching. */

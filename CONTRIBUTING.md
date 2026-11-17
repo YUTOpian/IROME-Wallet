@@ -5,8 +5,8 @@
 Node.js 22.12 以上（`.nvmrc` は 22）。
 
 ```bash
-git clone <このリポジトリ>
-cd KASANE-Wallet
+git clone https://github.com/YUTOpian/IROME-Wallet.git
+cd IROME-Wallet
 npm ci
 npm run dev        # 開発サーバー
 ```

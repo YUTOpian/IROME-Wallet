@@ -52,7 +52,7 @@ import { REVEALED_KEY_IDLE_MS, useSecretAutoHide } from '../../hooks/useSecretAu
 // メニューの「アカウント」。いまのプロファイル（=1つのニーモニック）のアカウントを一覧し、選んだアカウントの
 // 情報（名前・アドレス・公開鍵・秘密鍵・エイリアス・メタデータ）を右側に表示する。
 //  - 一覧：ニーモニックから導出したシードアカウントと、秘密鍵でインポートしたアカウント。
-//  - 最初に出ているのは一部のインデックスだけ。ほかのインデックスは「アカウントを追加」から表示する。
+//  - 最初に出ているのは一部のインデックスだけ。「アカウントの追加」を押すたびに、次のインデックスを順に1つ表示する（導出済みの0〜9を使い切ったら、パスワードで次の番号をその場で導出する）。
 //  - 秘密鍵でインポートして、このプロファイルにアカウントを追加できる（パスワードの確認だけ行う）。
 //  - Symbol：選んだアカウント自身にメタデータを付与できる（そのアカウントの秘密鍵で署名する）。
 //  - Symbol：選んだアカウントのアカウント制限（アドレス・モザイク・オペレーション）を確認・編集できる。
@@ -118,11 +118,12 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
 
-  // 追加メニュー / まだ追加していないシードアカウント（インデックス順） / 秘密鍵でインポート
-  const [showPicker, setShowPicker] = useState(false);
+  // 秘密鍵でインポート（「アカウントの追加」は一覧を出さず、次のインデックスを順に表示する）
   const [showImport, setShowImport] = useState(false);
   const [importKey, setImportKey] = useState('');
   const [importPassword, setImportPassword] = useState(false);
+  // 「アカウントの追加」で、作成時に導出済みの分（0〜9）を使い切ったあと、次のインデックスをその場で導出するためのパスワード確認。
+  const [deriveNext, setDeriveNext] = useState(false);
   // NEM: a wallet file (.wlt, the official NEM wallet's) that was picked and is waiting for its password.
   const [wltFile, setWltFile] = useState<ParsedWlt | null>(null);
   const [wltPassword, setWltPassword] = useState('');
@@ -336,11 +337,41 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
     }
   };
 
-  const showIndex = async (w: Wallet) => {
-    await WalletsHelper.updateAccount(w.id, { hidden: false });
-    setShowPicker(false);
-    setSelectedId(w.id);
+  // 「アカウントの追加」：まだ表示していないシードアカウントのうち、いちばん若いインデックスを1つ表示する。
+  // 導出済みの分（0〜9）をすべて表示し終えたら、パスワードを確認して、次のインデックスをニーモニックからその場で導出する（上限なし）。
+  const addNextIndex = async () => {
+    const next = [...hiddenAccounts]
+      .filter((w) => w.accountIndex !== null)
+      .sort((a, b) => (a.accountIndex ?? 0) - (b.accountIndex ?? 0))[0];
+    if (!next) {
+      setDeriveNext(true);
+      return;
+    }
+    await WalletsHelper.updateAccount(next.id, { hidden: false });
+    setSelectedId(next.id);
     await load();
+  };
+
+  const deriveNextWithPassword = async (password: string) => {
+    setDeriveNext(false);
+    try {
+      const result = await WalletsHelper.addNextDerivedAccount(profileRefId, password);
+      if (result.status === 'no-mnemonic') {
+        setErrorMessage(t('account.add_no_mnemonic'));
+        return;
+      }
+      if (result.status === 'wrong-password') {
+        setErrorMessage(t('wallet.invalid_key'));
+        return;
+      }
+      await load();
+      const id = result.walletIds[chain];
+      if (id) setSelectedId(id);
+      setToast(t('account.index_added', { index: result.index }));
+    } catch (e) {
+      console.error('Failed to derive the next account', e);
+      setErrorMessage(t('account.add_failed'));
+    }
   };
 
   // .wlt: read the picked file, then ask for the password it was sealed with.
@@ -535,7 +566,7 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
             </Button>
           ) : (
             <>
-              <Button startIcon={<AddCircleOutlineIcon />} onClick={() => setShowPicker(true)}>
+              <Button startIcon={<AddCircleOutlineIcon />} onClick={addNextIndex}>
                 {t('account.add_show_index')}
               </Button>
               <Button startIcon={<AddCircleOutlineIcon />} onClick={() => { setImportKey(''); setShowImport(true); }}>
@@ -839,30 +870,6 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
         </DialogContent>
       </Dialog>
 
-      {/* 非表示のインデックスから選ぶ */}
-      <Dialog open={showPicker} onClose={() => setShowPicker(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('wallet.account_show_title')}</DialogTitle>
-        <DialogContent>
-          {hiddenAccounts.length === 0 ? (
-            <Typography color="text.secondary" sx={{ pb: 2 }}>{t('wallet.account_show_empty')}</Typography>
-          ) : (
-            <List disablePadding>
-              {[...hiddenAccounts].sort((a, b) => (a.accountIndex ?? 0) - (b.accountIndex ?? 0)).map((w) => (
-                <Box key={w.id}>
-                  <ListItemButton onClick={() => showIndex(w)}>
-                    <ListItemText primary={defaultLabel(w)} secondary={w.address} slotProps={{ secondary: { sx: { wordBreak: 'break-all' } } }} />
-                  </ListItemButton>
-                  <Divider />
-                </Box>
-              ))}
-            </List>
-          )}
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-            <Button variant="contained" color="secondary" onClick={() => setShowPicker(false)}>{t('common.close')}</Button>
-          </Box>
-        </DialogContent>
-      </Dialog>
-
       {/* 秘密鍵でインポート */}
       <Dialog open={showImport} onClose={() => setShowImport(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t('wallet.account_import_title')}</DialogTitle>
@@ -922,6 +929,14 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
           </Box>
         </DialogContent>
       </Dialog>
+      <PasswordDialog
+        open={deriveNext}
+        mode="check"
+        popup
+        profileKey={selected?.profileKey}
+        onClose={() => setDeriveNext(false)}
+        onPass={deriveNextWithPassword}
+      />
       <PasswordDialog
         open={importPassword}
         mode="check"
