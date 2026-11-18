@@ -41,7 +41,20 @@ const BOTTOM_NAV_HEIGHT = '60px';
 export default function MenuShell() {
   const expanded = useMenuStore((s) => s.open);
   const toggle = useMenuStore((s) => s.toggle);
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  // ブラウザが「戻る」「進む」で前のスクロール位置を勝手に戻さないようにする（画面遷移は、必ず一番上から始めるため）。
+  useEffect(() => {
+    const prev = window.history.scrollRestoration;
+    try { window.history.scrollRestoration = 'manual'; } catch { /* 変えられない環境はそのまま */ }
+    return () => { try { window.history.scrollRestoration = prev; } catch { /* 同上 */ } };
+  }, []);
+  // 画面を移ったとき（パスが変わったとき、同じ画面の ?view= などが変わったときも）は、必ず一番上から始める。
+  // 描画の直後にもう一度合わせて、あとから中身が伸びても一番下に取り残されないようにする。
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    const id = window.requestAnimationFrame(() => window.scrollTo(0, 0));
+    return () => window.cancelAnimationFrame(id);
+  }, [pathname, search]);
   const isWide = useMediaQuery(WIDE_QUERY);
   const hasMenu = !hasNoMenuPath(pathname);
   // iOS / Android: 端末で決める（アクセス中は変わらない）。

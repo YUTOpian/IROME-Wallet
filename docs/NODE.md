@@ -176,6 +176,41 @@ npm run node-agent
 ```
 （コマンドプロンプトは `set IROME_NODE_AGENT_PORT=7400`。Linux / macOS の `VAR=値 npm run …` は、Windows では動かない。）
 
+### 既存のノードを使う（稼働中の symbol-bootstrap 製・Shoestring 製）
+
+すでに動いているノードも、このウォレットで確認・操作できる。**専用の取り込み処理は無く**、既存のノードのフォルダを、エージェントの「作業場所」の中に置いて、画面の「既存のノードを使う」カード（サービス > ノード。エージェントに繋ぐと出る）から使う。
+
+**エージェントなしでできること**: 「ノードの状態（ウォッチ）」に REST の URL を入れて状態を見る・「ウォレットの接続先に登録」する。Docker を使わないノード（systemd など）は、ここまで。
+
+**エージェントで操作する手順**
+1. エージェントを起動するとき、既存のノードのフォルダの**親**を作業場所にする。例: ノードが `~/nodes/mainnet` にあるなら `IROME_NODE_AGENT_WORKSPACE=~/nodes npm run node-agent`（ノードのフォルダそのものにすると、`tools/` などがその中にできる）。常駐させているなら `npm run node-agent-service -- install --workspace ~/nodes`。
+2. 画面のカードで「探す」（繋いだときに 1 回、自動でも探す）。見つかったノードが、**symbol-bootstrap 製 / Shoestring 製**の表示つきで並ぶ。
+3. 「ノードのフォルダを作業フォルダにする」で作業フォルダが変わる。symbol-bootstrap 製は、`docker compose` を動かす場所（`<ノード>/target/docker`）を作業フォルダにするボタンもある。
+4. 「よく使うコマンド」を押すと、作業フォルダが変わり、入力欄に入る（実行は Enter）。
+   - 共通: `docker compose ps -a`・`docker compose logs --tail=50`・`docker compose restart`（symbol-bootstrap 製は `target/docker`、Shoestring 製はノードのフォルダで動く）
+   - symbol-bootstrap 製: `symbol-bootstrap healthCheck`・`symbol-bootstrap --version`（ノードのフォルダで動く。`target/` の置き場所のため）
+   - Shoestring 製: `shoestring health --config config.ini --directory .`・`shoestring --help`
+
+**ノードのフォルダの見つけ方（`GET /v1/existing-nodes`）**: 作業場所の中を、**ファイル・フォルダの名前だけ**で探す（中身は開かない）。`tools/`・`node_modules`・`.` で始まるフォルダ・シンボリックリンクは見ない。深さ 4 まで、20 件まで。
+- symbol-bootstrap 製: そのフォルダの `target/docker/` に compose ファイルがある。
+- Shoestring 製: そのフォルダに compose ファイルがあり、`userconfig/`・`cert/`・`keys/`・`config.ini`・`overrides.ini` のどれかもある。
+- compose ファイルだけのフォルダは、ノードとして数えない。見つからないときは、画面の「作業フォルダ」に、ノードのフォルダを直接入れれば使える。
+
+**作り直す・消すおそれのあるコマンドの確認**: 見つかったノードのフォルダ（とその下、`docker compose` のフォルダ）で、次を実行しようとすると、確認のポップアップが出る（打っても、ひな型からでも同じ。バックアップとツールの版を確かめ、チェックを入れたときだけ実行できる）。
+- symbol-bootstrap: `config`・`start`・`clean`・`resetData`・`encrypt`・`decrypt`
+- Shoestring: `init`・`setup`・`reset-data`・`import-bootstrap`・`import-harvesters`（`upgrade`・`renew-*` は、ふだんの保守なので対象にしない）
+- この確認は画面側の注意で、**エージェントの許可リストは増えも減りもしない**（このコマンドは、これまでも通っていた）。見つかっていないフォルダ・「探す」を押していないときは、確認は出ない。
+
+**そのほかの連携**
+- ウォレットへの鍵の連携・常駐の見張りは、上の各節のとおり。symbol-bootstrap 製は `target/addresses.yml`、Shoestring 製は証明書（と、確認のうえで鍵ファイル）から公開鍵を読む。見張りの作業フォルダには、docker compose のフォルダを入れる（「探す」で候補が出る）。
+- コンテナの名前を指す `docker restart 名前`・`docker stop 名前` は、作業フォルダに関係なく使える（`docker ps -a` で名前を確かめる）。
+
+**注意**
+- **root で作ったノード**: エージェントは root で起動せず、docker グループのユーザーで動かす。`sudo` で作ったノードは、ファイルの持ち主が root のことがあり、その場合は読み書きできない（持ち主を直す）。
+- **許可リストの外は使えない**: `docker compose -f 任意のファイル`・`docker exec`・`docker run` は通らない。compose ファイルは、画面から書き換えられない。設定ファイルの編集は `.ini .yml .yaml .json .properties .txt` だけで、`target/addresses.yml` は開けない。
+- symbol-bootstrap・Shoestring の**版は、ノードを作ったものに合わせる**。画面で使うのは、`tools/` に入れたもの、なければ PC の PATH にあるもの。
+- **未確認**: 実物の symbol-bootstrap・Shoestring のノードで、見つけ方・ひな型の動作を確かめていない（試験は、名前だけを似せた作業フォルダと、本物のエージェントの HTTP で行っている）。Shoestring のフォルダの見分け方は、公式ドキュメントの構成に基づく想定。
+
 ### ノードの状態ウォッチ
 
 画面の「ノードの状態（ウォッチ）」で、自分のノードの REST（既定 `http://127.0.0.1:3000`。symbol-bootstrap・Shoestring の既定）を、10 / 30 / 60 秒ごとに見て、**正常 / 注意 / 異常** を出す。ブラウザから REST を直接読むだけなので、**エージェントに繋がっていなくても使える**。エージェントに繋がっているときは、Docker のコンテナの状態（`docker ps -a` の読み取り）も並べて出す。
@@ -463,6 +498,7 @@ ssh -L 7391:127.0.0.1:7391 you@your-server
 - `npx tsx dev-tests/node-watch.test.ts` … ノードの状態ウォッチ（判定・しきい値・URL の決まり・REST の読み取りを偽の fetch で・タイムアウト。42 項目）
 - `npx tsx dev-tests/node-commands.test.ts` … 許可・拒否の判定（234 項目）
 - `npx tsx dev-tests/node-narrow-allow.test.ts` … 用途を絞って通すもの（openssl の 3 つの形（pkey は確認つき）・`--show-private` の確認・`mkdir` / `cd`・復旧用の `docker compose -f`・`irome upgrade shoestring` / `bootstrap` / `nodewatch`・`shoestring wizard`）の許可と拒否、上書きしない・権限 600・`tools/venv` が無いときは何もしない・bootstrap の更新の手順（git clone → install → build → pack → `tools/` に入れる。`-g` と `sudo` を使わない・`.tgz` は 1 つのときだけ・シンボリックリンクは辿らない）（131 項目）
+- `npx tsx dev-tests/node-existing.test.ts` … 既存のノードを使う（ノードのフォルダの見つけ方〔名前だけ・`tools/`・`.`・シンボリックリンク・compose だけのフォルダ・`target/docker` を二重に数えない〕・受け取りの検証・よく使うコマンドが許可の判定を通ること・作り直す・消すコマンドの見分け・本物のエージェントの HTTP と、中身が返らないこと。89 項目）
 - `npx tsx dev-tests/node-shoestring-guide.test.ts` … 「Shoestring でノードを建てる手順」（手順のひな型がすべて許可の判定を通る・通さないものは通らない・`pemview` と `--show-private`・説明文が ja / en に揃っている・手順の順番。206 項目）
 - `npx tsx dev-tests/node-windows.test.ts` … Windows ネイティブ対応（OS の種類を引数で渡して、Linux 上で Windows の分岐を確かめる。パスの内外・環境変数の二重・`package.json` の `bin` の探し方と外へ出る指定の拒否・`.cmd` を使わない手順・Windows 向けの配布物の入れ方・予約名やドライブ名の拒否・`Tools\` の大文字小文字。141 項目）。**本物の Windows での起動・停止・展開は、ここでは確かめられない**
 - `npx tsx dev-tests/node-provision.test.ts` … Node.js・Python の導入と削除（取得先の決まり・リダイレクト・サイズ上限・SHA-256 の一致/不一致・壊れた tar・既存の `tools/` を壊さない・一時フォルダの片づけ・シンボリックリンクを辿らない・venv があるあいだは Python を消さない。75 項目）。外部には繋がず、偽の fetch と本物の `tar` で確認する。

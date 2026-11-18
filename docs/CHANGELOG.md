@@ -1,3 +1,14 @@
+## 追加: ノード構築 — すでに動いている symbol-bootstrap 製・Shoestring 製のノードを、画面から使えるようにした
+- 要望: ノード構築機能（サービス > ノード）で、すでに稼働中のノードも、このウォレットで操れるようにしたい。symbol-bootstrap 製でも Shoestring 製でも対応してほしい。
+- 対応: 画面に「既存のノードを使う」カードを足した（エージェントに繋ぐと出る）。エージェントの作業場所の中から、ノードのフォルダを**名前だけ**で探し（`GET /v1/existing-nodes`。中身は開かない）、symbol-bootstrap 製 / Shoestring 製の表示つきで並べる。押すと、作業フォルダを変える・よく使うコマンド（`docker compose ps -a`・`logs`・`restart`、`symbol-bootstrap healthCheck`、`shoestring health` など）を入力欄に入れる。
+- 確認: 見つかったノードのフォルダで、設定・鍵・データを作り直す・消すおそれのあるコマンド（symbol-bootstrap の `config`・`start`・`clean`・`resetData`・`encrypt`・`decrypt`、Shoestring の `init`・`setup`・`reset-data`・`import-bootstrap`・`import-harvesters`）を実行しようとすると、バックアップと版の確認つきのポップアップが出る。
+- 変えていないこと: エージェントの許可リスト・待ち受け（127.0.0.1 だけ）・トークン・作業場所の外へ出ない決まりは、そのまま。新しく通るコマンドは無い。
+- 使い方・注意（作業場所を既存ノードの親に合わせる・root で作ったノードの持ち主・許可リストの外は使えない）: `docs/NODE.md` の「既存のノードを使う」。
+- 翻訳: `service.node_ex_*` を ja・en に追加。zh・ko・ru は英語で表示される。
+- 変更したファイル: `src/lib/node/existingNodes.ts`（新規）・`src/server/node-agent/existingNodes.ts`（新規）・`src/pages/node/ExistingNodeCard.tsx`（新規）・`src/pages/node/NodePage.tsx`・`src/server/node-agent/agent.ts`・`src/lib/node/agentClient.ts`・`src/i18n/messages.json`・`dev-tests/node-existing.test.ts`（新規）・`docs/NODE.md`。
+- 確認したこと: `npm run lint`（エラー 0）・`npm test`（142 本すべて成功）・`npm run build`。
+- **確認できていないこと**: 実物の symbol-bootstrap・Shoestring のノードでの動作と、画面（ブラウザ）での見た目・操作。ノードのフォルダの見分け方（特に Shoestring）は、名前に基づく想定。
+
 ## 変更: アカウント — 「アカウントの追加」を、一覧から選ぶ形から、押すたびに次のインデックスが出る形に改めた（上限なし）
 - 要望: 「アカウントの追加」は、アカウントの一覧が出るものではなく、押したらインデックス番号の順に出てくる形にしたい。インデックスはいくつまででも出せるようにしたい。
 - 対応: 一覧のダイアログをやめた。押すと、まだ表示していないシードアカウントのうち、いちばん若いインデックスを 1 つ表示して選択する。作成時に導出済みの 0〜9 を表示し終えたら、パスワードを確認して、次のインデックスをリカバリーフレーズからその場で導出して追加する（`WalletsHelper.addNextDerivedAccount`）。使われていない最小の番号を使い、途中が欠けていればそこから埋める。プロファイルが持つチェーン（Symbol / NEM）すべてに同じ番号で作り、テストネット用の鍵（コイン種別 1）を持つプロファイルはそれも導出する。

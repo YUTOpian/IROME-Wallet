@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, InputBase, MenuItem, Stack, Switch, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, InputBase, MenuItem, Stack, Switch, Typography } from '@mui/material';
 import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined';
 import StopOutlinedIcon from '@mui/icons-material/StopOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
@@ -21,6 +21,9 @@ import { pushHistory, stepHistory } from '../../lib/console/repl';
 import NodeWatchCard from './NodeWatchCard';
 import ShoestringGuide from './ShoestringGuide';
 import OneClickCard from './OneClickCard';
+import ExistingNodeCard from './ExistingNodeCard';
+import { riskOnExisting } from '../../lib/node/existingNodes';
+import type { ExistingNode } from '../../lib/node/existingNodes';
 import GuideText from './GuideText';
 
 // 「ノード」(Symbol): symbol-bootstrap・Shoestring・Nodewatch を、ウォレットからコマンドで動かして、ノードの環境を作る。
@@ -99,6 +102,10 @@ export default function NodePage() {
   const [unTarget, setUnTarget] = useState<InstallTarget | null>(null);
   const [unAgree, setUnAgree] = useState(false);
   // 秘密鍵が画面に出るコマンド（--show-private・openssl pkey … -text）の確認。同意（チェック）してから、その 1 回だけ実行する。
+  // 既存のノード（作業場所の中で見つけたもの）。作り直す・消すおそれのあるコマンドを、そのフォルダで打つときの確認に使う
+  const [existingNodes, setExistingNodes] = useState<ExistingNode[] | null>(null);
+  const [riskAsk, setRiskAsk] = useState<{ line: string; dir: string; kind: ExistingNode['kind']; command: string } | null>(null);
+  const [riskAgree, setRiskAgree] = useState(false);
   const [secretLine, setSecretLine] = useState<string | null>(null);
   const [secretAgree, setSecretAgree] = useState(false);
   // Docker を入れる（sudo を 1 回使う）前の確認。することと、docker グループの注意を読んで同意してから実行する。
@@ -274,6 +281,8 @@ export default function NodePage() {
     rememberConn(null);
     setConn(null);
     setStatus(null);
+    setExistingNodes(null);
+    setRiskAsk(null);
     setRunning(false);
     setToken('');
     setFiles([]);
@@ -320,7 +329,7 @@ export default function NodePage() {
 
   // confirmed: 注意を読んで同意した後の実行（ボタンからも、ターミナルに `irome uninstall …` と打っても、必ず確認を通す）
   // secretOk: 秘密鍵が画面に出ることを、確認ポップアップで同意した後の実行（`--show-private`・`openssl pkey … -text` は、打っても、ひな型からでも、必ず確認を通す）
-  const runLine = async (raw: string, confirmed = false, secretOk = false) => {
+  const runLine = async (raw: string, confirmed = false, secretOk = false, riskOk = false) => {
     const c = connRef.current;
     const line = raw.trim();
     if (!c || line === '' || jobRef.current || buildingRef.current) return;
@@ -331,6 +340,12 @@ export default function NodePage() {
     const isDockerInstall = pre.ok && pre.tool === 'irome' && pre.argv[1] === 'install' && pre.argv[2] === 'docker';
     if (isDockerInstall && !confirmed) { setDockerAgree(false); setDockerAsk(true); return; }
     if (pre.ok && isSecretArgv(pre.argv) && !secretOk) { askSecret(line); return; }
+    // 既存のノードのフォルダで、設定・鍵・データを作り直す・消すおそれのあるコマンドは、打っても、ひな型からでも、必ず確認を通す
+    if (pre.ok && !riskOk && existingNodes) {
+      const sub0 = validateSubdir(cwd);
+      const rk = sub0.ok ? riskOnExisting(pre.argv, sub0.value, existingNodes) : null;
+      if (rk) { setRiskAgree(false); setRiskAsk({ line, dir: rk.node.dir, kind: rk.node.kind, command: rk.command }); return; }
+    }
     push('cmd', `$ ${line}\n`);
     setHistory((h) => pushHistory(h, line));
     // 画面でも事前に判定する（エージェントは、同じ判定をもう一度かける）
@@ -577,6 +592,28 @@ export default function NodePage() {
   // 「Shoestring でノードを建てる手順」は、この画面の中の別の画面（?view=shoestring）。ターミナルと設定ファイルは、そのまま使える。
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'shoestring' ? 'shoestring' : 'main';
+  // 右に置くとき、左右の列の高さ = 画面の下端まで。ページを上にスクロールして見出しが見えていても、列の下が画面の外に出て切れないように、
+  // 枠の上端の位置(見出しの分だけ下がっている)を測って、残りの高さにする。ページを下げて上端が 8px に貼り付いたら、画面いっぱい。
+  const splitRef = useRef<HTMLDivElement | null>(null);
+  const [splitH, setSplitH] = useState<number | null>(null);
+  const splitOn = hasDock && dock === 'right';
+  useEffect(() => {
+    if (!splitOn) { setSplitH(null); return undefined; }
+    const MARGIN = 8;
+    const update = () => {
+      const el = splitRef.current;
+      if (!el || !window.matchMedia('(min-width: 1200px)').matches) { setSplitH(null); return; }
+      const top = Math.max(el.getBoundingClientRect().top, MARGIN);
+      setSplitH(Math.max(240, Math.floor(window.innerHeight - top - MARGIN)));
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
+  }, [splitOn, view]);
+  // 接続したとき・切断したとき・ノードの状態が届いて画面が切り替わったときは、同じ画面の中で中身だけが替わるので、
+  // 接続前の画面を一番下までスクロールしていても、替わった先も一番下から始まってしまう。必ず一番上から始める。
+  useEffect(() => { window.scrollTo(0, 0); }, [connected, hasDock]);
   const openGuide = () => { setParams({ view: 'shoestring' }); window.scrollTo({ top: 0 }); };
   const closeGuide = () => { setParams({}); window.scrollTo({ top: 0 }); };
   const cardSx = { border: 1, borderColor: 'divider', borderRadius: 1, p: 2, mt: 2, textAlign: 'left' } as const;
@@ -717,6 +754,9 @@ export default function NodePage() {
     </Box>
   );
   const watchCard = <NodeWatchCard agent={conn} cardSx={cardSx} />;
+  // ターミナルを右に置くときは、左右の列を別々にスクロールする（広い画面のみ。狭い画面は縦に並んで、ふつうにスクロール）
+  const splitScroll = hasDock && dock === 'right';
+  const SPLIT_SCROLL_SX = { height: { lg: '100%' }, overflowY: { lg: 'auto' }, overscrollBehavior: { lg: 'contain' }, pr: { lg: 0.5 } } as const;
   const bottomDock = hasDock && dock === 'bottom' ? <>{terminalCard}{filesCard}</> : null;
 
   return (
@@ -729,10 +769,12 @@ export default function NodePage() {
         {hasDock && (
           <Stack direction="row" spacing={1.5} sx={{ mt: 2, alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
             <Typography sx={{ fontSize: '0.85rem', color: 'text.secondary' }}>{t('service.node_dock_label')}</Typography>
-            <ToggleButtonGroup size="small" exclusive value={dock} onChange={(_, v: 'right' | 'bottom' | null) => { if (v) setDock(v); }} aria-label={t('service.node_dock_label')}>
-              <ToggleButton value="right">{t('service.node_dock_right')}</ToggleButton>
-              <ToggleButton value="bottom">{t('service.node_dock_bottom')}</ToggleButton>
-            </ToggleButtonGroup>
+            {/* 下 ⇄ 右 のスイッチ（オンで右）。大きめにして、いまどちらかを字の太さと色でも示す */}
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+              <Typography component="span" sx={{ fontSize: '1rem', fontWeight: dock === 'bottom' ? 700 : 400, color: dock === 'bottom' ? 'text.primary' : 'text.secondary' }}>{t('service.node_dock_bottom')}</Typography>
+              <Switch checked={dock === 'right'} onChange={(e) => setDock(e.target.checked ? 'right' : 'bottom')} slotProps={{ input: { 'aria-label': t('service.node_dock_label') } }} sx={{ transform: 'scale(1.3)', mx: 1 }} />
+              <Typography component="span" sx={{ fontSize: '1rem', fontWeight: dock === 'right' ? 700 : 400, color: dock === 'right' ? 'text.primary' : 'text.secondary' }}>{t('service.node_dock_right')}</Typography>
+            </Stack>
           </Stack>
         )}
 
@@ -744,8 +786,8 @@ export default function NodePage() {
           </Box>
         )}
 
-        <Box sx={{ display: 'grid', gap: 2, alignItems: 'start', gridTemplateColumns: hasDock && dock === 'right' ? { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) minmax(0, 1fr)' } : 'minmax(0, 1fr)' }}>
-          <Box sx={{ minWidth: 0 }}>
+        <Box ref={splitRef} sx={{ display: 'grid', gap: 2, alignItems: 'start', gridTemplateColumns: hasDock && dock === 'right' ? { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) minmax(0, 1fr)' } : 'minmax(0, 1fr)', ...(hasDock && dock === 'right' ? { position: { lg: 'sticky' }, top: { lg: 8 }, height: splitH !== null ? { lg: `${splitH}px` } : { lg: 'calc(100vh - 16px)' }, gridTemplateRows: { lg: 'minmax(0, 1fr)' }, alignItems: { lg: 'stretch' } } : {}) }}>
+          <Box sx={{ minWidth: 0, ...(splitScroll ? SPLIT_SCROLL_SX : {}) }}>
             {view === 'shoestring' ? (
               <>
                 <Button onClick={closeGuide} sx={{ mt: 2, textTransform: 'none' }}>{t('service.node_ss_back')}</Button>
@@ -771,14 +813,13 @@ export default function NodePage() {
                     {TOOL_ROWS.map((row) => {
                       const st = status.tools[row.key];
                       const pcTool: PcTool | null = row.key === 'docker' || row.key === 'node' || row.key === 'python' ? row.key : null;
-                      const noWrap = row.optional || row.key === 'docker';
-                      return (
-                        <Box key={row.key}><Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: noWrap ? 'nowrap' : 'wrap', rowGap: 0.5, minHeight: 32 }}>
+                                            return (
+                        <Box key={row.key}><Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5, minHeight: 32 }}>
                           <Typography sx={{ width: { xs: 96, sm: 180 }, minWidth: 0, flexShrink: 0 }}>{t(row.labelKey)}</Typography>
                           <Chip size="small" sx={{ flexShrink: 0 }} color={st.found ? 'success' : 'default'} variant={st.found ? 'filled' : 'outlined'} label={st.found ? t('service.node_tool_found') : t('service.node_tool_missing')} />
                           {st.found && st.version && <Typography sx={{ fontFamily: MONO, fontSize: '0.8rem', color: 'text.secondary', whiteSpace: 'nowrap', flexShrink: 0 }}>{st.version}</Typography>}
                           {!st.found && pcTool !== null && <Button size="small" variant="outlined" sx={{ flexShrink: 0, whiteSpace: 'nowrap' }} href={pcTool === 'docker' && status.platform === 'linux' ? 'https://docs.docker.com/engine/install/' : OFFICIAL_URL[pcTool]} target="_blank" rel="noopener noreferrer">{t('service.node_official_site')}</Button>}
-                          {row.install && (!row.platforms || row.platforms.includes(status.platform)) && (row.optional ? !st.local : !st.found) && <Button size="small" variant="outlined" sx={noWrap ? { flexShrink: 0, whiteSpace: 'nowrap' } : undefined} disabled={running} onClick={() => void runLine(row.install as string)}>{t(row.optional && st.found ? 'service.node_install_local' : 'service.node_install')}</Button>}
+                          {row.install && (!row.platforms || row.platforms.includes(status.platform)) && (row.optional ? !st.local : !st.found) && <Button size="small" variant="outlined" sx={{ flexShrink: 0, whiteSpace: 'nowrap', maxWidth: '100%' }} disabled={running} onClick={() => void runLine(row.install as string)}>{t(row.optional && st.found ? 'service.node_install_local' : 'service.node_install')}</Button>}
                           {row.key === 'docker' && !st.found && (dockerMac || dockerWin) && <IconButton size="small" sx={{ flexShrink: 0 }} aria-label={t('service.node_docker_guide_toggle')} aria-expanded={dockerGuideOpen} onClick={() => setDockerGuideOpen((v) => !v)}><ErrorOutlineOutlinedIcon fontSize="small" /></IconButton>}
                           {row.key === 'docker' && !st.found && <IconButton size="small" sx={{ flexShrink: 0 }} aria-label={t('service.node_docker_howto_toggle')} aria-expanded={dockerHowtoOpen} onClick={() => setDockerHowtoOpen((v) => !v)}><HelpOutlineIcon fontSize="small" /></IconButton>}
                           {st.found && row.target && st.local && <Button size="small" variant="outlined" color="error" disabled={running} onClick={() => askUninstall(row.target as InstallTarget)}>{t('service.node_uninstall')}</Button>}
@@ -803,6 +844,14 @@ export default function NodePage() {
                     cardSx={cardSx} status={status} agent={conn} otherBusy={running && !building}
                     exec={execStep} note={push} onBuilding={setBuildingState} onStop={() => void stop()} isCancelled={() => buildCancelRef.current}
                     describeError={describeError} onFinished={() => { const c = connRef.current; if (c) { void refreshStatus(c); void refreshFiles(c); } }} onOpenGuide={openGuide}
+                  />
+                )}
+                {/* 既存のノード（symbol-bootstrap 製・Shoestring 製）を使う */}
+                {conn && (
+                  <ExistingNodeCard
+                    cardSx={cardSx} agent={conn} workspace={status.workspace} cwd={cwd} running={running}
+                    nodes={existingNodes} onNodes={setExistingNodes} describeError={describeError}
+                    onUse={(to, line) => { if (running) return; setCwd(to); if (line !== undefined) pickGuideLine(line); }}
                   />
                 )}
                   </>
@@ -900,7 +949,7 @@ export default function NodePage() {
             )}
           </Box>
           {hasDock && dock === 'right' && (
-            <Box sx={{ minWidth: 0, position: { lg: 'sticky' }, top: { lg: 8 } }}>
+            <Box sx={{ minWidth: 0, ...SPLIT_SCROLL_SX }}>
               {terminalCard}
               {filesCard}
             </Box>
@@ -918,6 +967,29 @@ export default function NodePage() {
           <DialogActions>
             <Button onClick={() => setKeyFileOpen(false)}>{t('service.node_link_secret_cancel')}</Button>
             <Button variant="contained" onClick={() => void readKeyFiles()}>{t('service.node_link_secret_go')}</Button>
+          </DialogActions>
+        </Dialog>
+        {/* 既存のノードのフォルダで、設定・鍵・データを作り直す・消すおそれのあるコマンドの確認。同意（チェック）しないと実行できない */}
+        <Dialog open={riskAsk !== null} onClose={() => setRiskAsk(null)} maxWidth="sm" fullWidth>
+          <DialogTitle>{t('service.node_ex_risk_title')}</DialogTitle>
+          <DialogContent>
+            {riskAsk && (
+              <>
+                <Alert severity="warning" sx={{ mb: 2 }}>{t('service.node_ex_risk_lead', { dir: riskAsk.dir === '' ? t('service.node_ex_root') : riskAsk.dir, kind: t(`service.node_ex_kind_${riskAsk.kind}`) })}</Alert>
+                <Typography sx={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('service.node_ex_risk_cmd_title')}</Typography>
+                <Typography sx={{ fontFamily: MONO, fontSize: '0.85rem', mb: 1.5, wordBreak: 'break-all' }}>{riskAsk.line}</Typography>
+                <Typography sx={{ fontSize: '0.9rem', mb: 1 }}>{t('service.node_ex_risk_body', { command: riskAsk.command })}</Typography>
+                <Box component="ul" sx={{ mt: 0.5, mb: 1.5, pl: 2.5, fontSize: '0.9rem' }}>
+                  <li>{t('service.node_ex_risk_check_backup')}</li>
+                  <li>{t('service.node_ex_risk_check_version')}</li>
+                </Box>
+                <FormControlLabel control={<Checkbox checked={riskAgree} onChange={(e) => setRiskAgree(e.target.checked)} />} label={<Typography sx={{ fontSize: '0.9rem' }}>{t('service.node_ex_risk_agree')}</Typography>} />
+              </>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setRiskAsk(null)}>{t('service.node_ex_risk_cancel')}</Button>
+            <Button color="error" variant="contained" disabled={!riskAgree || running} onClick={() => { const a = riskAsk; setRiskAsk(null); if (a) void runLine(a.line, false, false, true); }}>{t('service.node_ex_risk_go')}</Button>
           </DialogActions>
         </Dialog>
         {/* 秘密鍵が画面に出るコマンドの確認（--show-private・openssl pkey … -text）。同意（チェック）しないと実行できない */}

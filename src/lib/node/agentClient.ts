@@ -5,6 +5,8 @@ import { sanitizeNodeKeySets } from './nodeKeys';
 import type { NodeKeysEntry } from './nodeKeys';
 import { sanitizeHostStats } from './nodeHost';
 import type { HostStats } from './nodeHost';
+import { sanitizeExistingNodes } from './existingNodes';
+import type { ExistingNode } from './existingNodes';
 import { sanitizeComposeDirs, sanitizeWatchdogSnapshot } from './nodeWatchdog';
 import type { WatchdogConfig, WatchdogSnapshot } from './nodeWatchdog';
 
@@ -134,4 +136,10 @@ export async function saveWatchdog(c: AgentConn, config: WatchdogConfig): Promis
 /** 作業場所の中の、compose ファイルのあるフォルダの候補（名前を探すだけ。中身は読まない）。古いエージェントには無い（'other:not_found'）。 */
 export async function fetchComposeDirs(c: AgentConn): Promise<string[]> {
   return sanitizeComposeDirs(await call<unknown>(c, '/v1/compose-dirs'));
+}
+
+/** 作業場所の中の、すでにあるノード（symbol-bootstrap 製・Shoestring 製）のフォルダ。名前だけで探す（中身は開かない）。古いエージェントには無い（'other:not_found'）。受け取ったものは形をもう一度確かめる。 */
+export async function fetchExistingNodes(c: AgentConn): Promise<ExistingNode[]> {
+  const body = await call<{ nodes?: unknown }>(c, '/v1/existing-nodes');
+  return sanitizeExistingNodes(body.nodes);
 }

@@ -21,6 +21,7 @@ import { parseAddressesYml, withVotings } from '../../lib/node/nodeKeys';
 import { collectHostStats } from './host';
 import { createWatchdog } from './watchdog';
 import { findComposeDirs } from './composeDirs';
+import { findExistingNodes } from './existingNodes';
 import type { RestartResult } from './watchdog';
 import { AUTO_RESTART_LIMITS, AUTO_RESTART_LINE } from '../../lib/node/nodeAutoRestart';
 import { sanitizeWatchdogConfig } from '../../lib/node/nodeWatchdog';
@@ -938,6 +939,8 @@ export function createAgent(opts: AgentOptions): Agent {
           return;
         }
 
+        // すでにあるノード（symbol-bootstrap 製・Shoestring 製）のフォルダを、名前だけで探す（中身は開かない）
+        if (req.method === 'GET' && path === '/v1/existing-nodes') { send(res, 200, { nodes: findExistingNodes(ws) }, cors); return; }
         if (req.method === 'GET' && path === '/v1/compose-dirs') { send(res, 200, { dirs: findComposeDirs(ws) }, cors); return; }
         if (path === '/v1/watchdog') {
           if (req.method === 'GET') { send(res, 200, watchdog.snapshot(), cors); return; }
