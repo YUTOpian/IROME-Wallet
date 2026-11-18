@@ -17,7 +17,7 @@
 // - `mkdir [-p] <名前>`（作業フォルダの中にフォルダを作る）と `cd [<フォルダ>]`（画面の「作業フォルダ」を変える。エージェントには送らず、画面が処理する）。どちらも作業場所の外（`..` の先・絶対パス・ドライブ名）は通さない。
 // - 公式ドキュメントの書き方 `python3 -m shoestring <コマンド>`（`python` も同じ）は、`shoestring <コマンド>` に読み替えて判定する（`-m` の相手が `shoestring` のときだけ。
 //   ほかのモジュール・`python3` 単体は通さない）。
-// - 公式ドキュメントの pip の 3 つの形だけ、`python3 -m pip install symbol-shoestring` / `python3 -m pip install --upgrade symbol-shoestring` / `python3 -m pip show symbol-shoestring` を、そのまま通す
+// - 公式ドキュメントの pip の 3 つの形（と、`python3 -m pip install [--upgrade] symbol-shoestring==0.2.6` のようにバージョンを数字で指定する形）だけ、`python3 -m pip install symbol-shoestring` / `python3 -m pip install --upgrade symbol-shoestring` / `python3 -m pip show symbol-shoestring` を、そのまま通す
 //   （パッケージ名は symbol-shoestring に固定。ほかのパッケージ・オプションは通さない）。エージェントは、tools/venv があればその Python の pip、なければ PC の python3 の pip で動かす。
 // - 秘密鍵を画面に出すもの（`--show-private` と `openssl pkey … -text`）は、使う人が画面の確認ポップアップで同意したとき（opts.secret）だけ通す。
 //   同意がなければ secret_confirm_required で断る。エージェントも画面を信用せず、同意の印（secret: true）が無ければ同じ理由で断る。
@@ -38,6 +38,19 @@ export const IROME_VERBS = ['install', 'uninstall', 'upgrade'] as const;
 export const UPGRADE_TARGETS: readonly InstallTarget[] = ['shoestring', 'bootstrap', 'nodewatch'];
 /** `python3 -m pip …` で通す、3 つの形だけ（公式ドキュメントのとおり。パッケージ名は symbol-shoestring に固定）。 */
 export const PIP_ALLOWED: readonly string[] = ['install symbol-shoestring', 'install --upgrade symbol-shoestring', 'show symbol-shoestring'];
+/** バージョンを指定する形（`symbol-shoestring==0.2.6`）の、バージョン部分: 数字とドットだけ（`0.2.6` など。`>=`・URL・ほかのオプションは通さない）。 */
+export const PIP_VERSION = /^\d{1,4}(\.\d{1,4}){1,3}$/;
+
+/** `python3 -m pip` に続く引数が、通す形かどうか: PIP_ALLOWED の 3 つ、または `install [--upgrade] symbol-shoestring==<バージョン>`。 */
+export function isAllowedPipArgs(args: string[]): boolean {
+  if (PIP_ALLOWED.includes(args.join(' '))) return true;
+  if (args[0] !== 'install') return false;
+  const rest = args.slice(1);
+  if (rest[0] === '--upgrade') rest.shift();
+  if (rest.length !== 1) return false;
+  const m = /^symbol-shoestring==(.+)$/.exec(rest[0]);
+  return m !== null && PIP_VERSION.test(m[1]);
+}
 /** `docker compose -f …` で通す、たった 1 つのファイル名（Shoestring が作業フォルダに作る復旧用の compose）。 */
 export const RECOVERY_COMPOSE_FILE = 'docker-compose-recovery.yaml';
 /** `openssl genpkey … -out <名前>` の名前: 作業フォルダの中の `.pem` だけ（パス区切りなし・先頭は英数字）。 */
@@ -260,7 +273,7 @@ function validateArgvInner(argv: string[], opts: ValidateOptions): Validated {
   if (argv.length === 0) return bad('empty');
   if (argv.some((a) => a.length > 500 || a.includes('\0'))) return bad('arg_too_long');
   // `python3 -m pip …` は、公式ドキュメントの 3 つの形だけ（argv は、そのまま返す）
-  if ((argv[0] === 'python3' || argv[0] === 'python') && argv[1] === '-m' && argv[2] === 'pip') return PIP_ALLOWED.includes(argv.slice(3).join(' ')) ? { ok: true, tool: 'pip', argv } : bad('pip_usage');
+  if ((argv[0] === 'python3' || argv[0] === 'python') && argv[1] === '-m' && argv[2] === 'pip') return isAllowedPipArgs(argv.slice(3)) ? { ok: true, tool: 'pip', argv } : bad('pip_usage');
   // `python3 -m shoestring …` は `shoestring …` と同じ（読み替えた argv で判定し、返す argv も読み替えたもの）。ほかの `python3 -m …` は、下の tool_not_allowed になる
   if ((argv[0] === 'python3' || argv[0] === 'python') && argv[1] === '-m' && argv[2] === 'shoestring') return validateArgv(['shoestring', ...argv.slice(3)], opts);
   const tool = argv[0];

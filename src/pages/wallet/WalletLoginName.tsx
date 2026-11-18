@@ -10,10 +10,10 @@ import { MIN_PASSWORD_LENGTH, passwordProblem } from '../../lib/passwordPolicy';
 import ErrorSnackbar from '../../components/ErrorSnackbar';
 import { WalletsHelper } from '../../lib/storage';
 import { profileAccounts } from '../../lib/accounts';
-import { clearPendingImport, getPendingImport, getPendingKeyImport } from '../../lib/pendingImport';
+import { getPendingImport, getPendingKeyImport } from '../../lib/pendingImport';
+import { setPendingProfile } from '../../lib/pendingProfile';
 import { CHAINS } from '../../lib/chain';
 import { NETWORKS } from '../../lib/symbol/constants';
-import { useAppStore } from '../../store/appStore';
 
 // Second step of importing a recovery phrase: set the profile name, the name of the index-0 wallet and
 // the password (typed twice), then create the profile from the phrase typed on the previous screen.
@@ -22,8 +22,6 @@ import { useAppStore } from '../../store/appStore';
 export default function WalletLoginName() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const setAppChain = useAppStore((s) => s.setChain);
-  const setAppNetwork = useAppStore((s) => s.setNetwork);
   const [name, setName] = useState('');
   const [indexZeroName, setIndexZeroName] = useState('');
   const [password, setPassword] = useState('');
@@ -71,16 +69,18 @@ export default function WalletLoginName() {
       // Let the busy state paint before the (heavy) key derivation.
       await new Promise((resolve) => setTimeout(resolve, 0));
       if (keyPending) {
-        const result = await WalletsHelper.addProfileFromKey(name, keyPending, password);
-        if (result === 'exists') {
+        const wallet = await WalletsHelper.buildProfileFromKey(name, keyPending, password);
+        if (wallet === 'exists') {
           setErrorMessage(t('wallet.keystore_exists'));
           setBusy(false);
           return;
         }
-        setAppChain(keyPending.chain);
-        // mijin v2 is only accepted while mijin is already selected (see the import screen), so only mainnet / testnet switch here.
-        if (keyPending.network !== 'mijin') setAppNetwork(keyPending.network);
-        clearPendingImport();
+        // ここでは端末に保存しない。「安全な保管の知識」画面で2つのチェックをして「完了」を押したときに保存する。
+        // mijin v2 is only accepted while mijin is already selected (see the import screen), so only mainnet / testnet switch at that point.
+        setPendingProfile({
+          wallets: [wallet], activeId: wallet.id, password, chain: keyPending.chain,
+          network: keyPending.network !== 'mijin' ? keyPending.network : undefined,
+        });
         navigate('/wallet/login/end');
         return;
       }
@@ -97,9 +97,8 @@ export default function WalletLoginName() {
       const active = wallets
         .filter((w) => w.chain === pending.chain && !w.hidden)
         .sort((a, b) => (a.accountIndex ?? 0) - (b.accountIndex ?? 0))[0] ?? wallets[0];
-      await WalletsHelper.addProfile(wallets, active.id, password);
-      setAppChain(pending.chain);
-      clearPendingImport();
+      // ここでは端末に保存しない。「安全な保管の知識」画面で2つのチェックをして「完了」を押したときに保存する。
+      setPendingProfile({ wallets, activeId: active.id, password, chain: pending.chain });
       navigate('/wallet/login/end');
     } catch {
       setErrorMessage(t(keyPending ? 'wallet.invalid_key' : 'wallet.invalid_mnemonic'));

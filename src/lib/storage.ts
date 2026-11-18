@@ -544,7 +544,7 @@ export class WalletsHelper {
   static async addNextDerivedAccount(
     profileWalletId: string,
     password: string,
-  ): Promise<{ status: 'added'; index: number; walletIds: Record<string, string> } | { status: 'no-mnemonic' } | { status: 'wrong-password' }> {
+  ): Promise<{ status: 'added'; index: number; walletIds: Record<string, string> } | { status: 'no-mnemonic' | 'wrong-password' }> {
     const stored = await Storage.loadWallets();
     const target = stored.get(profileWalletId);
     if (target == null) {
@@ -635,12 +635,23 @@ export class WalletsHelper {
     account: { chain: ChainKey; publicKey: string; privateKey: string },
     password: string,
   ): Promise<'added' | 'exists'> {
+    const wallet = await WalletsHelper.buildProfileFromKey(name, account, password);
+    if (wallet === 'exists') return 'exists';
+    await WalletsHelper.addProfile([wallet], wallet.id, password);
+    return 'added';
+  }
+
+  /** addProfileFromKey の、保存しない版：ウォレットを作って返すだけ（すでに同じ鍵があれば 'exists'）。 */
+  static async buildProfileFromKey(
+    name: string,
+    account: { chain: ChainKey; publicKey: string; privateKey: string },
+    password: string,
+  ): Promise<Wallet | 'exists'> {
     const stored = await Storage.loadWallets();
     if (stored.gets().some((w) => w.chain === account.chain && w.publicKey.toUpperCase() === account.publicKey.toUpperCase())) return 'exists';
     const wallet = await Wallet.createWithKeys(name, account.publicKey.toUpperCase(), account.privateKey, password, account.chain);
     while (stored.get(wallet.id) !== null) wallet.id = Wallet.createId();
-    await WalletsHelper.addProfile([wallet], wallet.id, password);
-    return 'added';
+    return wallet;
   }
 
   /**

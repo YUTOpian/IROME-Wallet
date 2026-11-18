@@ -290,7 +290,20 @@ export async function exportProfileToOfficial(profileWalletId: string, password:
   const profileKey = wallets[0].profileKey;
   if ((await PinCodeHelper.getLockoutRemainingMs(profileKey)) > 0) return { ok: false, reason: 'locked' };
   if (!(await PinCodeHelper.check(profileKey, password))) return { ok: false, reason: 'wrong-password' };
+  return exportWalletsToOfficial(wallets, password);
+}
 
+/**
+ * まだ端末に保存していない（作りかけの）プロファイルを書き出す。パスワードは、そのプロファイルに設定したものと同じかを確かめる。
+ */
+export async function exportPendingProfileToOfficial(allWallets: Wallet[], profilePassword: string, password: string): Promise<ExportResult> {
+  const wallets = allWallets.filter((w) => w.chain === 'symbol' && !w.watchOnly);
+  if (wallets.length === 0) return { ok: false, reason: 'no-accounts' };
+  if (password !== profilePassword) return { ok: false, reason: 'wrong-password' };
+  return exportWalletsToOfficial(wallets, password);
+}
+
+async function exportWalletsToOfficial(wallets: Wallet[], password: string): Promise<ExportResult> {
   const network = getNetwork();
   // Symbol Wallet (the official app) knows mainnet and testnet only, not mijin v2.
   if (network === 'mijin') return { ok: false, reason: 'unsupported-network' };

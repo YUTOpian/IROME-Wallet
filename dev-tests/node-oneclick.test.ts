@@ -2,7 +2,7 @@
 // 実行: npx tsx dev-tests/node-oneclick.test.ts
 import { readFileSync } from 'node:fs';
 import { parseCommandLine, validateSubdir, validateWorkspaceFile } from '../src/lib/node/nodeCommands';
-import { applyConfig, defaultOptions, featuresValue, isValidHost, missingTools, overridesContent, planStop, planSteps, planUpdate, setIniValues, toolsReady, validateDir, validateOptions } from '../src/lib/node/oneClick';
+import { applyConfig, defaultOptions, featuresValue, isValidHost, missingTools, overridesContent, planStop, planSteps, planUpdate, setIniValues, toolsReady, validateDir, validateOptions, validateShoestringVersion } from '../src/lib/node/oneClick';
 import type { OneClickOptions } from '../src/lib/node/oneClick';
 
 let fails = 0, checks = 0;
@@ -45,6 +45,19 @@ ok(planUpdate({ dir: 'n1' }, true).map((s) => s.id).join() === 'docker_up,pip,do
 ok(planUpdate({ dir: 'n1' }, true).find((s) => s.id === 'upgrade')?.line === 'python3 -m shoestring upgrade --config config.ini --directory . --overrides overrides.ini', 'update with overrides');
 ok(planUpdate({ dir: 'n1' }, false).find((s) => s.id === 'upgrade')?.line === 'python3 -m shoestring upgrade --config config.ini --directory .', 'update without overrides');
 ok(planStop({ dir: 'n1' })[1].cwd === 'n1' && planUpdate({ dir: 'n1' }, true)[1].cwd === '', 'cwd: node folder for compose, workspace for pip');
+// Shoestring のバージョン指定: 空は最新。指定は pip の `==` 付きで、許可の判定を通る。数字とドット以外は、画面で断り、手順にも入れない
+ok(planUpdate({ dir: 'n1' }, true).find((s) => s.id === 'pip')?.line === 'python3 -m pip install --upgrade symbol-shoestring', 'no version: latest');
+ok(planUpdate({ dir: 'n1', shoestringVersion: '  ' }, true).find((s) => s.id === 'pip')?.line === 'python3 -m pip install --upgrade symbol-shoestring', 'blank version: latest');
+{
+  const l = planUpdate({ dir: 'n1', shoestringVersion: ' 0.2.6 ' }, true).find((s) => s.id === 'pip')?.line ?? '';
+  ok(l === 'python3 -m pip install --upgrade symbol-shoestring==0.2.6', 'version pinned', l);
+  const r = parseCommandLine(l, {}); ok(r.ok, 'pinned pip line is allowed', r);
+}
+for (const bad of ['latest', '>=0.2.6', '0.2.6;ls', '0.2.6 requests', '0.2.6rc1', '0', '..', 'x'.repeat(30)]) {
+  ok(!validateShoestringVersion(bad), `version refused: ${bad}`);
+  ok(planUpdate({ dir: 'n1', shoestringVersion: bad }, true).find((s) => s.id === 'pip')?.line === 'python3 -m pip install --upgrade symbol-shoestring', `bad version never reaches the command: ${bad}`);
+}
+ok(validateShoestringVersion('') && validateShoestringVersion('0.2.6') && validateShoestringVersion('1.0.0.1'), 'validateShoestringVersion ok');
 ok(validateDir('symbol-node') && !validateDir('') && !validateDir('tools') && !validateDir('../x'), 'validateDir');
 
 // --- 入力の確認

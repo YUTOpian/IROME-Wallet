@@ -356,12 +356,8 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
     setDeriveNext(false);
     try {
       const result = await WalletsHelper.addNextDerivedAccount(profileRefId, password);
-      if (result.status === 'no-mnemonic') {
-        setErrorMessage(t('account.add_no_mnemonic'));
-        return;
-      }
-      if (result.status === 'wrong-password') {
-        setErrorMessage(t('wallet.invalid_key'));
+      if (result.status !== 'added') {
+        setErrorMessage(t(result.status === 'no-mnemonic' ? 'account.add_no_mnemonic' : 'wallet.invalid_key'));
         return;
       }
       await load();

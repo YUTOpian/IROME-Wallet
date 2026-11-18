@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 import TextField from '../../components/TextField';
 import { AgentError, readFile, writeFile } from '../../lib/node/agentClient';
 import type { AgentConn, AgentStatus } from '../../lib/node/agentClient';
-import { applyConfig, defaultOptions, missingTools, normalizeOptions, overridesContent, planSteps, planStop, planUpdate, toolsReady, validateDir, validateOptions } from '../../lib/node/oneClick';
+import { applyConfig, defaultOptions, missingTools, normalizeOptions, overridesContent, planSteps, planStop, planUpdate, toolsReady, validateDir, validateOptions, validateShoestringVersion } from '../../lib/node/oneClick';
 import type { OneClickNetwork, OneClickOptions, PlanStep } from '../../lib/node/oneClick';
 import GuideText from './GuideText';
 
@@ -80,9 +80,10 @@ export default function OneClickCard({ cardSx, status, agent, otherBusy, exec, n
     if (buildingRef.current || otherBusy) return;
     if (m === 'build' ? !ready : !(status.tools.docker.found && (m === 'stop' || (status.tools.python.found && status.tools.shoestring.found)))) return;
     setResult(null);
-    const bad = m === 'build' ? validateOptions(opts) : validateDir(opts.dir) ? null : 'dir';
+    // 更新だけ、Shoestring のバージョン（空なら最新）も確かめる
+    const bad = m === 'build' ? validateOptions(opts) : !validateDir(opts.dir) ? 'dir' : m === 'update' && !validateShoestringVersion(opts.shoestringVersion) ? 'version' : null;
     if (bad) { setFormError(t(`service.node_oc_err_${bad}`)); return; }
-    const o = normalizeOptions(opts);
+    const o = { ...normalizeOptions(opts), shoestringVersion: opts.shoestringVersion.trim() };
     setFormError('');
     let hasConfig = false;
     try {
@@ -194,6 +195,12 @@ export default function OneClickCard({ cardSx, status, agent, otherBusy, exec, n
           <Typography sx={{ color: 'text.secondary', fontSize: '0.8rem', ml: 4 }}>{t('service.node_oc_voting_hint')}</Typography>
         </Box>
       </Stack>
+
+      {/* 更新だけで使う。空なら最新、入れると pip install --upgrade symbol-shoestring==<バージョン> */}
+      <Box sx={{ mb: 2 }}>
+        <TextField label={t('service.node_oc_version')} placeholder="0.2.6" value={opts.shoestringVersion} onChange={(e) => set('shoestringVersion', e.target.value)} fullWidth disabled={disabled} slotProps={{ htmlInput: { spellCheck: false, autoCapitalize: 'off', autoCorrect: 'off', inputMode: 'decimal' } }} />
+        <Typography sx={{ color: 'text.secondary', fontSize: '0.8rem', mt: 0.5 }}>{t('service.node_oc_version_hint')}</Typography>
+      </Box>
 
       <Alert severity={opts.network === 'mainnet' ? 'warning' : 'info'} sx={{ mb: 1.5 }}>{t(opts.network === 'mainnet' ? 'service.node_oc_mainnet_note' : 'service.node_oc_testnet_note')}</Alert>
       {formError && <Alert severity="error" sx={{ mb: 1.5 }}>{formError}</Alert>}

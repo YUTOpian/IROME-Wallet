@@ -1,15 +1,36 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SafeStorageNotice from '../../components/SafeStorageNotice';
-import { WalletsHelper } from '../../lib/storage';
+import { clearPendingCreation } from '../../lib/pendingCreation';
+import { getPendingProfile, saveProfile } from '../../lib/pendingProfile';
+import { markBackupDone } from '../../lib/onboarding';
+import { useAppStore } from '../../store/appStore';
 
-// After the recovery phrase screen: the safe-storage notice, then Home. By this point the PIN is already set
-// (WalletCreationName) and the phrase has been shown/confirmed (WalletCreationMnemonic).
+// After the recovery phrase screen: the safe-storage notice, then Home. The profile is NOT on the device yet:
+// it is saved only when the person ticks both boxes and presses 完了 here (the PIN was set on the name screen,
+// the phrase was shown and confirmed on the mnemonic screen, the accounts were picked on the accounts screen).
 export default function WalletCreationEnd() {
   const navigate = useNavigate();
-  const [walletId, setWalletId] = useState<string | null>(null);
+  const setAppChain = useAppStore((s) => s.setChain);
+  const pending = getPendingProfile();
+  // After a reload (or when opened directly) the unsaved profile is gone: start over at the name screen.
   useEffect(() => {
-    (async () => { setWalletId((await WalletsHelper.getActive())?.id ?? null); })();
-  }, []);
-  return <SafeStorageNotice exportWalletId={walletId} onBack={() => navigate(-1)} onDone={() => navigate('/top', { replace: true })} />;
+    if (!pending) navigate('/wallet/creation/name', { replace: true });
+  }, [pending, navigate]);
+  if (!pending) return null;
+  return (
+    <SafeStorageNotice
+      exportPending={{ wallets: pending.wallets, password: pending.password }}
+      onBack={() => navigate(-1)}
+      onDone={async () => {
+        const active = pending.wallets.find((w) => w.id === pending.activeId) ?? pending.wallets[0];
+        await saveProfile(pending);
+        setAppChain(pending.chain);
+        // The phrase was shown and the quiz passed: this profile counts as backed up.
+        try { markBackupDone(active.profileKey); } catch { /* reminder stays */ }
+        clearPendingCreation();
+        navigate('/top', { replace: true });
+      }}
+    />
+  );
 }

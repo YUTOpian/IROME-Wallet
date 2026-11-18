@@ -7,7 +7,7 @@
 // - すでに config.ini があるフォルダは使わない（動いているノードの設定・鍵を上書きしないため）。ca.key.pem も、openssl の手順が上書きを断る。
 // - 秘密鍵は、画面にも出さない（ca.key.pem は作業フォルダの中に作るだけ。`--show-private` や `openssl pkey` は使わない）。
 
-import { validateSubdir, validateWorkspaceFile } from './nodeCommands';
+import { PIP_VERSION, validateSubdir, validateWorkspaceFile } from './nodeCommands';
 
 export type OneClickNetwork = 'mainnet' | 'testnet';
 
@@ -23,6 +23,8 @@ export interface OneClickOptions {
   friendlyName: string;
   /** ほかのノードから届く公開 IP かホスト名（空なら overrides.ini に入れない） */
   host: string;
+  /** 更新のときに入れる Shoestring のバージョン（`0.2.6` など。空なら最新）。構築・停止では使わない。 */
+  shoestringVersion: string;
 }
 
 export const DEFAULT_DIR = 'symbol-node';
@@ -32,7 +34,7 @@ export const MAX_FRIENDLY_NAME = 64;
 /** Shoestring の `--package`。メインネットは mainnet、テストネットは sai。 */
 export const PACKAGE_OF: Readonly<Record<OneClickNetwork, string>> = { mainnet: 'mainnet', testnet: 'sai' };
 
-export const defaultOptions = (): OneClickOptions => ({ dir: DEFAULT_DIR, network: 'mainnet', harvesting: false, voting: false, friendlyName: DEFAULT_FRIENDLY_NAME, host: '' });
+export const defaultOptions = (): OneClickOptions => ({ dir: DEFAULT_DIR, network: 'mainnet', harvesting: false, voting: false, friendlyName: DEFAULT_FRIENDLY_NAME, host: '', shoestringVersion: '' });
 
 /** ボタンを押せる条件: Docker・Python・Shoestring が、この PC に入っている。 */
 export function toolsReady(tools: Readonly<Record<'docker' | 'python' | 'shoestring', { found: boolean }>>): boolean {
@@ -58,6 +60,12 @@ export const isValidHost = (h: string): boolean => h.length <= 253 && (HOST_RE.t
 export function validateDir(raw: string): boolean {
   const dir = validateSubdir(raw);
   return dir.ok && dir.value !== '' && dir.value.split('/')[0].toLowerCase() !== 'tools' && validateWorkspaceFile(`${dir.value}/config.ini`).ok;
+}
+
+/** 更新で指定する Shoestring のバージョンとして使えるか。空は「最新」で使える。数字とドットだけ（`0.2.6` など。pip の `==` の右側にそのまま付けるため）。 */
+export function validateShoestringVersion(raw: string): boolean {
+  const v = raw.trim();
+  return v === '' || PIP_VERSION.test(v);
 }
 
 /** 入力の確認。問題があれば、理由（i18n の `service.node_oc_err_<理由>`）を返す。無ければ null。 */
@@ -178,15 +186,18 @@ export function planStop(raw: Pick<OneClickOptions, 'dir'>): PlanStep[] {
 }
 
 /**
- * 更新の手順（公式の「ノードの保守 > ノードソフトウェアのアップデート」の順）: Shoestring を最新にする → ノードを止める → upgrade → 起動し直す → 確認。
+ * 更新の手順（公式の「ノードの保守 > ノードソフトウェアのアップデート」の順）: Shoestring を最新（バージョン指定があればその版）にする → ノードを止める → upgrade → 起動し直す → 確認。
  * overrides.ini があるときだけ `--overrides` を付ける（無いノードでも更新できるように）。
  */
-export function planUpdate(raw: Pick<OneClickOptions, 'dir'>, hasOverrides: boolean): PlanStep[] {
+export function planUpdate(raw: Pick<OneClickOptions, 'dir'> & { shoestringVersion?: string }, hasOverrides: boolean): PlanStep[] {
   const dir = validateSubdir(raw.dir);
   const cwd = dir.ok ? dir.value : raw.dir.trim();
+  // バージョンの指定があれば `symbol-shoestring==<バージョン>`、なければ最新（確かめていない値は、最新として扱う）
+  const version = (raw.shoestringVersion ?? '').trim();
+  const pkg = version !== '' && PIP_VERSION.test(version) ? `symbol-shoestring==${version}` : 'symbol-shoestring';
   return [
     { id: 'docker_up', kind: 'run', line: 'docker info', cwd: '' },
-    { id: 'pip', kind: 'run', line: 'python3 -m pip install --upgrade symbol-shoestring', cwd: '' },
+    { id: 'pip', kind: 'run', line: `python3 -m pip install --upgrade ${pkg}`, cwd: '' },
     { id: 'down', kind: 'run', line: 'docker compose down', cwd },
     { id: 'upgrade', kind: 'run', line: `python3 -m shoestring upgrade --config config.ini --directory .${hasOverrides ? ' --overrides overrides.ini' : ''}`, cwd },
     { id: 'start', kind: 'run', line: 'docker compose up -d', cwd },

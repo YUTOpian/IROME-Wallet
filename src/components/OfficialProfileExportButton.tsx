@@ -5,7 +5,8 @@ import SyncAltOutlinedIcon from '@mui/icons-material/SyncAltOutlined';
 import { useTranslation } from 'react-i18next';
 import { saveFile } from '../lib/paperWalletExport';
 import { officialConsoleScript, officialExportToJson } from '../lib/officialProfile/format';
-import { exportProfileToOfficial } from '../lib/officialProfile/convert';
+import { exportPendingProfileToOfficial, exportProfileToOfficial } from '../lib/officialProfile/convert';
+import type { Wallet } from '../lib/storage';
 import type { ExportResult } from '../lib/officialProfile/convert';
 
 type Done = Extract<ExportResult, { ok: true }>;
@@ -22,9 +23,13 @@ interface Props {
   /** 渡すと、ボタンは出さず、この値でダイアログだけを開閉する（プロファイル設定のメニュー項目から開く用）。 */
   open?: boolean;
   onClose?: () => void;
+  /** カードの中に置くとき用。外側の余白を付けない。 */
+  compact?: boolean;
+  /** まだ端末に保存していないプロファイルを書き出すとき用。渡すと、walletId の代わりにこれを使う。 */
+  pending?: { wallets: Wallet[]; password: string };
 }
 
-export default function OfficialProfileExportButton({ walletId, open: controlledOpen, onClose }: Props) {
+export default function OfficialProfileExportButton({ walletId, open: controlledOpen, onClose, compact = false, pending }: Props) {
   const { t } = useTranslation();
   const [innerOpen, setOpen] = useState(false);
   const controlled = controlledOpen !== undefined;
@@ -35,7 +40,7 @@ export default function OfficialProfileExportButton({ walletId, open: controlled
   const [done, setDone] = useState<Done | null>(null);
   const [copied, setCopied] = useState(false);
 
-  if (walletId === null) return null;
+  if (walletId === null && !pending) return null;
 
   const close = () => {
     if (busy) return;
@@ -48,7 +53,9 @@ export default function OfficialProfileExportButton({ walletId, open: controlled
     setBusy(true); setError('');
     try {
       await new Promise((resolve) => setTimeout(resolve, 0));
-      const result = await exportProfileToOfficial(walletId, password);
+      const result = pending
+        ? await exportPendingProfileToOfficial(pending.wallets, pending.password, password)
+        : await exportProfileToOfficial(walletId as string, password);
       if (result.ok) setDone(result);
       else setError(t(`wallet.official_export_${result.reason.replace('-', '_')}`));
     } catch (e) {
@@ -78,11 +85,11 @@ export default function OfficialProfileExportButton({ walletId, open: controlled
   };
 
   return (
-    <Box sx={controlled ? undefined : { display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 3, mx: 2 }}>
+    <Box sx={controlled ? undefined : { display: 'flex', flexDirection: 'column', alignItems: 'center', ...(compact ? {} : { mt: 3, mx: 2 }) }}>
       {!controlled && (
         <>
           <Typography align="center" sx={{ color: 'text.secondary', fontSize: 13, mb: 1.5 }}>{t('wallet.official_export_hint')}</Typography>
-          <Button variant="outlined" color="primary" onClick={() => setOpen(true)} startIcon={<SyncAltOutlinedIcon />} sx={{ minWidth: 260 }}>
+          <Button variant="outlined" color="primary" onClick={() => setOpen(true)} startIcon={<SyncAltOutlinedIcon />} sx={{ minWidth: 260, maxWidth: '100%' }}>
             {t('wallet.official_export_button')}
           </Button>
         </>
