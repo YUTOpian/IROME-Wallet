@@ -21,6 +21,9 @@ import { pushHistory, stepHistory } from '../../lib/console/repl';
 import NodeWatchCard from './NodeWatchCard';
 import ShoestringGuide from './ShoestringGuide';
 import OneClickCard from './OneClickCard';
+import NemOneClickCard from './NemOneClickCard';
+import NemNodeGuide from './NemNodeGuide';
+import { useAppStore } from '../../store/appStore';
 import ExistingNodeCard from './ExistingNodeCard';
 import { riskOnExisting } from '../../lib/node/existingNodes';
 import type { ExistingNode } from '../../lib/node/existingNodes';
@@ -51,13 +54,19 @@ type ToolKey = keyof AgentStatus['tools'];
 const TOOL_ROWS: Array<{ key: ToolKey; labelKey: string; install?: string; target?: InstallTarget; optional?: boolean; platforms?: readonly string[] }> = [
   // Docker は、Linux（Ubuntu・Debian 系。sudo を 1 回使う）・Mac（Docker Desktop。sudo は使わない）・Windows（Docker Desktop。署名を確かめ、Windows の確認画面〔UAC〕をご自身が押す。エージェントは昇格しない）で、確認ダイアログを通して入れられる。消すのは OS 側（この画面からは消さない）
   { key: 'docker', labelKey: 'service.node_tool_docker', install: 'irome install docker', target: 'docker', platforms: ['linux', 'darwin', 'win32'] },
+  // git は、NEM ノード（nem-docker の取得）で使う。この画面からは入れない（OS の apt などで）
+  { key: 'git', labelKey: 'service.node_tool_git' },
   { key: 'node', labelKey: 'service.node_tool_node', install: 'irome install node', target: 'node', optional: true },
   { key: 'python', labelKey: 'service.node_tool_python', install: 'irome install python', target: 'python', optional: true },
   { key: 'symbol-bootstrap', labelKey: 'service.node_tool_bootstrap', install: 'irome install bootstrap', target: 'bootstrap' },
   { key: 'shoestring', labelKey: 'service.node_tool_shoestring', install: 'irome install shoestring', target: 'shoestring' },
   { key: 'symbol-node-watcher', labelKey: 'service.node_tool_nodewatch', install: 'irome install nodewatch', target: 'nodewatch' },
 ];
-const GROUPS = ['check', 'docker', 'install', 'bootstrap', 'shoestring', 'nodewatch'] as const;
+const GROUPS = ['check', 'docker', 'install', 'bootstrap', 'shoestring', 'nodewatch', 'nem'] as const;
+/** NEM（NIS1）ノードで使うひな型のグループ（Symbol の symbol-bootstrap・Shoestring・Nodewatch は出さない） */
+const NEM_GROUPS: ReadonlyArray<(typeof GROUPS)[number]> = ['nem', 'check', 'docker'];
+/** NEM のときの「この PC の環境」の行（Docker と git だけ） */
+const NEM_TOOL_KEYS: readonly string[] = ['docker', 'git'];
 
 // PC に入っていないとき、公式サイトのリンクを出すもの（この画面からは入れない。リンクを開くだけ）
 type PcTool = 'docker' | 'node' | 'python';
@@ -70,6 +79,8 @@ const OFFICIAL_URL: Record<PcTool, string> = {
 
 export default function NodePage() {
   const { t } = useTranslation();
+  // NEM のときは、NEM（NIS1）ノードの画面（NEM ノード構築・手順）。Symbol のときは、これまでどおり
+  const isNem = useAppStore((st) => st.chain) === 'nem';
   const initial = rememberedConn();
   const [url, setUrl] = useState(initial?.url ?? DEFAULT_AGENT_URL);
   const [token, setToken] = useState(initial?.token ?? '');
@@ -588,10 +599,10 @@ export default function NodePage() {
   const hasDock = connected && status !== null;
   const dock = useNodeSettingsStore((st) => st.dock);
   const setDock = useNodeSettingsStore((st) => st.setDock);
-  const [presetGroup, setPresetGroup] = useState<(typeof GROUPS)[number]>('check');
+  const [presetGroup, setPresetGroup] = useState<(typeof GROUPS)[number]>(isNem ? 'nem' : 'check');
   // 「Shoestring でノードを建てる手順」は、この画面の中の別の画面（?view=shoestring）。ターミナルと設定ファイルは、そのまま使える。
   const [params, setParams] = useSearchParams();
-  const view = params.get('view') === 'shoestring' ? 'shoestring' : 'main';
+  const view = isNem ? (params.get('view') === 'nem' ? 'nem' : 'main') : (params.get('view') === 'shoestring' ? 'shoestring' : 'main');
   // 右に置くとき、左右の列の高さ = 画面の下端まで。ページを上にスクロールして見出しが見えていても、列の下が画面の外に出て切れないように、
   // 枠の上端の位置(見出しの分だけ下がっている)を測って、残りの高さにする。ページを下げて上端が 8px に貼り付いたら、画面いっぱい。
   const splitRef = useRef<HTMLDivElement | null>(null);
@@ -614,15 +625,15 @@ export default function NodePage() {
   // 接続したとき・切断したとき・ノードの状態が届いて画面が切り替わったときは、同じ画面の中で中身だけが替わるので、
   // 接続前の画面を一番下までスクロールしていても、替わった先も一番下から始まってしまう。必ず一番上から始める。
   useEffect(() => { window.scrollTo(0, 0); }, [connected, hasDock]);
-  const openGuide = () => { setParams({ view: 'shoestring' }); window.scrollTo({ top: 0 }); };
+  const openGuide = () => { setParams({ view: isNem ? 'nem' : 'shoestring' }); window.scrollTo({ top: 0 }); };
   const closeGuide = () => { setParams({}); window.scrollTo({ top: 0 }); };
   const cardSx = { border: 1, borderColor: 'divider', borderRadius: 1, p: 2, mt: 2, textAlign: 'left' } as const;
 
   const terminalCard = (
     <Box sx={cardSx} id="node-terminal">
                 <Typography sx={{ fontWeight: 700, mb: 1 }}>{t('service.node_terminal_title')}</Typography>
-                {/* wizard（対話式）の設定。有効にしたときだけ、wizard を実行でき、簡易ターミナルで描く */}
-                <Box sx={{ mb: 2 }}>
+                {/* wizard（対話式）の設定。有効にしたときだけ、wizard を実行でき、簡易ターミナルで描く。Symbol だけ（NEM の NIS1 には wizard が無い） */}
+                {!isNem && <Box sx={{ mb: 2 }}>
                   <FormControlLabel
                     control={<Switch checked={wizardOn} disabled={running} onChange={(e) => setWizard(e.target.checked)} />}
                     label={<Typography sx={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('service.node_wizard_enable')}</Typography>}
@@ -638,7 +649,7 @@ export default function NodePage() {
                       ))}
                     </Stack>
                   )}
-                </Box>
+                </Box>}
                 <TextField label={t('service.node_cwd')} value={cwd} onChange={(e) => setCwd(e.target.value)} fullWidth placeholder={t('service.node_cwd_hint')} disabled={running} sx={{ mb: 2 }} slotProps={{ htmlInput: { spellCheck: false, autoCapitalize: 'off', autoCorrect: 'off' } }} />
                 <Box
                   ref={screenRef}
@@ -715,7 +726,7 @@ export default function NodePage() {
     <Box sx={cardSx}>
                 <Typography sx={{ fontWeight: 700, mb: 1.5 }}>{t('service.node_presets_title')}</Typography>
                 <TextField select label={t('service.node_preset_group')} value={presetGroup} onChange={(e) => setPresetGroup(e.target.value as (typeof GROUPS)[number])} fullWidth sx={{ mb: 2 }}>
-                  {GROUPS.map((g) => <MenuItem key={g} value={g}>{t(`service.node_group_${g}`)}</MenuItem>)}
+                  {GROUPS.filter((g) => (isNem ? NEM_GROUPS.includes(g) : g !== 'nem')).map((g) => <MenuItem key={g} value={g}>{t(`service.node_group_${g}`)}</MenuItem>)}
                 </TextField>
                 <Stack spacing={0.75}>
                   {COMMAND_PRESETS.filter((p) => p.group === presetGroup).map((p) => (
@@ -762,8 +773,8 @@ export default function NodePage() {
   return (
     <Box sx={{ minHeight: '100vh', pb: 4 }}>
       <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
-        <Typography sx={{ fontSize: '1.4rem', fontWeight: 400 }}>{t('service.node_title')}</Typography>
-        <Typography sx={{ mt: 1, color: 'text.secondary' }}>{t('service.node_intro')}</Typography>
+        <Typography sx={{ fontSize: '1.4rem', fontWeight: 400 }}>{t(isNem ? 'service.node_nem_page_title' : 'service.node_title')}</Typography>
+        <Typography sx={{ mt: 1, color: 'text.secondary' }}>{t(isNem ? 'service.node_nem_page_intro' : 'service.node_intro')}</Typography>
 
         {/* ターミナルと設定ファイルを置く場所（右 / 下）。接続中だけ */}
         {hasDock && (
@@ -779,16 +790,23 @@ export default function NodePage() {
         )}
 
         {/* 接続前: エージェントに接続（左）とノードの状態・ウォッチ（右）。狭い画面では縦に並ぶ */}
-        {view === 'main' && !hasDock && (
+        {view === 'main' && !hasDock && (isNem ? <Box sx={{ minWidth: 0 }}>{connCard}</Box> : (
           <Box sx={{ display: 'grid', gap: 2, alignItems: 'start', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) minmax(0, 1fr)' } }}>
             <Box sx={{ minWidth: 0 }}>{connCard}</Box>
             <Box sx={{ minWidth: 0 }}>{watchCard}</Box>
           </Box>
-        )}
+        ))}
 
         <Box ref={splitRef} sx={{ display: 'grid', gap: 2, alignItems: 'start', gridTemplateColumns: hasDock && dock === 'right' ? { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) minmax(0, 1fr)' } : 'minmax(0, 1fr)', ...(hasDock && dock === 'right' ? { position: { lg: 'sticky' }, top: { lg: 8 }, height: splitH !== null ? { lg: `${splitH}px` } : { lg: 'calc(100vh - 16px)' }, gridTemplateRows: { lg: 'minmax(0, 1fr)' }, alignItems: { lg: 'stretch' } } : {}) }}>
           <Box sx={{ minWidth: 0, ...(splitScroll ? SPLIT_SCROLL_SX : {}) }}>
-            {view === 'shoestring' ? (
+            {view === 'nem' ? (
+              <>
+                <Button onClick={closeGuide} sx={{ mt: 2, textTransform: 'none' }}>{t('service.node_ss_back')}</Button>
+                {/* NEM（NIS1）でノードを建てる手順 */}
+                <NemNodeGuide cardSx={cardSx} connected={connected} running={running} onPickLine={pickGuideLine} onFileTemplate={putFileTemplate} />
+                {bottomDock}
+              </>
+            ) : view === 'shoestring' ? (
               <>
                 <Button onClick={closeGuide} sx={{ mt: 2, textTransform: 'none' }}>{t('service.node_ss_back')}</Button>
                 {/* Shoestring でノードを建てる手順（説明は、エージェントに繋がっていなくても読める） */}
@@ -810,7 +828,7 @@ export default function NodePage() {
                     {status.platform} / {status.arch} ・ {t('service.node_workspace')}: <Box component="span" sx={{ fontFamily: MONO }}>{status.workspace}</Box>
                   </Typography>
                   <Stack spacing={1}>
-                    {TOOL_ROWS.map((row) => {
+                    {TOOL_ROWS.filter((row) => (isNem ? NEM_TOOL_KEYS.includes(row.key) : row.key !== 'git')).map((row) => {
                       const st = status.tools[row.key];
                       const pcTool: PcTool | null = row.key === 'docker' || row.key === 'node' || row.key === 'python' ? row.key : null;
                                             return (
@@ -839,7 +857,14 @@ export default function NodePage() {
                   <Box sx={{ color: 'text.secondary', mt: 1.5 }}><GuideText size="0.8rem" text={t('service.node_uninstall_hint')} /></Box>
                 </Box>
                 {/* ワンクリックで構築する（Docker・Python・Shoestring が入っているときだけ押せる） */}
-                {conn && (
+                {conn && isNem && (
+                  <NemOneClickCard
+                    cardSx={cardSx} status={status} agent={conn} otherBusy={running && !building}
+                    exec={execStep} note={push} onBuilding={setBuildingState} onStop={() => void stop()} isCancelled={() => buildCancelRef.current}
+                    describeError={describeError} onFinished={() => { const c = connRef.current; if (c) { void refreshStatus(c); void refreshFiles(c); } }} onOpenGuide={openGuide}
+                  />
+                )}
+                {conn && !isNem && (
                   <OneClickCard
                     cardSx={cardSx} status={status} agent={conn} otherBusy={running && !building}
                     exec={execStep} note={push} onBuilding={setBuildingState} onStop={() => void stop()} isCancelled={() => buildCancelRef.current}
@@ -847,7 +872,7 @@ export default function NodePage() {
                   />
                 )}
                 {/* 既存のノード（symbol-bootstrap 製・Shoestring 製）を使う */}
-                {conn && (
+                {conn && !isNem && (
                   <ExistingNodeCard
                     cardSx={cardSx} agent={conn} workspace={status.workspace} cwd={cwd} running={running}
                     nodes={existingNodes} onNodes={setExistingNodes} describeError={describeError}
@@ -861,12 +886,13 @@ export default function NodePage() {
                 {bottomDock}
 
                 {/* ノードの状態（REST を見るだけなので、エージェントに繋がっていなくても使える） */}
-                {hasDock && watchCard}
+                {hasDock && !isNem && watchCard}
 
                 {connected && status && (
                   <>
                 {/* ウォレットに連携（ノード鍵・ハーベスト鍵・VRF 鍵・投票鍵の公開鍵を、ハーベスト > キーリンクへ渡す） */}
-                <Box sx={cardSx}>
+                {!isNem && (
+<Box sx={cardSx}>
                   <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                     <Typography sx={{ fontWeight: 700 }}>{t('service.node_link_title')}</Typography>
                     <Button size="small" variant="outlined" startIcon={<RefreshOutlinedIcon />} disabled={keysLoading} onClick={() => void loadNodeKeys()}>
@@ -935,6 +961,7 @@ export default function NodePage() {
                   )}
                   <Alert severity="info" sx={{ mt: 1.5 }}><GuideText size="inherit" text={t('service.node_link_note')} /></Alert>
                 </Box>
+                )}
 
                     {presetsCard}
                   </>

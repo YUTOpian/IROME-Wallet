@@ -334,8 +334,8 @@ const routeDefs: { path: string; name: string; element?: ReactElement }[] = [
   // NFTビューアー: モザイクに紐づけられた画像（COMSA / NFT-Drive）。Symbol のみ。
   { path: '/nft-viewer', name: 'NftViewer', element: <KeyRequired ledgerOk sssOk><SymbolOnly><NotMijin><ServiceFrame><NftViewer /></ServiceFrame></NotMijin></SymbolOnly></KeyRequired> },
   { path: '/console', name: 'ConsolePage', element: <KeyRequired sssOk><ServiceFrame><ConsolePage /></ServiceFrame></KeyRequired> },
-  // ノード（Symbol のみ）: symbol-bootstrap・Shoestring・Nodewatch を、ローカルのエージェント経由でコマンド実行して、ノードの環境を作る。ウォレットの鍵は使わないので、閲覧用・SSS のプロファイルでも開ける（Ledger のサービスは NFT ビューアーだけ）。
-  { path: '/node', name: 'NodePage', element: <KeyRequired sssOk><SymbolOnly><NotMijin><ServiceFrame><NodePage /></ServiceFrame></NotMijin></SymbolOnly></KeyRequired> },
+  // ノード（Symbol と NEM）: Symbol は symbol-bootstrap・Shoestring・Nodewatch を、ローカルのエージェント経由でコマンド実行して、ノードの環境を作る。ウォレットの鍵は使わないので、閲覧用・SSS のプロファイルでも開ける（Ledger のサービスは NFT ビューアーだけ）。
+  { path: '/node', name: 'NodePage', element: <KeyRequired sssOk><NotMijin><ServiceFrame><NodePage /></ServiceFrame></NotMijin></KeyRequired> },
   { path: '/voting', name: 'NemVotingList', element: <KeyRequired sssOk><NotMijin><ServiceFrame><ByChain symbol={<SymbolVotingList />} nem={<NemVotingList />} /></ServiceFrame></NotMijin></KeyRequired> },
   { path: '/voting/create', name: 'NemVotingCreate', element: <KeyRequired sssOk><NotMijin><ByChain symbol={<SymbolVotingCreate />} nem={<NemVotingCreate />} /></NotMijin></KeyRequired> },
   { path: '/voting/poll/:address', name: 'NemVotingDetail', element: <KeyRequired sssOk><NotMijin><ByChain symbol={<SymbolVotingDetail />} nem={<NemVotingDetail />} /></NotMijin></KeyRequired> },

@@ -82,7 +82,18 @@ function splitLabel(s: string): { label?: string; body: Inline[] } {
   return { body: parseInline(s) };
 }
 
-export function parseGuideText(text: string): GuideBlock[] {
+/**
+ * 表示する前に、文字列の「うっかり」を直す（翻訳の文字列に、次のものが紛れ込んでも、そのまま画面に出ないように）。
+ * ・改行が、本物の改行ではなく、`\` と `n` の 2 文字（`\n`）のまま入っているもの → 本物の改行にする
+ * ・`**太字**` の `**`（この書き方は使えない。太字にしたいときは「語: 本文」）→ 取り除く
+ * 画面に出す文字列は、GuideText を通さないときも、これを通す。
+ */
+export function normalizeGuideText(text: string): string {
+  return text.replace(/\\r\\n|\\n|\\r/g, '\n').replace(/\*\*/g, '');
+}
+
+export function parseGuideText(rawText: string): GuideBlock[] {
+  const text = normalizeGuideText(rawText);
   const blocks: GuideBlock[] = [];
   let loose = false; // 直前に空行があった
   let list: Extract<GuideBlock, { type: 'list' }> | null = null;

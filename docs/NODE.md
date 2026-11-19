@@ -416,6 +416,46 @@ shoestring health --config config.ini --directory .
 - **wizard（対話式の設定）は、画面で「有効」にしたときだけ使える**（下の「wizard の設定」）。無効のあいだは、画面もエージェントも `symbol-bootstrap wizard` と `shoestring wizard` を断る（`wizard_disabled`）。
 - 「停止」は、コマンドのプロセスグループに SIGTERM を送る（終了コードは 143）。コマンドが終わったら、端末を握ったままの別のプロセスがいても、残りの出力を読んで終える。
 
+## NEM（NIS1）ノードを建てる
+
+NEM のウォレットで「サービス > ノード」を開くと、NEM 用の画面になる（Symbol のカード〔Shoestring・既存ノード・鍵の連携・ウォッチ〕は出ない）。公式ドキュメント（NEM ドキュメント「ノードのインストール > Docker を使用する」）の手順を、固定の手順で行う。
+
+- 「NEM ノード構築」: ノードのフォルダ・ネットワーク（メインネット / テストネット）・名前・boot key（空なら自動で作る）・自動ハーベストを選んで「ノードを建てる」。`irome nem install`（公式の nem-docker を `<フォルダ>/nem-docker` に `git clone --depth 1`）→ 設定ファイル `custom-configs/nis.config-user.properties` を作る → `irome nem start`（`/bin/sh ./boot.sh`）→ `docker ps`、の順。ほかに「起動する」「更新する」（`./stop.sh` → `git pull --ff-only` → `./boot.sh`。公式の更新の手順）「ノードを止める」（`./stop.sh`）「ノードの状態を見る」（ブラウザから `http://127.0.0.1:7890/node/info` と `/chain/height` を 1 回見る）。
+- 手順の画面（「NEM（NIS1）でノードを建てる手順の詳細」）: 必要なもの・nem-docker・設定ファイル・テストネットの設定・起動と停止・同期・更新・手動インストール（Java）・スーパーノード。
+- 設定ファイルの中身は、`nis.bootName`・`nis.bootKey`・（自動ハーベストなら）`nis.shouldAutoHarvestOnBoot = true`。テストネットは、公式の `nem.network = testnet` とフォークの高さ（`nis.mosaicsForkHeight = 1` など）を足す。`nem.folder` は書かない（Docker では nem-docker が決める）。
+- **boot key**: ノードのリモートアカウントの秘密鍵（公式の推奨）。ウォレットのメインアカウントの鍵は入れない。空なら画面が乱数（32 バイト）で作って設定ファイルに書く。画面にも履歴にも出さない。後から委任ハーベストに使う鍵へ書き換えたいときは、「設定ファイル」で `nis.bootKey` を直して、止めて起動し直す。
+
+決まり（`src/server/node-agent/nemNode.ts`）:
+- **Linux（WSL を含む）だけ**。公式の Docker の手順が Linux だけを対象にしているため。Mac・Windows では案内を出して止まる。
+- 取得先は公式リポジトリ（`https://github.com/NemProject/nem-docker.git`）に固定。すでに `nem-docker` フォルダがあれば上書きしない。`tools/` の中では動かさない。
+- `start` / `update` は、設定ファイルが先にあるときだけ（無いと boot.sh が名前と鍵を聞いて止まるため）。
+- boot.sh / stop.sh に `sudo` が含まれるときは動かさない（エージェントはパスワードを渡さない）。ご自身のターミナルで動かす案内を出す。`update` は、`git pull` のあとにもう一度確かめる。
+- `nem-docker` のフォルダ・スクリプトがシンボリックリンクなら辿らない。
+- 画面から nem-docker のスクリプト・compose を書き換えることはできない（設定ファイル `.properties` だけ書ける）。
+- すでに設定ファイルがあるフォルダでは「ノードを建てる」を動かさない（動いているノードの設定・鍵を上書きしない）。
+- 許可リストの追加は `irome nem install|start|stop|update|supernode|status` の 6 つだけ。`git` は、この 4 つの中からだけ動く（任意の `git` は通さない）。「この PC の環境」には git の有無が出る。
+
+### スーパーノードにする（Node Servant）
+
+NEM の公式ドキュメント「スーパーノードプログラム」の、Docker の手順に沿う（メインネットだけ）。「NEM ノード構築」で「スーパーノードとして建てる」にして、ホスト（`nem.host`。公開 IP アドレスかドメイン名）とリモート鍵を入れる。すでにあるノードは、「既存のノードをスーパーノードにする」。
+
+- 建てる順（新規）: `irome nem install` → NIS の設定 → **Servant の設定**（`custom-configs/servant.config.properties`: `nem.host`・`servant.key`。画面が置く）→ `irome nem supernode` → `irome nem start` → `irome nem status`。
+- 既存のノード: `irome nem stop` → `nis.bootKey` の入れ替え（ほかの行はそのまま）→ Servant の設定 → `irome nem supernode` → `irome nem start` → `irome nem status`。
+- `irome nem supernode`: `custom-configs/supervisord.conf.sample` を `supervisord.conf` にコピーして、`[program:nis]` と `[program:servant]` の `autostart` を `true` にする（公式の手順どおり）。`supervisord.conf` は、起動するプロセスを決める設定なので、**画面からは書き換えられない**（`.conf` は編集の対象外）。エージェントだけが、サンプルから作る。すでにあるときは**上書きしない**（両方 `autostart=true` ならそのまま使い、そうでなければ止まって案内する）。Servant の設定ファイルが無いとき・サンプルが無いとき・サンプルに両方のプログラムが無いときも、動かさない。
+- `irome nem status`: `./service.sh status`（公式の確認方法）。`service.sh` に `sudo` があれば動かさない。
+- **リモート鍵**: `nis.bootKey` と `servant.key` には、同じ**リモートアカウントの秘密鍵**を使う（メインアカウントの鍵は使わない）。スーパーノードでは、鍵を空にして自動で作ることはできない（登録するメインアカウントの委任ハーベストの鍵でなければならない）。
+- ホスト: 公開 IP アドレス（家の中だけの値〔`192.168.x.x` など〕・`localhost` は不可）か、ドットを含むドメイン名。ノードの `/node/info` が返すホストと一致させる。
+- 登録（毎月）: 登録アドレスへ `enroll <ノードのホスト> <コードワードのハッシュ>` のメッセージを送る（NanoWallet の Services > SuperNode Program、または手動）。ハッシュは `https://nem.io/supernode/api/codeword/<メインアカウントの公開鍵>`（リモート鍵ではない）。この画面は登録の送信まではしない（ウォレットの「スーパーノード」の画面を使う）。手順の画面の「プログラムへの登録・毎月の再登録」に、公式の手順を載せた。
+- 資格テスト（毎日 4 ラウンド）の内容と、Docker を使わない手動の手順（Node Servant の `servant_0_0_4.zip`・`runservant.bat` / `sh startservant.sh`）は、手順の画面「スーパーノードにする（Node Servant）」に載せた。手動の方法は、この画面からは動かさない。
+- ポート 7880（Servant）は、受信・送信とも開ける。
+- **実物の nem-docker では確認していない**（`supervisord.conf.sample` の中身〔`[program:nis]`・`[program:servant]`〕と、`service.sh` の有無は、公式ドキュメントの記述を前提にしている）。
+
+注意:
+- boot.sh は `docker build` / `docker run` を動かす。コンテナは uid 1000 で動くので、設定ファイル（所有者だけが読める）を読めないときは、フォルダの持ち主を確かめる。
+- ポート 7890（REST）・7778（WebSocket）は、公開するなら開ける。同期の完了まで、最大 48 時間。
+- Docker のコンテナ名は、nem-docker の版による（ふつうは `mynem_container`）。違うときは `docker ps` で確かめる。
+- **実物の nem-docker・Docker では確認していない**（偽の git / docker を使ったテストだけ）。公式の boot.sh の中身（`sudo` の有無・聞かれる内容）が変わっていると、止まることがある。
+
 ## wizard の設定（簡易ターミナル）
 
 `symbol-bootstrap wizard` のような選択式の画面は、再描画のたびに「カーソルを上へ戻す・行を消す」エスケープ列を使う。エスケープ列を消して文字だけ出すと、同じ行が何度も重なって出てしまう。そこで、wizard のときだけ、生の出力を受け取り、画面の中の**簡易ターミナル**で描き直す。
@@ -439,6 +479,7 @@ shoestring health --config config.ini --directory .
 | `symbol-node-watcher` | `start [config]` `stop` |
 | `docker` | 見る系: `--version` `version` `info` `ps` `logs` `stats --no-stream` `compose version/ps/logs`。運用: `start` `stop` `restart`（`-t 秒`）・`rm`・`pull`（対象の指定が必須）、`compose up` `down` `start` `stop` `restart` `pull`（サービス名は任意）。`run` `exec` `cp` `build` `compose run/exec/config` は通さない |
 | `node` | `--version` だけ |
+| `irome nem` | `install` / `start` / `stop` / `update` / `supernode` / `status` の 6 つだけ（NEM の NIS1 ノード。下の「NEM（NIS1）ノードを建てる」）。引数は付けられない |
 | `irome install` / `irome uninstall` | `bootstrap` / `shoestring` / `nodewatch` / `node` / `python`（エージェントが固定の手順で実行。uninstall は `tools/` の中だけ）。`irome install docker`（Linux の Ubuntu・Debian 系だけ。`sudo` を 1 回使い、確認つき。`irome uninstall docker` は通さない）。`irome upgrade shoestring`（`tools/venv` の Shoestring を `pip install --upgrade symbol-shoestring` で最新にする）・`irome upgrade bootstrap`（公式の手順 `git clone` → `npm install` → `npm run build` → `npm pack --ignore-scripts` → `npm install` を、`tools/` の中だけで行う。`git` が要る。取得先は公式リポジトリに固定）・`irome upgrade nodewatch`（`tools/` の symbol-node-watcher を `@latest` で入れ直す）。ほかの対象・版の指定は通さない |
 
 通さないもの: シェルの記号（`| ; & > < $ \``）、任意のコマンド。確認のポップアップを通したときだけ通すもの: 秘密鍵を画面に出す `--show-private` と `openssl pkey -in <名前>.pem -text`。用途を絞って通すもの（`openssl` の 3 つの形・`mkdir` / `cd`・復旧用の `docker compose -f`・`shoestring wizard`）は、下の「Shoestring でノードを建てる手順」と、このあとの注記を参照。
