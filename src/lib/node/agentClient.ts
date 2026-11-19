@@ -18,7 +18,7 @@ export interface AgentStatus {
   platform: string;
   arch: string;
   workspace: string;
-  tools: Record<'docker' | 'node' | 'npm' | 'python' | 'symbol-bootstrap' | 'shoestring' | 'symbol-node-watcher', ToolState>;
+  tools: Record<'docker' | 'git' | 'node' | 'npm' | 'python' | 'symbol-bootstrap' | 'shoestring' | 'symbol-node-watcher', ToolState>;
   running: number;
   /** 本物の端末（pty）で動かせる（パスワードを聞くコマンドが使える）。古いエージェントには無い。 */
   pty?: boolean;

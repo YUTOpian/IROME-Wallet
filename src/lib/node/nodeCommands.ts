@@ -6,6 +6,8 @@
 // - 実行できるのは、決まった 6 種類（symbol-bootstrap / shoestring / symbol-node-watcher / docker の確認系 / node --version / openssl の 2 つの形）と、
 //   エージェントが用意した導入・削除・更新のレシピ（irome install … / irome uninstall … / irome upgrade shoestring / bootstrap / nodewatch）だけ。任意のコマンドは通さない。
 //   `irome install docker` だけは、Linux の Ubuntu / Debian 系では管理者権限（sudo）を 1 回使い、Mac では sudo を使わずに Docker Desktop を置く（Windows は案内だけ）。`sudo` を打っても通らず、使う範囲は src/server/node-agent/dockerInstall.ts の固定のスクリプトだけ。`irome uninstall docker` は通さない。
+// - NEM（NIS1）ノードの `irome nem install | start | stop | update | supernode | status`（エージェントが固定の手順で動かす。公式の nem-docker を取得し、その boot.sh / stop.sh を動かす。
+//   取得先は固定で、画面から別の取得先・引数は入らない。Linux（WSL を含む）だけ。手順は src/server/node-agent/nemNode.ts）。
 // - docker は、見る系（ps / logs / info / stats）と、ノードの運用に要る操作（コンテナの start / stop / restart / rm、pull、compose の up / down / start / stop / restart / pull）だけ。
 //   `run` `exec` `cp` `build` と、`-f`（compose ファイルの指定）・`-v`（ボリューム削除）・`--privileged` などのフラグは通さない
 //   （`docker run -v /:/host …` は、ホスト全体を触れてしまうため）。compose は、実行する作業フォルダの compose ファイルだけを使う。
@@ -36,6 +38,9 @@ export const UNINSTALL_TARGETS: readonly InstallTarget[] = ['bootstrap', 'shoest
 export const IROME_VERBS = ['install', 'uninstall', 'upgrade'] as const;
 /** `irome upgrade …` で更新できるもの。Shoestring（tools/venv の pip install --upgrade symbol-shoestring）と、symbol-bootstrap（公式の手順どおり、git clone → build → pack して tools/ に入れる）と、symbol-node-watcher（tools/ に npm の最新版を入れ直す）だけ。 */
 export const UPGRADE_TARGETS: readonly InstallTarget[] = ['shoestring', 'bootstrap', 'nodewatch'];
+/** `irome nem …` の動作（NEM の NIS1 ノードを、公式の nem-docker で建てる）。 */
+export const NEM_ACTIONS = ['install', 'start', 'stop', 'update', 'supernode', 'status'] as const;
+export type NemAction = (typeof NEM_ACTIONS)[number];
 /** `python3 -m pip …` で通す、3 つの形だけ（公式ドキュメントのとおり。パッケージ名は symbol-shoestring に固定）。 */
 export const PIP_ALLOWED: readonly string[] = ['install symbol-shoestring', 'install --upgrade symbol-shoestring', 'show symbol-shoestring'];
 /** バージョンを指定する形（`symbol-shoestring==0.2.6`）の、バージョン部分: 数字とドットだけ（`0.2.6` など。`>=`・URL・ほかのオプションは通さない）。 */
@@ -285,6 +290,8 @@ function validateArgvInner(argv: string[], opts: ValidateOptions): Validated {
   }
   if (tool === 'docker') return validateDocker(argv);
   if (tool === 'irome') {
+    // NEM（NIS1）ノード: irome nem install | start | stop | update（これ以外の形・引数は通さない）
+    if (argv[1] === 'nem') return argv.length === 3 && (NEM_ACTIONS as readonly string[]).includes(argv[2]) ? { ok: true, tool, argv } : bad('irome_usage');
     const okShape = argv.length === 3 && (IROME_VERBS as readonly string[]).includes(argv[1]) && (INSTALL_TARGETS as readonly string[]).includes(argv[2]);
     // upgrade は、Shoestring・bootstrap・nodewatch だけ。uninstall は、Docker 以外（Docker は、OS 側の手順で）
     return okShape
@@ -356,7 +363,7 @@ export function windowsSafeSegments(path: string): boolean {
 
 /** 画面の「入れる」ボタン用のひな型（クリックしたら入力欄に入るだけ。実行は Enter）。 */
 /** secret: 実行すると秘密鍵が画面に出る（押して入力欄に入れたあと、Enter で実行するときに、確認ポップアップが出る）。 */
-export interface CommandPreset { group: 'check' | 'docker' | 'install' | 'bootstrap' | 'shoestring' | 'nodewatch'; line: string; noteKey: string; secret?: true }
+export interface CommandPreset { group: 'check' | 'docker' | 'install' | 'bootstrap' | 'shoestring' | 'nodewatch' | 'nem'; line: string; noteKey: string; secret?: true }
 export const COMMAND_PRESETS: readonly CommandPreset[] = [
   { group: 'check', line: 'docker --version', noteKey: 'service.node_pre_docker' },
   { group: 'check', line: 'node --version', noteKey: 'service.node_pre_node' },
@@ -419,6 +426,15 @@ export const COMMAND_PRESETS: readonly CommandPreset[] = [
   { group: 'shoestring', line: 'python3 -m shoestring reset-data --config ./config.ini --directory .', noteKey: 'service.node_pre_ss_reset' },
   { group: 'nodewatch', line: 'symbol-node-watcher start', noteKey: 'service.node_pre_nw_start' },
   { group: 'nodewatch', line: 'symbol-node-watcher stop', noteKey: 'service.node_pre_nw_stop' },
+  // NEM（NIS1）ノード（公式の nem-docker）。順番と説明は lib/node/nemNode.ts・docs/NODE.md
+  { group: 'nem', line: 'irome nem install', noteKey: 'service.node_pre_nem_install' },
+  { group: 'nem', line: 'irome nem start', noteKey: 'service.node_pre_nem_start' },
+  { group: 'nem', line: 'docker ps', noteKey: 'service.node_pre_nem_ps' },
+  { group: 'nem', line: 'docker logs mynem_container --tail 50', noteKey: 'service.node_pre_nem_logs' },
+  { group: 'nem', line: 'irome nem supernode', noteKey: 'service.node_pre_nem_supernode' },
+  { group: 'nem', line: 'irome nem status', noteKey: 'service.node_pre_nem_status' },
+  { group: 'nem', line: 'irome nem stop', noteKey: 'service.node_pre_nem_stop' },
+  { group: 'nem', line: 'irome nem update', noteKey: 'service.node_pre_nem_update' },
 ];
 
 /** エージェントの URL として使ってよいか（この PC 自身だけ。別のマシンのノードは、SSH のポート転送で localhost に寄せて使う）。 */

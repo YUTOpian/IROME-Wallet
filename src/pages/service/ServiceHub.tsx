@@ -21,7 +21,7 @@ import { useLedgerProfile, useNoKey, useSssProfile } from '../../hooks/useWatchO
 
 // 「サービス」: the NEM extras (SuperNode Program, Apostille, Signed message, NEMonster, Voting) gathered behind one menu entry, as tiles. Symbol has Apostille, DNS and NEMonster.
 export default function ServiceHub() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const chain = useAppStore((st) => st.chain);
   const [socialOpen, setSocialOpen] = useState(false);
@@ -52,30 +52,29 @@ export default function ServiceHub() {
   const daoTile = { icon: AccountBalanceOutlinedIcon, title: t('home.nav_dao'), desc: t('service.dao_desc'), to: '/dao' };
   // コンソール (コードを打ち込んで動かす)。Symbol / NEM どちらでも（中身はチェーンに合わせて切り替わる）。
   const consoleTile = { icon: TerminalOutlinedIcon, title: t('home.nav_console'), desc: t('service.console_desc'), to: '/console' };
-  // ノード（symbol-bootstrap・Shoestring・Nodewatch をコマンドで動かす）は Symbol だけ。ウォレットの鍵は使わない（ローカルのエージェントが実行する）ので、閲覧用・SSS でも出す。Ledger は NFT ビューアーだけ。
+  // ノード（Symbol: symbol-bootstrap・Shoestring・Nodewatch。NEM: nem-docker）をコマンドで動かす。ウォレットの鍵は使わない（ローカルのエージェントが実行する）ので、閲覧用・SSS でも出す。Ledger は NFT ビューアーだけ。
   const nodeTile = { icon: StorageOutlinedIcon, title: t('home.nav_node'), desc: t('service.node_desc'), to: '/node' };
   // NFTビューアー (モザイクに紐づけられた画像を見る) は Symbol だけ。
   const nftViewerTile = { icon: CollectionsOutlinedIcon, title: t('home.nav_nftviewer'), desc: t('service.nftviewer_desc'), to: '/nft-viewer' };
   // ソーシャルメタデータ (アドレスに SNS などの URL・名前・アイコンを登録する) は Symbol だけ。署名が要るので、秘密鍵のプロファイルと SSS Extension で使える。
   const socialTile = { icon: VerifiedUserOutlinedIcon, title: t('social.title'), desc: t('social.service_desc'), to: '/social-metadata', open: 'social' as const };
-  const nemTiles = [
-    { icon: DnsOutlinedIcon, title: t('home.nav_supernode'), desc: t('service.supernode_desc'), to: '/supernode' },
-    apostilleTile,
-    dnsTile,
-    signmsgTile,
-    nemonsterTile,
-    votingTile,
-    consoleTile,
-    // Symbol 事前オプトイン（NEM Wallet 2.5.0 当時の画面）の体験。実際の送信はしない。
-    { icon: SwapHorizOutlinedIcon, title: t('home.nav_optin'), desc: t('service.optin_desc'), to: '/optin' },
-    // Symbol 事後オプトイン（NEM Wallet 2.5.1 当時の画面）の体験。実際の送信はしない。パスワードは画面の中で聞く（事前オプトインも、確定のところで聞く）。
-    { icon: SwapHorizOutlinedIcon, title: t('home.nav_post_optin'), desc: t('service.post_optin_desc'), to: '/post-optin' },
-  ];
+  // スーパーノードプログラム（日本語）は、カードの幅だと「スーパーノー／ドプログラム」と途中で折れるので、言葉の切れ目で改行する。
+  const supernodeTitle = i18n.language.startsWith('ja') ? 'スーパーノード\nプログラム' : t('home.nav_supernode');
+  // ノードの構築とスーパーノードプログラムは続けて使うので、隣り合わせに並べる。
+  const supernodeTile = { icon: DnsOutlinedIcon, title: supernodeTitle, desc: t('service.supernode_desc'), to: '/supernode' };
+  // Symbol 事前オプトイン（NEM Wallet 2.5.0 当時の画面）の体験。実際の送信はしない。
+  const optinTile = { icon: SwapHorizOutlinedIcon, title: t('home.nav_optin'), desc: t('service.optin_desc'), to: '/optin' };
+  // Symbol 事後オプトイン（NEM Wallet 2.5.1 当時の画面）の体験。実際の送信はしない。パスワードは画面の中で聞く（事前オプトインも、確定のところで聞く）。
+  const postOptinTile = { icon: SwapHorizOutlinedIcon, title: t('home.nav_post_optin'), desc: t('service.post_optin_desc'), to: '/post-optin' };
+  // NEM と Symbol で、同じサービスは同じ順に並べる（アポスティーユ・DNS・署名付きメッセージ・NEMonster・投票 … コンソール・ノード）。
+  // チェーンだけのサービスは、Symbol は「投票」と「コンソール」のあいだ（ソーシャルメタデータ・DAO・NFTビューアー）、NEM は「ノード」のあと（スーパーノードプログラム・オプトイン）に置く。
+  const nemTiles = [apostilleTile, dnsTile, signmsgTile, nemonsterTile, votingTile, consoleTile, nodeTile, supernodeTile, optinTile, postOptinTile];
+  const symbolTiles = [apostilleTile, dnsTile, signmsgTile, nemonsterTile, votingTile, socialTile, daoTile, nftViewerTile, consoleTile, nodeTile];
   // Ledger のコンソールは、診断ログだけ開ける（コードの実行は署名できないので出さない）。
   const tiles = ledger ? [nftViewerTile]
-    : keyless ? (chain === 'symbol' ? [nftViewerTile, consoleTile, nodeTile] : [consoleTile])
-    : sss ? (chain === 'symbol' ? [socialTile, dnsTile, nemonsterTile, votingTile, daoTile, nftViewerTile, consoleTile, nodeTile] : [consoleTile])
-    : chain === 'symbol' ? [socialTile, apostilleTile, dnsTile, signmsgTile, nemonsterTile, votingTile, daoTile, nftViewerTile, consoleTile, nodeTile] : nemTiles;
+    : keyless ? (chain === 'symbol' ? [nftViewerTile, consoleTile, nodeTile] : [consoleTile, nodeTile])
+    : sss ? (chain === 'symbol' ? [dnsTile, nemonsterTile, votingTile, socialTile, daoTile, nftViewerTile, consoleTile, nodeTile] : [consoleTile, nodeTile])
+    : chain === 'symbol' ? symbolTiles : nemTiles;
   // NEM の Ledger は、サービスに出せるものが無い（メニューにも出さない）。URL を直接開かれても、ホームに戻す。
   if (ledger && chain !== 'symbol') return <Navigate to="/top" replace />;
   return (

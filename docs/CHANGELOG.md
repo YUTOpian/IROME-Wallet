@@ -1,3 +1,50 @@
+## 修正: NEM ノード構築の画面全体を読みやすくした・`\n` や `**` が出ないようにした
+- 報告: NEM のノード構築が、全体的に読みにくい。`\n` の文字や `**` が残っている。
+- 原因: 画面の文章は、翻訳の文字列を、そのまま出していた。文字列に「改行が `\n` という文字のまま」「`**太字**`（この画面の書き方では使えない）」が紛れ込むと、そのまま画面に出てしまう作りだった。説明文も、1 つの文が長く、まとまりの区切りが無かった。
+- 対応（画面）: 「NEM ノード構築」のカードを、小見出しで 4 つに区切った（ノードの設定 / ノードの鍵とハーベスト / スーパーノード〔任意〕 / すでに建てたノードの操作）。「ノードを建てる」を一番目立つボタンにして、起動・更新・スーパーノード化・停止は、「すでに建てたノードの操作」にまとめた。入力欄の補足は、短い 1 行にした。長い説明（鍵・スーパーノード・同期の失敗など）は、箇条書きにした。
+- 対応（文章）: 手順の画面（必要なもの・nem-docker の取得・設定ファイル・テストネット・起動と停止・同期・更新・手動インストール）を、短い文と箇条書き・小見出しで書き直した（ja・en）。
+- 対応（仕組み）: 表示の前に、文字列の「うっかり」を直す処理（`normalizeGuideText`）を足した。`\n` の 2 文字を本物の改行に、`**` を取り除く。手順の画面（GuideText）と、カードの文章は、すべてこれを通る。今後、翻訳の文字列に同じ間違いが入っても、画面には出ない。
+- 不具合の予防: カードの小見出し部品（`Section`・`Hint`）は、部品の外に置いた（中に置くと、入力のたびに入力欄が作り直されて、フォーカスが外れてしまう）。
+- テスト: `dev-tests/node-nem.test.ts` に、`normalizeGuideText` の確認・画面に出る文章に `\n` や `**` が無いこと・見出しの文字列がそろっていること・補足が短い 1 行であることの確認を足した（887 本）。
+- 変更したファイル: `src/lib/node/guideText.ts`・`src/pages/node/NemOneClickCard.tsx`・`src/i18n/messages.json`・`dev-tests/node-nem.test.ts`・`docs/CHANGELOG.md`。
+- 確認したこと: ノード関連のテストと、この環境で動くほかのテスト。画面の TSX は構文だけ確認。
+- **確認できていないこと**: ブラウザでの見た目・操作（`npm run lint` / `npm run build` も、この環境では動かせていない）。
+> 
+
+## 修正: NEM ノードの手順の画面（スーパーノードの項目）が読みにくかった
+- 報告: 「NEM（NIS1）でノードを建てる手順」の「スーパーノードにする」が見づらく、何と書いてあるか分からない。
+- 原因: 翻訳（`messages.json`）に足した 4 つの文字列（ja・en）で、改行が本物の改行ではなく `\n` という文字のまま入っていた。そのため、画面に `\n\n## 先に必要なもの\n・…` のように、そのまま出ていた。あわせて、1 つの項目に書きすぎていた。画面の文章の書式は `**太字**` に対応していないのに、NEM ノードの文字列 7 つ（ja・en）で使っていて、`**` がそのまま出ていた。
+- 対応: 改行を直した。スーパーノードの項目を、「スーパーノードとは・必要なもの」「この画面でスーパーノードにする（Docker）」「手動で行う（Docker を使わない）」「資格テスト（何を調べられるか）」「プログラムへの登録・毎月の再登録」の 5 つに分けた。言い方もやさしくした（参照ノード・コントローラーに説明を付けた、など）。Servant の設定ファイルの例には、題（説明文）を付けた。`**` は取った。
+- 再発防止: `dev-tests/node-nem.test.ts` に、NEM ノードの文字列に `\n` の文字や `**` が残っていないこと・手順の各項目に題と本文があること・本文が長すぎないことの確認を足した。
+- 変更したファイル: `src/i18n/messages.json`・`src/lib/node/nemGuide.ts`・`src/pages/node/NemNodeGuide.tsx`・`dev-tests/node-nem.test.ts`・`docs/CHANGELOG.md`。
+- 確認したこと: `node-nem`（805 本）ほか、ノード関連のテスト。画面の TSX は構文だけ確認。文章の並び（見出し・箇条書き・番号・注意の枠）は、読み取り処理で確かめた。ブラウザでの見た目は未確認。
+> 
+
+## 追加: ノード構築（NEM）— スーパーノードとして建てられるようにした
+- 要望: NEM のノード構築は、スーパーノードを構築する方法にしたい（NEM ドキュメント「スーパーノードプログラム」の手順を反映）。
+- 対応: 「NEM ノード構築」に「スーパーノードとして建てる（Node Servant を設定する）」を足した（メインネットだけ）。ホスト（`nem.host`）とリモート鍵を入れると、取得 → NIS の設定 → **Servant の設定**（`custom-configs/servant.config.properties`）→ **supervisord.conf**（Servant の自動起動）→ 起動 → 状態の確認、を順に行う。すでにあるノードは「既存のノードをスーパーノードにする」（止める → `nis.bootKey` の入れ替え → Servant の設定 → supervisord.conf → 起動し直す）。
+- 許可リスト: `irome nem` に `supernode`（`supervisord.conf.sample` から `supervisord.conf` を作り、`[program:nis]` と `[program:servant]` の `autostart` を true にする。すでにあれば上書きしない）と `status`（`./service.sh status`）を足した。`supervisord.conf` は、起動するプロセスを決める設定なので、画面からは書けない（エージェントだけが、サンプルから作る）。`service.sh` に `sudo` があれば動かさない。
+- 決まり: スーパーノードでは、リモート鍵が必須（自動では作らない）。`nis.bootKey` と `servant.key` に、同じリモート鍵が入る。ホストは、公開 IP アドレスかドメイン名（`localhost`・家の中だけの IP アドレスは不可）。
+- 手順の画面: 「スーパーノードにする（Node Servant）」（必要なもの・この画面でする手順・手動の方法・資格テスト）と、「プログラムへの登録・毎月の再登録」（`enroll <ホスト> <コードワードのハッシュ>`・コードワードの URL は**メインアカウントの公開鍵**）を、公式ドキュメントのとおりに載せた。登録の送信は、これまでどおり、ウォレットの「スーパーノード」の画面で行う。
+- 変えていないこと: Symbol 側、待ち受け（127.0.0.1 だけ）・トークン・作業場所の外へ出ない決まり、スーパーノードにしない通常のノード構築の手順。
+- 翻訳: `service.node_nem_*` ほかを ja・en に追加・更新。zh・ko・ru は英語で表示される。
+- 変更したファイル: `src/lib/node/nemNode.ts`・`src/lib/node/nemGuide.ts`・`src/lib/node/nodeCommands.ts`・`src/server/node-agent/nemNode.ts`・`src/pages/node/NemOneClickCard.tsx`・`src/i18n/messages.json`・`dev-tests/node-nem.test.ts`・`docs/NODE.md`。
+- 確認したこと: ノード関連のテスト（`node-nem` 240 本を含む）。画面の TSX は構文だけ確認。
+- **確認できていないこと**: `npm run lint` / `npm run build`（この環境に依存パッケージが無い）。実物の nem-docker・Docker・スーパーノードプログラムでの動作と、画面（ブラウザ）での見た目・操作。`supervisord.conf.sample` の中身と `service.sh` の有無（公式ドキュメントの記述を前提にしている）。
+> 
+
+## 追加: ノード構築 — NEM（NIS1）ノードも、画面から建てられるようにした
+- 要望: ノード構築機能を、NEM にも付けたい。参考: NEM ドキュメント「ノードのインストール」・Qiita「NEM NIS1ノードを建ててみよう」・Zenn「UbuntuでNEM（NIS1）ノードをビルドする」。
+- 対応: NEM のウォレットで「サービス > ノード」を開けるようにした（これまでは Symbol だけ）。NEM では、「NEM ノード構築」カードと、手順の画面（「NEM（NIS1）でノードを建てる手順の詳細」）が出る。公式ドキュメントの「Docker を使用する」の手順（nem-docker の取得 → 設定ファイル → `./boot.sh`）を、ボタン 1 回で順に行う。ほかに「起動する」「更新する」「ノードを止める」「ノードの状態を見る」。ネットワークは、メインネット・テストネット（2026 年 9 月の新しいテストネットの設定つき）。
+- 許可リスト: 新しく通るのは `irome nem install` / `start` / `stop` / `update` の 4 つだけ。エージェントが固定の手順で動かす（取得先は公式に固定・Linux だけ・設定ファイルが先に要る・boot.sh / stop.sh に `sudo` があれば動かさない・シンボリックリンクは辿らない）。「この PC の環境」に git の有無を足した。
+- 変えていないこと: Symbol 側の画面と動作、待ち受け（127.0.0.1 だけ）・トークン・作業場所の外へ出ない決まり。boot key（`nis.bootKey`）は、空なら画面が乱数で作り、画面にも履歴にも出さない。
+- 使い方・決まり・注意: `docs/NODE.md` の「NEM（NIS1）ノードを建てる」。
+- 翻訳: `service.node_nem_*` ほかを ja・en に追加。zh・ko・ru は英語で表示される。
+- 変更したファイル: `src/lib/node/nemNode.ts`・`src/lib/node/nemGuide.ts`・`src/server/node-agent/nemNode.ts`・`src/pages/node/NemOneClickCard.tsx`・`src/pages/node/NemNodeGuide.tsx`（以上、新規）・`src/lib/node/nodeCommands.ts`・`src/lib/node/agentClient.ts`・`src/server/node-agent/agent.ts`・`src/pages/node/NodePage.tsx`・`src/pages/service/ServiceHub.tsx`・`src/router.tsx`・`src/i18n/messages.json`・`dev-tests/node-nem.test.ts`（新規）・`docs/NODE.md`。
+- 確認したこと: ノード関連のテスト（`node-nem` 145 本を含む）と、そのほかの手元で動くテストは成功。画面の TSX は構文だけ確認。
+- **確認できていないこと**: `npm run lint` / `npm run build`（この環境に依存パッケージが無く、型チェックもできていない。お手元で実行してください）。実物の nem-docker・Docker での動作と、画面（ブラウザ）での見た目・操作。公式の boot.sh の中身の想定（聞かれる内容・`sudo` の有無・コンテナ名 `mynem_container`）。
+> 
+
 ## 追加: ノード構築 — すでに動いている symbol-bootstrap 製・Shoestring 製のノードを、画面から使えるようにした
 - 要望: ノード構築機能（サービス > ノード）で、すでに稼働中のノードも、このウォレットで操れるようにしたい。symbol-bootstrap 製でも Shoestring 製でも対応してほしい。
 - 対応: 画面に「既存のノードを使う」カードを足した（エージェントに繋ぐと出る）。エージェントの作業場所の中から、ノードのフォルダを**名前だけ**で探し（`GET /v1/existing-nodes`。中身は開かない）、symbol-bootstrap 製 / Shoestring 製の表示つきで並べる。押すと、作業フォルダを変える・よく使うコマンド（`docker compose ps -a`・`logs`・`restart`、`symbol-bootstrap healthCheck`、`shoestring health` など）を入力欄に入れる。

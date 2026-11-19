@@ -22,6 +22,7 @@ import { collectHostStats } from './host';
 import { createWatchdog } from './watchdog';
 import { findComposeDirs } from './composeDirs';
 import { findExistingNodes } from './existingNodes';
+import { nemSteps } from './nemNode';
 import type { RestartResult } from './watchdog';
 import { AUTO_RESTART_LIMITS, AUTO_RESTART_LINE } from '../../lib/node/nodeAutoRestart';
 import { sanitizeWatchdogConfig } from '../../lib/node/nodeWatchdog';
@@ -29,7 +30,7 @@ import { readCertKeys } from './certKeys';
 import { attachVotingTrees, readVotingTrees } from './votingTrees';
 import { mergeShoestringKeys, readShoestringKeys } from './shoestringKeys';
 import type { NodeKeySet } from '../../lib/node/nodeKeys';
-import type { InstallTarget, ToolName } from '../../lib/node/nodeCommands';
+import type { InstallTarget, NemAction, ToolName } from '../../lib/node/nodeCommands';
 import { installNode, installPython, probeCmd, removeTool, sweepTmp } from './provision';
 import { dockerInstallSteps } from './dockerInstall';
 import type { DockerInstallEnv } from './dockerInstall';
@@ -699,7 +700,7 @@ export function createAgent(opts: AgentOptions): Agent {
     const nw = r('symbol-node-watcher', ['symbol-node-watcher']);
     const ss = r('shoestring', ['shoestring']);
     const dk = r('docker', ['docker']);
-    const [bsV, ssV, nwV, dkV, nodeV, npmV, pyV] = await Promise.all([
+    const [bsV, ssV, nwV, dkV, nodeV, npmV, pyV, gitV] = await Promise.all([
       run(bs, ['--version']),
       ss ? (ss.args[0] === '-m' ? probe(ss.cmd, ['-m', 'pip', 'show', 'symbol-shoestring']) : probe(ss.cmd, ['--help'])) : Promise.resolve(null),
       // symbol-node-watcher は --version を持たないかもしれないので、実行ファイルの有無で見る
@@ -708,6 +709,7 @@ export function createAgent(opts: AgentOptions): Agent {
       probe(process.execPath, ['--version']),
       npmProbe(),
       probe(isWin ? 'python' : 'python3', ['--version']),
+      probe('git', ['--version']),
     ]);
     const nwOnPath = nw && !resolvedToFile(nw, 'symbol-node-watcher') ? await probe('symbol-node-watcher', ['--help']) : null;
     // local: 「入れる」で作業場所の tools/ に入れたもの（画面の「削除」で消せる）。PATH にある別のインストールは、ここでは消せない。
@@ -719,6 +721,7 @@ export function createAgent(opts: AgentOptions): Agent {
       workspace: ws,
       tools: {
         docker: tool(dkV),
+        git: tool(gitV, gitV === null ? null : (/git version\s+(\S+)/.exec(gitV)?.[1] ?? firstLine(gitV))),
         node: tool(nodeV, undefined, existsSync(localNodeExe(ws, plat))),
         npm: tool(npmV),
         python: tool(pyV, undefined, existsSync(localPythonExe(ws, plat))),
@@ -913,7 +916,11 @@ export function createAgent(opts: AgentOptions): Agent {
           const cwd = sub.value ? join(ws, sub.value) : ws;
           mkdirSync(cwd, { recursive: true });
           let steps: Step[];
-          if (parsed.tool === 'irome') {
+          if (parsed.tool === 'irome' && parsed.argv[1] === 'nem') {
+            // NEM（NIS1）ノード（公式の nem-docker）。作業フォルダ（cwd）の中で、固定の手順だけ動かす。tools/ の中では動かさない
+            if (sub.value.split('/')[0].toLowerCase() === 'tools') { send(res, 400, { error: 'command_rejected', reason: 'subdir_invalid' }, cors); return; }
+            steps = nemSteps(parsed.argv[2] as NemAction, cwd, { platform: opts.platform });
+          } else if (parsed.tool === 'irome') {
             steps = parsed.argv[1] === 'uninstall' ? uninstallSteps(parsed.argv[2] as InstallTarget, ws)
               : parsed.argv[1] === 'upgrade' ? upgradeSteps(parsed.argv[2] as InstallTarget, ws, { platform: opts.platform })
               : installSteps(parsed.argv[2] as InstallTarget, ws, { fetch: opts.fetch, platform: opts.platform, arch: opts.arch });
