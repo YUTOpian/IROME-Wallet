@@ -1,7 +1,7 @@
 import { useLiveRefresh } from '../../hooks/useLiveRefresh';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Box, Button, Card, Chip, CircularProgress, Typography } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ErrorSnackbar from '../../components/ErrorSnackbar';
 import PasswordDialog from '../../components/PasswordDialog';
@@ -12,6 +12,7 @@ import { WalletsHelper } from '../../lib/storage';
 import { fetchNemMultisigInfo, fetchNemPending, sendNemCosignature } from '../../lib/nem/multisigApi';
 import type { NemMultisigInfo, NemPendingTransaction } from '../../lib/nem/multisigApi';
 import { useAppStore } from '../../store/appStore';
+import MultisigTreeView from '../multisig/MultisigTreePage';
 import { SectionCard } from '../multisig/parts';
 
 const mono = { fontFamily: 'monospace', wordBreak: 'break-all' } as const;
@@ -65,6 +66,11 @@ export default function NemMultisigTop() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const network = useAppStore((s) => s.network);
+  // The multisig tree is part of this screen: which account it shows ('' = this wallet's own) and where it is (to scroll to it).
+  const [params] = useSearchParams();
+  const [treeAccount, setTreeAccount] = useState(params.get('account') ?? '');
+  const treeRef = useRef<HTMLDivElement | null>(null);
+  const showTree = (account: string) => { setTreeAccount(account); setTimeout(() => treeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); };
 
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -190,6 +196,7 @@ export default function NemMultisigTop() {
                   <Button variant="contained" color="primary" onClick={() => navigate(`/multisig/send?account=${p.address}`)}>{t('multisig.send_button')}</Button>
                   <Button variant="outlined" color="primary" onClick={() => navigate(`/multisig/convert?account=${p.address}`)}>{t('multisig.edit_button')}</Button>
                   <Button variant="outlined" color="primary" onClick={() => navigate(`/multisig/harvest?account=${p.address}`)}>{t('nemmsharvest.button')}</Button>
+                  <Button variant="outlined" color="primary" onClick={() => showTree(p.address)}>{t('multisig.tree_short')}</Button>
                 </Box>
               </Card>
             ))}
@@ -220,6 +227,10 @@ export default function NemMultisigTop() {
             ))}
           </Box>
         </SectionCard>
+        {/* マルチシグツリー（この画面の一部） */}
+        <Box ref={treeRef} sx={{ scrollMarginTop: 16 }}>
+          <MultisigTreeView account={treeAccount} onAccountChange={setTreeAccount} />
+        </Box>
         {!loading && <Button onClick={load}>{t('multisig.reload')}</Button>}
       </Box>
       <PasswordDialog open={cosign !== null} mode="check" popup onClose={() => setCosign(null)} onPass={onPass} />

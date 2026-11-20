@@ -1,13 +1,17 @@
 import { useLiveRefresh } from '../../hooks/useLiveRefresh';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, Button, Card, Chip, CircularProgress, IconButton, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import CheckIcon from '@mui/icons-material/Check';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import RemoveIcon from '@mui/icons-material/Remove';
 import { useTranslation } from 'react-i18next';
 import { WalletsHelper } from '../../lib/storage';
 import { normalizeAddress } from '../../lib/symbol/crypto';
+import { isValidNemAddress } from '../../lib/nem/crypto';
+import { getNemNetworkConfig } from '../../lib/nem/network';
+import { fetchNemTree } from '../../lib/nem/multisigTree';
 import { fetchCosignedAccounts, fetchCosignerGraph, fetchMultisigInfo } from '../../lib/symbol/multisigApi';
 import { MAX_MULTISIG_DEPTH, levelsBelow, mergeGraphs, missingSignatures, planApproval } from '../../lib/symbol/multisigTree';
 import type { MultisigGraph } from '../../lib/symbol/multisigTree';
@@ -27,6 +31,8 @@ interface BracketCtx {
   signed: ReadonlySet<string> | null;
   /** For every multisig account: the one place (path) where it is drawn in full. Any other occurrence is a compact reference. */
   firstAt: ReadonlyMap<string, string>;
+  /** NEM (NIS1): one level only, and no separate threshold for removing a cosigner (so that line is not shown). */
+  nem: boolean;
 }
 
 // Bracket geometry: the width of the gap between two columns (the connector lives in it), the line, and the box.
@@ -36,6 +42,32 @@ const CARD_W = 184;
 const LINE_COLOR = 'text.disabled';
 
 const shortAddress = (a: string) => (a.length > 14 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
+
+/** Copies text. Falls back to the old execCommand route where the Clipboard API is missing or refused (insecure context, embedded browsers). */
+async function writeClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through to the fallback below
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
 
 /** One account as a box of the bracket. */
 function AccountBox({ ctx, address, repeated, expandable, open, hidden, onToggle }: {
@@ -47,7 +79,17 @@ function AccountBox({ ctx, address, repeated, expandable, open, hidden, onToggle
   const isTarget = address === ctx.marks.target;
   const isMe = address === ctx.marks.wallet;
   const need = ctx.signed && multisig && !repeated ? missingSignatures(ctx.graph, address, ctx.signed) : null;
-  const copy = () => { void navigator.clipboard?.writeText(address).catch(() => undefined); };
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const copy = () => {
+    void writeClipboard(address).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 1500);
+    });
+  };
   return (
     <Box
       sx={{
@@ -77,9 +119,9 @@ function AccountBox({ ctx, address, repeated, expandable, open, hidden, onToggle
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
         <Typography variant="body2" title={address} sx={{ ...mono, wordBreak: 'normal', fontSize: 12.5, flex: 1, minWidth: 0 }}>{shortAddress(address)}</Typography>
-        <IconButton size="small" aria-label={t('multisig.tree_copy')} onClick={copy} sx={{ p: 0.25 }}><ContentCopyIcon sx={{ fontSize: 14 }} /></IconButton>
+        <IconButton size="small" aria-label={t('multisig.tree_copy')} onClick={copy} sx={{ p: 0.25 }}>{copied ? <CheckIcon sx={{ fontSize: 14, color: 'success.main' }} /> : <ContentCopyIcon sx={{ fontSize: 14 }} />}</IconButton>
       </Box>
-      {multisig && !repeated && (
+      {multisig && !repeated && !ctx.nem && (
         <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
           {t('multisig.tree_card_removal', { removal: node!.minRemoval })}
         </Typography>
@@ -231,10 +273,21 @@ function planFirstAt(graph: MultisigGraph, blocks: Block[]): Map<string, string>
   return firstAt;
 }
 
+const nemPrefix = () => (getNemNetworkConfig().networkByte === 0x68 ? 'N' : 'T');
+
+/** null when fine, else the i18n key suffix of the problem (NEM address: 40 characters, N or T). */
+function nemAddressProblem(text: string): 'err_address_invalid' | 'err_address_network' | null {
+  const a = normalizeAddress(text);
+  if (!isValidNemAddress(a)) return 'err_address_invalid';
+  return isValidNemAddress(a, getNemNetworkConfig().networkByte) ? null : 'err_address_network';
+}
+
 /** The tree, drawn inside the multisig management screen. `account` is the account to show ('' = this wallet's own account). */
 export default function MultisigTreeView({ account, onAccountChange }: { account: string; onAccountChange: (account: string) => void }) {
   const { t } = useTranslation();
   const network = useAppStore((s) => s.network);
+  // On NEM the tree is the NEM one (one level: cosigners → multisig account); on Symbol the multi-level one.
+  const nem = useAppStore((s) => s.chain) === 'nem';
   const queried = account ? normalizeAddress(account) : '';
 
   const [wallet, setWallet] = useState('');
@@ -256,6 +309,12 @@ export default function MultisigTreeView({ account, onAccountChange }: { account
       const root = queried || (me ? normalizeAddress(me) : '');
       setTarget(root);
       if (!root) { setTops([]); setGraph(new Map()); return; }
+      if (nem) {
+        const found = await fetchNemTree(root);
+        setTops(found.tops);
+        setGraph(found.graph);
+        return;
+      }
       // Up to the accounts nobody else controls, then down from each of them.
       const above = await fetchCosignedAccounts(root);
       const top = above.filter((a) => a.info.multisigOf.length === 0 || a.level === Math.max(...above.map((x) => x.level))).map((a) => a.info.address);
@@ -288,14 +347,14 @@ export default function MultisigTreeView({ account, onAccountChange }: { account
     } finally {
       if (!quiet) setLoading(false);
     }
-  }, [queried]);
+  }, [queried, nem]);
 
   // 画面を開いたまま、取引を受け取ったとき（LiveUpdates）に、静かに読み直す。
   useLiveRefresh(() => { if (!failed) void load(true); });
 
   useEffect(() => { void load(); }, [load, network]);
 
-  const problem = input.trim() === '' ? null : addressProblem(input);
+  const problem = input.trim() === '' ? null : (nem ? nemAddressProblem(input) : addressProblem(input));
   const show = () => onAccountChange(input.trim() === '' ? '' : normalizeAddress(input));
 
   const targetNode = graph.get(target);
@@ -310,15 +369,15 @@ export default function MultisigTreeView({ account, onAccountChange }: { account
     const m = new Map<string, BracketCtx>();
     for (const a of tops) {
       const eligible = wallet !== '' && graph.get(a)?.isMultisig === true && planApproval(graph, a, wallet).eligible;
-      m.set(a, { graph, marks, signed: eligible ? new Set([wallet]) : null, firstAt });
+      m.set(a, { graph, marks, signed: eligible ? new Set([wallet]) : null, firstAt, nem });
     }
     return m;
-  }, [tops, graph, marks, wallet, firstAt]);
+  }, [tops, graph, marks, wallet, firstAt, nem]);
 
   return (
     <>
         <SectionCard compact title={t('multisig.tree_title')}>
-          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 1.5 }}>{t('multisig.tree_intro')}</Typography>
+          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 1.5 }}>{t(nem ? 'multisig.tree_intro_nem' : 'multisig.tree_intro')}</Typography>
           {/* The field is capped so the 「表示」 button stays close to it on a wide window. */}
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', maxWidth: 640 }}>
             <Field
@@ -326,7 +385,7 @@ export default function MultisigTreeView({ account, onAccountChange }: { account
               value={input}
               onChange={(e) => setInput(e.target.value)}
               error={problem !== null}
-              helperText={problem ? t(`multisig.${problem}`) : t('multisig.tree_input_hint', { prefix: addressPrefix() })}
+              helperText={problem ? t(`multisig.${problem}`) : t(nem ? 'multisig.tree_input_hint_nem' : 'multisig.tree_input_hint', { prefix: nem ? nemPrefix() : addressPrefix() })}
               htmlInput={{ autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }}
             />
             <Button variant="contained" disabled={problem !== null} onClick={show} sx={{ py: 1, flexShrink: 0 }}>{t('multisig.tree_show')}</Button>
@@ -351,7 +410,7 @@ export default function MultisigTreeView({ account, onAccountChange }: { account
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1, color: 'text.secondary' }}>
                   <ArrowForwardIcon sx={{ fontSize: 16 }} />
-                  <Typography variant="caption">{t('multisig.tree_flow')}</Typography>
+                  <Typography variant="caption">{t(nem ? 'multisig.tree_flow_nem' : 'multisig.tree_flow')}</Typography>
                 </Box>
                 {/* The bracket is wider than a phone: it scrolls sideways inside its own box. */}
                 <Box sx={{ overflowX: 'auto', pb: 1.5 }}>
@@ -363,7 +422,7 @@ export default function MultisigTreeView({ account, onAccountChange }: { account
                     ))}
                   </Box>
                 </Box>
-                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>{t('multisig.tree_legend')}</Typography>
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>{t(nem ? 'multisig.tree_legend_nem' : 'multisig.tree_legend')}</Typography>
               </>
             )}
           </Card>

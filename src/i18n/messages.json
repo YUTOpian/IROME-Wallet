@@ -2553,7 +2553,11 @@
       "tree_card_signer": "署名する人",
       "tree_step_ok": "承認OK",
       "tree_step_need": "あと{{count}}人",
-      "tree_folded": "{{count}}件を閉じています"
+      "tree_folded": "{{count}}件を閉じています",
+      "tree_intro_nem": "マルチシグのアカウントと、その連署者のつながりを、トーナメント表のように表示します。左の「連署者」が署名すると、右のマルチシグのアカウントが承認されます。アドレスを入れると、ほかのアカウントも見られます（見るだけで、署名や送信はしません）。NEM では、マルチシグのアカウントをほかのマルチシグの連署者にはできないので、階層は1段です。",
+      "tree_input_hint_nem": "空にすると、このウォレットのアカウント（{{prefix}}で始まる40文字のアドレスも入力できます）",
+      "tree_flow_nem": "左から右へ進みます：連署者 → マルチシグのアカウント（横にスクロールできます）",
+      "tree_legend_nem": "四角はアカウントです。マルチシグのアカウント（青い枠）は、左にいる連署者のうち「承認数」の人が署名すると承認されます。1人の連署者が複数のマルチシグに連署している場合は、それぞれのマルチシグから線がつながります。"
     },
     "nem_setup": {
       "title": "このプロファイルのNEMを使えるようにする",
@@ -7975,7 +7979,11 @@
       "tree_card_signer": "Signer",
       "tree_step_ok": "Approved",
       "tree_step_need": "{{count}} more",
-      "tree_folded": "{{count}} hidden"
+      "tree_folded": "{{count}} hidden",
+      "tree_intro_nem": "Shows a multisig account and its cosigners like a tournament bracket. The multisig account on the right is approved once enough of the cosigners on the left have signed. Enter an address to look at another account (view only; nothing is signed or sent). On NEM a multisig account cannot be a cosigner of another multisig account, so there is only one level.",
+      "tree_input_hint_nem": "Leave empty for this wallet's account (a 40-character address starting with {{prefix}} can be entered)",
+      "tree_flow_nem": "Read from left to right: cosigners → the multisig account (scrolls sideways)",
+      "tree_legend_nem": "Each box is an account. A multisig account (blue frame) is approved once enough of the cosigners on its left have signed. When one cosigner signs for several multisig accounts, a line runs from each of them."
     },
     "nem_setup": {
       "title": "Set up NEM for this profile",
