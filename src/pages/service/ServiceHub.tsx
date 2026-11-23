@@ -8,7 +8,6 @@ import HowToVoteOutlinedIcon from '@mui/icons-material/HowToVoteOutlined';
 import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined';
 import TerminalOutlinedIcon from '@mui/icons-material/TerminalOutlined';
 import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
-import CollectionsOutlinedIcon from '@mui/icons-material/CollectionsOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import { Navigate, useNavigate } from 'react-router-dom';
@@ -25,12 +24,12 @@ export default function ServiceHub() {
   const navigate = useNavigate();
   const chain = useAppStore((st) => st.chain);
   const [socialOpen, setSocialOpen] = useState(false);
-  // 閲覧用 / Ledger のプロファイルは、ほかのサービス（署名に秘密鍵が要るもの）が使えないので、NFTビューアーとコンソールだけ出す。
+  // 閲覧用 / Ledger のプロファイルは、ほかのサービス（署名に秘密鍵が要るもの）が使えないので、コンソール（Symbol ではノードも）だけ出す。
   const keyless = useNoKey(true);
-  // SSS Extension のプロファイルは、トランザクションの署名で足りるサービス（DNS・NEMonster・投票・DAO）と、NFTビューアー・コンソールが使える。
+  // SSS Extension のプロファイルは、トランザクションの署名で足りるサービス（DNS・NEMonster・投票・DAO）と、コンソールが使える。
   // アポスティーユ（署名つき）と署名付きメッセージは、文章やハッシュそのものへの署名が要るので、SSS では使えない（出さない）。
   const sss = useSssProfile();
-  // Ledger のプロファイルは、サービスの中では NFTビューアー（Symbol のみ）だけ使える。NEM には出すものが無い（メニューの「サービス」も出さない）。
+  // Ledger のプロファイルは、サービスに出せるものが無い（メニューの「サービス」も出さない）。
   const ledger = useLedgerProfile();
   // NEMonster is on both chains; the others are NEM only.
   const nemonsterTile = {
@@ -52,10 +51,8 @@ export default function ServiceHub() {
   const daoTile = { icon: AccountBalanceOutlinedIcon, title: t('home.nav_dao'), desc: t('service.dao_desc'), to: '/dao' };
   // コンソール (コードを打ち込んで動かす)。Symbol / NEM どちらでも（中身はチェーンに合わせて切り替わる）。
   const consoleTile = { icon: TerminalOutlinedIcon, title: t('home.nav_console'), desc: t('service.console_desc'), to: '/console' };
-  // ノード（symbol-bootstrap・Shoestring・Nodewatch をコマンドで動かす）は Symbol だけ。ウォレットの鍵は使わない（ローカルのエージェントが実行する）ので、閲覧用・SSS でも出す。Ledger は NFT ビューアーだけ。
+  // ノード（symbol-bootstrap・Shoestring・Nodewatch をコマンドで動かす）は Symbol だけ。ウォレットの鍵は使わない（ローカルのエージェントが実行する）ので、閲覧用・SSS でも出す。Ledger には出さない。
   const nodeTile = { icon: StorageOutlinedIcon, title: t('home.nav_node'), desc: t('service.node_desc'), to: '/node' };
-  // NFTビューアー (モザイクに紐づけられた画像を見る) は Symbol だけ。
-  const nftViewerTile = { icon: CollectionsOutlinedIcon, title: t('home.nav_nftviewer'), desc: t('service.nftviewer_desc'), to: '/nft-viewer' };
   // ソーシャルメタデータ (アドレスに SNS などの URL・名前・アイコンを登録する) は Symbol だけ。署名が要るので、秘密鍵のプロファイルと SSS Extension で使える。
   const socialTile = { icon: VerifiedUserOutlinedIcon, title: t('social.title'), desc: t('social.service_desc'), to: '/social-metadata', open: 'social' as const };
   const nemTiles = [
@@ -71,13 +68,11 @@ export default function ServiceHub() {
     // Symbol 事後オプトイン（NEM Wallet 2.5.1 当時の画面）の体験。実際の送信はしない。パスワードは画面の中で聞く（事前オプトインも、確定のところで聞く）。
     { icon: SwapHorizOutlinedIcon, title: t('home.nav_post_optin'), desc: t('service.post_optin_desc'), to: '/post-optin' },
   ];
-  // Ledger のコンソールは、診断ログだけ開ける（コードの実行は署名できないので出さない）。
-  const tiles = ledger ? [nftViewerTile]
-    : keyless ? (chain === 'symbol' ? [nftViewerTile, consoleTile, nodeTile] : [consoleTile])
-    : sss ? (chain === 'symbol' ? [socialTile, dnsTile, nemonsterTile, votingTile, daoTile, nftViewerTile, consoleTile, nodeTile] : [consoleTile])
-    : chain === 'symbol' ? [socialTile, apostilleTile, dnsTile, signmsgTile, nemonsterTile, votingTile, daoTile, nftViewerTile, consoleTile, nodeTile] : nemTiles;
-  // NEM の Ledger は、サービスに出せるものが無い（メニューにも出さない）。URL を直接開かれても、ホームに戻す。
-  if (ledger && chain !== 'symbol') return <Navigate to="/top" replace />;
+  // Ledger のプロファイルは、サービスに出せるものが無い（メニューの「サービス」も出さない）。URL を直接開かれても、ホームに戻す。
+  if (ledger) return <Navigate to="/top" replace />;
+  const tiles = keyless ? (chain === 'symbol' ? [consoleTile, nodeTile] : [consoleTile])
+    : sss ? (chain === 'symbol' ? [socialTile, dnsTile, nemonsterTile, votingTile, daoTile, consoleTile, nodeTile] : [consoleTile])
+    : chain === 'symbol' ? [socialTile, apostilleTile, dnsTile, signmsgTile, nemonsterTile, votingTile, daoTile, consoleTile, nodeTile] : nemTiles;
   return (
     <Box sx={{ minHeight: '100vh', pb: 4 }}>
       <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>

@@ -168,7 +168,7 @@ export default function WalletLoginImport() {
                       spellCheck: false,
                       startAdornment: (
                         <InputAdornment position="start" sx={{ mr: 0 }}>
-                          <Typography component="span" sx={{ minWidth: 18, fontSize: 12, color: invalid ? 'error.main' : 'text.secondary', textAlign: 'right' }}>{i + 1}</Typography>
+                          <Typography component="span" sx={{ minWidth: 18, fontSize: 12, color: invalid ? 'error.main' : 'text.secondary', textAlign: 'left' }}>{i + 1}</Typography>
                         </InputAdornment>
                       ),
                     },

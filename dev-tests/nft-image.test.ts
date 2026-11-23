@@ -1,4 +1,4 @@
-// NFTビューアー：COMSA / NFT-Drive の画像のつなぎ方の確認（通信はしない。ノードから読んだ形のデータを作って渡す）。
+// モザイクの画像（保有モザイクの画像表示など）：COMSA / NFT-Drive の画像のつなぎ方の確認（通信はしない。ノードから読んだ形のデータを作って渡す）。
 // 実行: npx tsx dev-tests/nft-image.test.ts
 import { comsaBase64, nemberArtCid, nftDriveBase64, rawHex, ukraineHashes } from '../src/lib/symbol/nftImage';
 import type { RawTx } from '../src/lib/symbol/nftImage';

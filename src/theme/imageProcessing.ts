@@ -42,9 +42,30 @@ const blobToDataUrl = (blob: Blob) =>
     reader.readAsDataURL(blob);
   });
 
+/** 透明（半透明）の部分があるか。小さく描いて、画素の不透明度を調べる。調べられなかったとき、SVG は透明がある前提にする。 */
+function hasTransparency(img: HTMLImageElement, sw: number, sh: number, isSvg: boolean): boolean {
+  try {
+    const { w, h } = fitInside(sw, sh, 256, 256);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return isSvg;
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] < 255) return true;
+    }
+    return false;
+  } catch {
+    return isSvg;
+  }
+}
+
 /**
  * 画像（ファイル、または data: の文字列）を、スロットの大きさ・文字数に収まる data:image/png|jpeg;base64,... にする。
- * 背景・残高カードは JPEG（小さくなる）、ロゴ・アイコンは透過を残すので PNG。
+ * 背景・残高カードは JPEG（小さくなる）。ただし透明な部分がある画像は、透明を残すので PNG（JPEG にすると、透明な部分が白く塗りつぶされるため）。
+ * ロゴ・アイコンは、いつも透過を残すので PNG。
  */
 export async function processImage(source: Blob | string, slot: ImageSlot): Promise<string> {
   if (typeof source !== 'string' && source.size > MAX_SOURCE_BYTES) throw new ImageError('too_large_file');
@@ -55,7 +76,9 @@ export async function processImage(source: Blob | string, slot: ImageSlot): Prom
   const sh = img.naturalHeight || 512;
   if (sw * sh > MAX_SOURCE_PIXELS) throw new ImageError('too_large_file');
 
-  const jpeg = slot.kind === 'background' || slot.kind === 'hero';
+  // 背景・残高カードは JPEG にすると小さくなるが、透明がない。透明な部分のある画像（透過 PNG など）は、PNG のまま残す。
+  const isSvg = typeof source === 'string' ? /^data:image\/svg/i.test(source) : source.type === 'image/svg+xml';
+  const jpeg = (slot.kind === 'background' || slot.kind === 'hero') && !hasTransparency(img, sw, sh, isSvg);
   let { w, h } = fitInside(sw, sh, slot.maxW, slot.maxH);
   const qualities = jpeg ? [0.82, 0.7, 0.58, 0.46] : [1];
   for (let round = 0; round < 8; round += 1) {

@@ -402,9 +402,11 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
   const heroText = cv.heroText ?? (blossom && !tomatina ? bl.ink : '#FFFFFF'); // the deep red card of トマティーナ has white text
   // カスタムテーマ images (data:image/... strings that theme/customTheme.ts has already checked).
   const images: CustomImages = requestedMode === 'custom' && custom?.images ? custom.images : {};
+  // 背景・残高カードの画像は、切り取らず、枠に収まる最大の大きさに合わせて（contain）真ん中に置く。縦横比が枠と合わない分は、背景色（残高カードはグラデーション）が見える。
+  // 背景は画面（ビューポート）に固定して、ページが長くても画像が引き伸ばされないようにする。
   const backgroundDim = cv.backgroundDim ?? 0.35;
   const heroDim = cv.heroDim ?? 0.3;
-  const heroImageLayer = images.hero ? `linear-gradient(rgba(0,0,0,${heroDim}), rgba(0,0,0,${heroDim})), url("${images.hero}") center / cover no-repeat, ` : '';
+  const heroImageLayer = images.hero ? `linear-gradient(rgba(0,0,0,${heroDim}), rgba(0,0,0,${heroDim})), url("${images.hero}") center / contain no-repeat, ` : '';
   const cardRadius = cv.radius ?? (blossom ? 28 : 20);
   const shapeRadius = cv.radius !== undefined ? Math.round(cv.radius * 0.8) : blossom ? 24 : 16;
   const buttonRadius = cv.buttonRadius ?? (999);
@@ -421,7 +423,7 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
   const tokens: IromeTokens = {
     chain,
     bg,
-    stageBg: images.background ? `linear-gradient(${alpha(bg, backgroundDim)}, ${alpha(bg, backgroundDim)}), url("${images.background}") center / cover no-repeat` : sw ? `radial-gradient(circle at 4% 6%, ${alpha(NEM_WHITE.logo.orange, 0.14)} 0%, transparent 38%), radial-gradient(circle at 96% 8%, ${alpha(NEM_WHITE.logo.blue, 0.14)} 0%, transparent 40%), radial-gradient(circle at 50% 100%, ${alpha(NEM_WHITE.logo.teal, 0.14)} 0%, transparent 46%), ${bg}` : blossom ? `${tomatina ? tomatoPattern(bl.petal) : petalPattern(bl.petal)}, radial-gradient(ellipse at 50% 22%, ${glow} 0%, ${bg} 70%)` : irome ? `${seigaihaPattern(IROME_LOGO.lavender, 0.2)}, radial-gradient(circle at 6% 4%, ${alpha(IROME_LOGO.coral, 0.30)} 0%, transparent 44%), radial-gradient(circle at 94% 10%, ${alpha(IROME_LOGO.lavender, 0.34)} 0%, transparent 46%), radial-gradient(circle at 8% 94%, ${alpha(IROME_LOGO.aqua, 0.34)} 0%, transparent 46%), radial-gradient(circle at 96% 92%, ${alpha(IROME_LOGO.mint, 0.30)} 0%, transparent 44%), ${bg}` : `radial-gradient(ellipse at 50% 22%, ${glow} 0%, ${bg} 70%)`,
+    stageBg: images.background ? `linear-gradient(${alpha(bg, backgroundDim)}, ${alpha(bg, backgroundDim)}) fixed, url("${images.background}") center / contain no-repeat fixed, ${bg}` : sw ? `radial-gradient(circle at 4% 6%, ${alpha(NEM_WHITE.logo.orange, 0.14)} 0%, transparent 38%), radial-gradient(circle at 96% 8%, ${alpha(NEM_WHITE.logo.blue, 0.14)} 0%, transparent 40%), radial-gradient(circle at 50% 100%, ${alpha(NEM_WHITE.logo.teal, 0.14)} 0%, transparent 46%), ${bg}` : blossom ? `${tomatina ? tomatoPattern(bl.petal) : petalPattern(bl.petal)}, radial-gradient(ellipse at 50% 22%, ${glow} 0%, ${bg} 70%)` : irome ? `${seigaihaPattern(IROME_LOGO.lavender, 0.2)}, radial-gradient(circle at 6% 4%, ${alpha(IROME_LOGO.coral, 0.30)} 0%, transparent 44%), radial-gradient(circle at 94% 10%, ${alpha(IROME_LOGO.lavender, 0.34)} 0%, transparent 46%), radial-gradient(circle at 8% 94%, ${alpha(IROME_LOGO.aqua, 0.34)} 0%, transparent 46%), radial-gradient(circle at 96% 92%, ${alpha(IROME_LOGO.mint, 0.30)} 0%, transparent 44%), ${bg}` : `radial-gradient(ellipse at 50% 22%, ${glow} 0%, ${bg} 70%)`,
     gradient,
     gradientV,
     hero: heroImageLayer + (heroCustom

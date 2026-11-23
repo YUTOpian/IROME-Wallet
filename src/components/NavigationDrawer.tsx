@@ -26,7 +26,6 @@ import { AccountNavIcon, AggregateNavIcon, HarvestNavIcon, MetadataNavIcon, Mosa
 import type { ImageKey } from '../theme/customTheme';
 import { WalletsHelper } from '../lib/storage';
 import { useLedgerProfile, useNoKey, useSssProfile, useWatchOnly } from '../hooks/useWatchOnly';
-import { useSssAccount } from '../hooks/useSssAccount';
 
 // ネットワーク切り替えメニューの大きさ（一定）: 幅と、1行の高さ。
 const CHAIN_MENU_WIDTH = 252;
@@ -70,12 +69,11 @@ export default function NavigationDrawer({ expanded, onToggle, mobile = false }:
   // 閲覧用プロファイル（アドレスだけ）。Ledger / SSS は秘密鍵が無いが、署名はできるので、これとは分ける。
   const pureWatchOnly = useWatchOnly();
   // 閲覧用プロファイルは、アドレスのチェーン・ネットワークで固定。ロゴの切り替えメニュー（ネットワーク選択）は開かない。
-  // SSS Extension のプロファイルは、SSS と連携できている間、ネットワークは SSS で決まる（アプリ側では選ばせない）。
+  // SSS Extension のプロファイルは、SSS と連携できているかに関わらず、ネットワークは SSS で決まる（アプリ側では選ばせない）。
   // フックは、条件によって呼んだり呼ばなかったりしない（&& の右側に置くと、プロファイルの読み込み後に呼ぶ数が変わり、React がエラーで止まる）。
   const sssProfile = useSssProfile();
   const ledgerProfile = useLedgerProfile();
-  const sssReady = useSssAccount().state === 'ready';
-  const sssLocked = sssProfile && sssReady;
+  const sssLocked = sssProfile;
   const viewOnly = pureWatchOnly || sssLocked;
   const theme = useTheme();
   // Panel colours follow the chain (Symbol: warm IROME, NEM: cool IROME) and the light / dark scheme.
@@ -144,10 +142,10 @@ export default function NavigationDrawer({ expanded, onToggle, mobile = false }:
     ] : []),
     // The SuperNode Program, NEMonster and Voting are NEM features: one 「サービス」 entry, whose screen shows them as tiles.
     // Symbol has NEMonster there too (not on mijin).
-    // Ledger / SSS Extension のプロファイルは、サービスの中の NFTビューアーとコンソールだけ使える（ServiceHub が絞る）。
-    // Ledger は、Symbol では NFTビューアーとコンソール（診断ログだけ）、NEM ではコンソール（診断ログだけ）。
-    ...(!pureWatchOnly && !(chain === 'symbol' && network === 'mijin') && !(ledgerProfile && chain !== 'symbol') ? [
-      { id: 'service' as const, title: t('home.nav_service'), icon: navIcon('navService', <AppsOutlinedIcon sx={iconSx} />), active: ['/service', '/supernode', '/nemonster', '/apostille', '/signed-message', '/dns', '/voting', '/nft-viewer', '/social-metadata', '/social-directory', '/console', '/optin', '/post-optin'].some((p) => pathname.startsWith(p)), action: () => navigate('/service') },
+    // SSS Extension のプロファイルは、サービスの中の、署名で足りるものとコンソールだけ使える（ServiceHub が絞る）。
+    // Ledger のプロファイルは、サービスに出せるものが無いので、「サービス」は出さない。
+    ...(!pureWatchOnly && !(chain === 'symbol' && network === 'mijin') && !ledgerProfile ? [
+      { id: 'service' as const, title: t('home.nav_service'), icon: navIcon('navService', <AppsOutlinedIcon sx={iconSx} />), active: ['/service', '/supernode', '/nemonster', '/apostille', '/signed-message', '/dns', '/voting', '/social-metadata', '/social-directory', '/console', '/optin', '/post-optin'].some((p) => pathname.startsWith(p)), action: () => navigate('/service') },
     ] : []),
     null,
     { title: t('links.title'), icon: navIcon('navLinks', <InfoOutlinedIcon sx={iconSx} />), active: pathname.startsWith('/links'), action: () => navigate('/links') },

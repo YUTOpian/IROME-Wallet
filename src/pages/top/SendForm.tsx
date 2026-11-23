@@ -9,13 +9,13 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import TransactionUriCard from './TransactionUriCard';
 import ErrorSnackbar from '../../components/ErrorSnackbar';
 import { useTrust } from '../../hooks/useAddressBook';
 import { displayName } from '../../lib/addressBook';
 import QrImageButton from '../../components/QrImageButton';
 import Scan from './Scan';
 import RecipientInfoCard from './RecipientInfoCard';
-import TransactionUriCard from './TransactionUriCard';
 import { applyScannedText, networkOfAddress, scanFailureMessage } from '../../lib/applyScanned';
 import NetworkMismatchDialog from '../../components/NetworkMismatchDialog';
 import type { SymbolNetwork } from '../../lib/symbol/constants';
@@ -499,6 +499,9 @@ export default function SendForm() {
     navigate('/send/confirmation');
   };
 
+  const [txUriOpen, setTxUriOpen] = useState(false);
+  const txUriReady = !isNem && !noMosaics && !(encryptActive && sendMessage) && canGo && amountAtomic !== null && fees !== 'loading' && fees !== null && feeAtomic > 0n;
+
   const feeText = (speed: FeeSpeed) => fees === 'loading'
     ? t('send.fee_estimating')
     : fees != null
@@ -673,62 +676,82 @@ export default function SendForm() {
 
         {/* Transaction fee: laid out like the message above - a bold heading, the field, the note under it. */}
         <Typography sx={{ fontWeight: 'bold', mt: 3, mb: 1 }}>{t('send.fee_label')}</Typography>
-        {/* NEM has a single fixed fee; Symbol offers five levels, the chosen one is what the transfer pays. */}
-        {isNem ? (
-          <TextField
-            value={feeText('standard')}
-            fullWidth
-            slotProps={{ input: { readOnly: true }, htmlInput: { 'aria-label': t('send.fee_label') } }}
-            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'background.paper' } }}
-          />
-        ) : (
-          <>
-            <Select
-              fullWidth
-              value={feeSpeed}
-              onChange={(e) => setFeeSpeed(e.target.value as FeeSpeed)}
-              inputProps={{ 'aria-label': t('send.fee_label') }}
-              sx={{ bgcolor: 'background.paper', '& .MuiSelect-select': { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25 } }}
+        {/* NEM has a single fixed fee; Symbol offers five levels, the chosen one is what the transfer pays.
+            The fee field is half the width, with the button to the confirmation screen right beside it. */}
+        <Box sx={{ display: 'flex', alignItems: 'stretch', gap: 1.5 }}>
+          <Box sx={{ width: '50%', flexShrink: 0, minWidth: 0 }}>
+            {isNem ? (
+              <TextField
+                value={feeText('standard')}
+                fullWidth
+                slotProps={{ input: { readOnly: true }, htmlInput: { 'aria-label': t('send.fee_label') } }}
+                sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'background.paper' } }}
+              />
+            ) : (
+              <Select
+                fullWidth
+                value={feeSpeed}
+                onChange={(e) => setFeeSpeed(e.target.value as FeeSpeed)}
+                inputProps={{ 'aria-label': t('send.fee_label') }}
+                sx={{ bgcolor: 'background.paper', '& .MuiSelect-select': { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25 } }}
+              >
+                {FEE_SPEEDS.map((speed) => (
+                  <MenuItem key={speed} value={speed} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25 }}>
+                    <span>{t(`send.fee_speed_${speed}`)}</span>
+                    <Typography component="span" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>{feeText(speed)}</Typography>
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          </Box>
+          {/* The two buttons are the same width, sharing the other half of the row. */}
+          <Button
+            variant="contained"
+            color="primary"
+            size="large"
+            disabled={!canGo}
+            onClick={onClickedOk}
+            sx={{ flex: '1 1 0', minWidth: 0, px: 1 }}
+          >
+            {t('send.go_confirm')}
+          </Button>
+          {/* Symbol only: the transfer being typed as a transaction URI / QR, in a popup (needs a complete, valid form). */}
+          {!isNem && (
+            <Button
+              variant="outlined"
+              color="primary"
+              size="large"
+              disabled={!txUriReady}
+              onClick={() => setTxUriOpen(true)}
+              sx={{ flex: '1 1 0', minWidth: 0, px: 1 }}
             >
-              {FEE_SPEEDS.map((speed) => (
-                <MenuItem key={speed} value={speed} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25 }}>
-                  <span>{t(`send.fee_speed_${speed}`)}</span>
-                  <Typography component="span" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>{feeText(speed)}</Typography>
-                </MenuItem>
-              ))}
-            </Select>
-            <Typography sx={{ color: 'text.secondary', fontSize: 12, mt: 0.5 }}>{t('send.fee_speed_hint')}</Typography>
-          </>
-        )}
+              {t('txuri.title')}
+            </Button>
+          )}
+        </Box>
+        {!isNem && <Typography sx={{ color: 'text.secondary', fontSize: 12, mt: 0.5 }}>{t('send.fee_speed_hint')}</Typography>}
         {balanceUnknown && (
           <Alert severity="info" sx={{ mt: 1.5 }}>{t('send.balance_unknown_offline')}</Alert>
         )}
         {nativeShort && (
           <Typography sx={{ color: 'warning.main', fontSize: 12, mt: 1 }}>{t(nativeSpend > 0n ? 'send.amount_plus_fee_warning' : 'send.xym_for_fee_warning')}</Typography>
         )}
-
-        {/* The transfer as a transaction URI / QR (Symbol only; needs a complete, valid form). */}
-        {!isNem && !noMosaics && !(encryptActive && sendMessage) && canGo && amountAtomic !== null && fees !== 'loading' && fees !== null && feeAtomic > 0n && (
-          <TransactionUriCard
-            recipient={normalizedAddress}
-            mosaics={[
-              { id: selected?.id ?? (sendMosaicId || nativeAssetId()), amount: amountAtomic },
-              ...extraLines.map((l) => ({ id: l.line.id, amount: l.atomic ?? 0n })),
-            ]}
-            message={messageTooLong ? '' : sendMessage}
-            maxFee={feeAtomic}
-            networkByte={activeNetworkByte()}
-          />
-        )}
       </Box>
 
-      <Box sx={{ px: 2, pb: 2 }}>
-        <Box>
-          <Button variant="contained" color="primary" size="large" fullWidth disabled={!canGo} onClick={onClickedOk}>
-            {t('send.go_confirm')}
-          </Button>
-        </Box>
-      </Box>
+      {txUriReady && (
+        <TransactionUriCard
+          open={txUriOpen}
+          onClose={() => setTxUriOpen(false)}
+          recipient={normalizedAddress}
+          mosaics={[
+            { id: selected?.id ?? (sendMosaicId || nativeAssetId()), amount: amountAtomic as bigint },
+            ...extraLines.map((l) => ({ id: l.line.id, amount: l.atomic ?? 0n })),
+          ]}
+          message={messageTooLong ? '' : sendMessage}
+          maxFee={feeAtomic}
+          networkByte={activeNetworkByte()}
+        />
+      )}
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage('')} />
       <NetworkMismatchDialog open={mismatch !== null} otherNetwork={mismatch?.other ?? null} onClose={() => setMismatch(null)} />
 

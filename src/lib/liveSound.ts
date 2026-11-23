@@ -99,21 +99,46 @@ async function playBlob(blob: Blob, onEnded?: () => void): Promise<boolean> {
   return true;
 }
 
+// 「カスタム」のとき、取引の開始の音がまだ鳴っている間は、その鳴り終わりを待つための目印。
+// 開始の音が鳴り終わると解決され、null に戻る。承認の音は、これが解決されてから鳴らす（音が重ならないように）。
+// 標準の種類（default / soft / classic / tomatina）は、これまでどおり待たずにすぐ鳴らす。
+let customStartedPlaying: Promise<void> | null = null;
+// 開始の音が鳴り終わってから承認の音までの間（試し聴きと同じ）。
+const CUSTOM_CONFIRMED_GAP_MS = 250;
+
 /** Plays one sound of a theme. Browsers refuse sound before the first tap on the page; that is fine, it is just skipped. */
 // chain: 'custom' のとき、どのチェーンの自分の音を鳴らすか。
 // 'custom' は、Web Audio → <audio> → 標準の音 の順に試す（自分の音が鳴らせない端末でも、無音にしない）。
+// 'custom' の承認の音は、開始の音が鳴っている途中なら、鳴り終わるのを待ってから鳴らす。
 // tomato: 取引にトマトのモザイクがあるとき true。'custom' 以外の種類は、トマティーナの音になる（'custom' は自分で選んだ音を優先）。
 export function playLiveSound(theme: LiveSoundTheme, kind: 'started' | 'confirmed', chain: ChainKey = 'symbol', tomato = false, onEnded?: () => void): void {
   // onEnded: 音が鳴り終わったとき（鳴らせなかったときも）に、ちょうど1回だけ呼ぶ。試し聴きで、次の音を重ねないために使う。
   let finished = false;
-  const finish = (): void => { if (!finished) { finished = true; onEnded?.(); } };
+  let release: () => void = () => undefined;
+  const finish = (): void => { if (!finished) { finished = true; release(); onEnded?.(); } };
   try {
     if (tomato && theme !== 'custom') theme = 'tomatina';
     if (theme !== 'custom') { void playUrl(URLS[theme][kind], finish).then((ok) => { if (!ok) finish(); }); return; }
+
+    // 開始の音：鳴り終わりまで目印を立てておく（鳴らせなかったとき・鳴り終わりが来ないときも、最長でこの時間で外す）。
+    if (kind === 'started') {
+      const mark = new Promise<void>((resolve) => {
+        let timer = 0;
+        release = () => { window.clearTimeout(timer); resolve(); if (customStartedPlaying === mark) customStartedPlaying = null; };
+        timer = window.setTimeout(release, (CUSTOM_SOUND_MAX_SECONDS + 2) * 1000);
+      });
+      customStartedPlaying = mark;
+    }
+
     const blob = getCustomSoundBlob(chain, kind);
     const url = getCustomSoundUrl(chain, kind);
-    if (!blob || !url) { void playUrl(URLS.default[kind], finish).then((ok) => { if (!ok) finish(); }); return; }
     void (async () => {
+      // 承認の音：開始の音が鳴っている途中なら、鳴り終わるのを待つ。
+      if (kind === 'confirmed' && customStartedPlaying) {
+        await customStartedPlaying;
+        await new Promise<void>((resolve) => window.setTimeout(resolve, CUSTOM_CONFIRMED_GAP_MS));
+      }
+      if (!blob || !url) { if (!(await playUrl(URLS.default[kind], finish))) finish(); return; }
       try {
         if (await playBlob(blob, finish)) return;
       } catch (e) {

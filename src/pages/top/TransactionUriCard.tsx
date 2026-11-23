@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Typography } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
 import { WalletsHelper } from '../../lib/storage';
@@ -16,26 +15,27 @@ interface Props {
   message: string;
   maxFee: bigint; // atomic XYM, at the chosen fee level
   networkByte: number;
+  open: boolean;
+  onClose: () => void;
 }
 
 const DEADLINE_MS = 2n * 60n * 60n * 1000n; // same lifetime as a transfer sent from this wallet
 
 /**
- * 「トランザクションURI」: the transfer being typed, as a web+symbol://transaction URI (text, copy, QR).
+ * 「トランザクションURI」 dialog: the transfer being confirmed, as a web+symbol://transaction URI (text, copy, QR).
  * It is unsigned - whoever opens it (this wallet, another Symbol wallet) reviews and signs it themselves.
  */
-export default function TransactionUriCard({ recipient, mosaics, message, maxFee, networkByte }: Props) {
+export default function TransactionUriCard({ recipient, mosaics, message, maxFee, networkByte, open, onClose }: Props) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(false);
   const [uri, setUri] = useState('');
   const [failed, setFailed] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const mosaicsKey = mosaics.map((m) => `${m.id}:${m.amount.toString()}`).join(',');
 
-  // Built only while the card is open, and rebuilt (debounced) whenever the form changes.
+  // Built only while the dialog is open, and rebuilt (debounced) whenever the form changes.
   useEffect(() => {
-    if (!expanded) return;
+    if (!open) return;
     let cancelled = false;
     setCopied(false);
     const timer = setTimeout(async () => {
@@ -64,7 +64,7 @@ export default function TransactionUriCard({ recipient, mosaics, message, maxFee
       }
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [expanded, recipient, mosaicsKey, message, maxFee, networkByte]);
+  }, [open, recipient, mosaicsKey, message, maxFee, networkByte]);
 
   const onCopy = async () => {
     try {
@@ -76,17 +76,9 @@ export default function TransactionUriCard({ recipient, mosaics, message, maxFee
   };
 
   return (
-    <Accordion
-      disableGutters
-      elevation={0}
-      expanded={expanded}
-      onChange={(_, v) => setExpanded(v)}
-      sx={{ mt: 3, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 3, '&:before': { display: 'none' } }}
-    >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Typography sx={{ fontWeight: 'bold' }}>{t('txuri.title')}</Typography>
-      </AccordionSummary>
-      <AccordionDetails sx={{ pt: 0 }}>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 'bold' }}>{t('txuri.title')}</DialogTitle>
+      <DialogContent>
         <Typography sx={{ color: 'text.secondary', fontSize: 12, mb: 1.5 }}>{t('txuri.hint')}</Typography>
         {failed && <Typography sx={{ color: 'error.main', fontSize: 13 }}>{t('txuri.build_failed')}</Typography>}
         {!failed && uri === '' && <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>{t('common.loading')}</Typography>}
@@ -110,7 +102,10 @@ export default function TransactionUriCard({ recipient, mosaics, message, maxFee
             <Typography sx={{ color: 'text.secondary', fontSize: 11, mt: 1.5 }}>{t('txuri.deadline_note')}</Typography>
           </>
         )}
-      </AccordionDetails>
-    </Accordion>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>{t('common.close')}</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
