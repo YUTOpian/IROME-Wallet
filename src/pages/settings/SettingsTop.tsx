@@ -24,8 +24,10 @@ import { useSssProfile, useWatchOnly } from '../../hooks/useWatchOnly';
 import { useSssAccount } from '../../hooks/useSssAccount';
 import TestnetReturnDialog from '../../components/TestnetReturnDialog';
 import CustomThemeDialog from '../../components/CustomThemeDialog';
-import { LIVE_SOUND_THEMES, playLiveSound, type LiveSoundTheme } from '../../lib/liveSound';
+import { LIVE_SOUND_THEMES, playLiveSound, previewLiveSound, type LiveSoundTheme } from '../../lib/liveSound';
+import { CUSTOM_SOUND_MAX_SECONDS, LIVE_SOUND_KINDS, hasCustomSound, removeCustomSound, saveCustomSound } from '../../lib/customLiveSound';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import { applyProfileThemeChoice, useProfileThemeChoice, useThemeChoice, useThemeChoices } from '../../theme/useThemeChoices';
 
 export default function SettingsTop() {
@@ -41,7 +43,11 @@ export default function SettingsTop() {
   // カスタムテーマの設定を開いているか。'app' = 共通のテーマ用、'profile' = このプロファイルのテーマ用。
   const [showCustomTheme, setShowCustomTheme] = useState<'app' | 'profile' | null>(null);
   // このプロファイルだけのテーマ（'' = 共通の設定に合わせる）。
-  const profileThemeChoice = useProfileThemeChoice();
+  // 開いているプロファイルのテーマは、いま開いているチェーン（Symbol / NEM）ごとに持つ。選んでいなければ、
+  // 以前の「プロファイル全体」の設定（あれば）、それも無ければ共通のテーマに合わせる。
+  const profileThemeChain = useAppStore((s) => s.chain);
+  const profileThemeChoice = useProfileThemeChoice(profileThemeChain);
+  const profileAllChoice = useProfileThemeChoice('all');
   const activeProfileKey = useAppStore((s) => s.activeProfileKey);
   const [showProfileThemeDialog, setShowProfileThemeDialog] = useState(false);
   // The built-in themes, then every saved カスタムテーマ by name (they are made in the dialog below).
@@ -51,9 +57,10 @@ export default function SettingsTop() {
   const network = useAppStore((s) => s.network);
   const setNetwork = useAppStore((s) => s.setNetwork);
   const chain = useAppStore((s) => s.chain);
-  const liveSound = useAppStore((s) => s.liveSound);
+  // 通知音とその種類は、いま開いているチェーン（Symbol / NEM）ごと。
+  const liveSound = useAppStore((s) => s.liveSoundByChain[s.chain]);
   const setLiveSound = useAppStore((s) => s.setLiveSound);
-  const liveSoundTheme = useAppStore((s) => s.liveSoundTheme);
+  const liveSoundTheme = useAppStore((s) => s.liveSoundThemeByChain[s.chain]);
   const setLiveSoundTheme = useAppStore((s) => s.setLiveSoundTheme);
   const showMultisigHistory = useAppStore((s) => s.showMultisigHistory);
   const setShowMultisigHistory = useAppStore((s) => s.setShowMultisigHistory);
@@ -86,6 +93,9 @@ export default function SettingsTop() {
   const [showLanguageDialog, setShowLanguageDialog] = useState(false);
   const [showFeeDialog, setShowFeeDialog] = useState(false);
   const [showSoundDialog, setShowSoundDialog] = useState(false);
+  // 通知音のカスタム: 置く・消すたびに表示を読み直すための印と、置けなかったときの理由。
+  const [, setSoundTick] = useState(0);
+  const [soundError, setSoundError] = useState('');
   const [showSymbolNodes, setShowSymbolNodes] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -194,11 +204,12 @@ export default function SettingsTop() {
 
   // このプロファイルのテーマ: 自分で選んでいなければ、共通の設定に合わせる（そのとき共通のテーマの名前も添える）。
   const followLabel = t('settings.theme_follow_common');
-  const profileThemeLabel = profileThemeChoice === ''
-    ? `${followLabel} (${currentThemeLabel})`
-    : (THEME_OPTIONS.find((o) => o.code === profileThemeChoice)?.label ?? followLabel);
+  const themeLabelOf = (code: string) => THEME_OPTIONS.find((o) => o.code === code)?.label ?? followLabel;
+  // 自分で選んでいないチェーンが従う先（以前のプロファイル全体の設定、無ければ共通のテーマ）。
+  const fallbackThemeLabel = profileAllChoice === '' ? currentThemeLabel : themeLabelOf(profileAllChoice);
+  const profileThemeLabel = profileThemeChoice === '' ? `${followLabel} (${fallbackThemeLabel})` : themeLabelOf(profileThemeChoice);
   const onSelectProfileTheme = (code: string) => {
-    applyProfileThemeChoice(code);
+    applyProfileThemeChoice(code, profileThemeChain);
     setShowProfileThemeDialog(false);
   };
 
@@ -221,7 +232,7 @@ export default function SettingsTop() {
     { text: t('settings.startup_title'), secondary: startupLabel(startupTarget), action: () => setShowStartupDialog(true) },
     { text: t('wallet.disclaimer_title'), secondary: '', action: () => setShowDisclaimer(true) },
     // Both chains listen for new transactions (Symbol: WebSocket, NEM: polling). One switch for the sounds: the new-transaction sound and the confirmed sound play together or not at all.
-    { text: t('settings.live_sound'), secondary: t(liveSound ? 'settings.on' : 'settings.off'), action: () => setLiveSound(!liveSound) },
+    { text: t('settings.live_sound'), secondary: t(liveSound ? 'settings.on' : 'settings.off'), action: () => setLiveSound(chain, !liveSound) },
     // Which sounds: the new IROME ones or the classic ones (the former sounds).
     { text: t('settings.live_sound_theme'), secondary: t(`settings.live_sound_theme_${liveSoundTheme}`), action: () => setShowSoundDialog(true) },
     // テストネットのときだけ：使い終わったテストXYM / テストXEM を全額返還する。
@@ -339,11 +350,11 @@ export default function SettingsTop() {
         </List>
       </Dialog>
       <Dialog open={showProfileThemeDialog} onClose={() => setShowProfileThemeDialog(false)}>
-        <DialogTitle>{t('settings.theme_profile_title')}</DialogTitle>
-        <Typography variant="body2" sx={{ color: 'text.secondary', px: 3, pb: 1, maxWidth: 360 }}>{t('settings.theme_profile_hint')}</Typography>
+        <DialogTitle>{t('settings.theme_profile_title')} ({profileThemeChain === 'nem' ? 'NEM' : 'Symbol'})</DialogTitle>
+        <Typography variant="body2" sx={{ color: 'text.secondary', px: 3, pb: 1, maxWidth: 360 }}>{t('settings.theme_profile_hint', { chain: profileThemeChain === 'nem' ? 'NEM' : 'Symbol' })}</Typography>
         <List sx={{ minWidth: 240, pt: 0 }}>
           <ListItemButton selected={profileThemeChoice === ''} onClick={() => onSelectProfileTheme('')}>
-            <ListItemText primary={`${followLabel} (${currentThemeLabel})`} />
+            <ListItemText primary={`${followLabel} (${fallbackThemeLabel})`} />
           </ListItemButton>
           {THEME_OPTIONS.map((option) => (
             <ListItemButton key={option.code} selected={option.code === profileThemeChoice} onClick={() => onSelectProfileTheme(option.code)}>
@@ -356,7 +367,7 @@ export default function SettingsTop() {
         </List>
       </Dialog>
       {/* Mounted only while open, so a closed dialog keeps no half-read file. */}
-      {showCustomTheme && <CustomThemeDialog open scope={showCustomTheme} onClose={() => setShowCustomTheme(null)} />}
+      {showCustomTheme && <CustomThemeDialog open scope={showCustomTheme} profileScope={profileThemeChain} onClose={() => setShowCustomTheme(null)} />}
       {showTestnetReturn && network === 'testnet' && <TestnetReturnDialog open onClose={() => setShowTestnetReturn(false)} />}
       <SymbolNodeDialog open={showSymbolNodes && chain === 'symbol'} onClose={() => setShowSymbolNodes(false)} />
       {/* Mounted only while open, so a closed popup keeps no half-read code or camera. */}
@@ -365,7 +376,8 @@ export default function SettingsTop() {
         <List sx={{ minWidth: 260, pt: 0 }}>
           {LIVE_SOUND_THEMES.map((theme: LiveSoundTheme) => (
             <Box key={theme} sx={{ display: 'flex', alignItems: 'center' }}>
-              <ListItemButton selected={theme === liveSoundTheme} onClick={() => { setLiveSoundTheme(theme); setShowSoundDialog(false); }}>
+              {/* 「カスタム」を選んだときは、下で音のファイルを選べるように、ダイアログを開いたままにする。 */}
+              <ListItemButton selected={theme === liveSoundTheme} onClick={() => { setLiveSoundTheme(chain, theme); if (theme !== 'custom') setShowSoundDialog(false); }}>
                 <ListItemText primary={t(`settings.live_sound_theme_${theme}`)} />
               </ListItemButton>
               {/* 試し聴き：選ばずに、この種類の音（取引の開始 → 承認）を鳴らす。 */}
@@ -373,16 +385,65 @@ export default function SettingsTop() {
                 aria-label={t('settings.live_sound_preview')}
                 title={t('settings.live_sound_preview')}
                 sx={{ mx: 1 }}
-                onClick={() => {
-                  playLiveSound(theme, 'started');
-                  window.setTimeout(() => playLiveSound(theme, 'confirmed'), 900);
-                }}
+                onClick={() => previewLiveSound(theme, chain)}
               >
                 <PlayArrowIcon />
               </IconButton>
             </Box>
           ))}
         </List>
+        {/* カスタム: 自分の音声ファイルを、取引の開始・承認のそれぞれに選ぶ（この端末の中だけに置く。チェーンごと）。 */}
+        <Box sx={{ px: 3, pb: 1, maxWidth: 360 }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{t('settings.custom_sound_title')}</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+            {t('settings.custom_sound_hint', { sec: CUSTOM_SOUND_MAX_SECONDS })}
+          </Typography>
+          {LIVE_SOUND_KINDS.map((kind) => {
+            const has = hasCustomSound(chain, kind);
+            return (
+              <Box key={kind} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.5 }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 13 }}>{t(`settings.custom_sound_${kind}`)}</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{t(has ? 'settings.custom_sound_set' : 'settings.custom_sound_unset')}</Typography>
+                </Box>
+                <Button size="small" variant="outlined" component="label">
+                  {t('settings.custom_sound_choose')}
+                  <input
+                    hidden
+                    type="file"
+                    accept="audio/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = ''; // the same file can be picked again
+                      if (!file) return;
+                      const result = await saveCustomSound(chain, kind, file);
+                      if (result.ok) {
+                        setSoundError('');
+                        setLiveSoundTheme(chain, 'custom');
+                      } else {
+                        setSoundError(t(`settings.custom_sound_err_${result.reason}`, { sec: CUSTOM_SOUND_MAX_SECONDS }));
+                      }
+                      setSoundTick((n) => n + 1);
+                    }}
+                  />
+                </Button>
+                <IconButton size="small" disabled={!has} aria-label={t('settings.live_sound_preview')} title={t('settings.live_sound_preview')} onClick={() => playLiveSound('custom', kind, chain)}>
+                  <PlayArrowIcon fontSize="small" />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  disabled={!has}
+                  aria-label={t('settings.custom_sound_delete')}
+                  title={t('settings.custom_sound_delete')}
+                  onClick={async () => { await removeCustomSound(chain, kind); setSoundError(''); setSoundTick((n) => n + 1); }}
+                >
+                  <DeleteOutlineIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            );
+          })}
+          {soundError && <Alert severity="error" sx={{ mt: 1 }}>{soundError}</Alert>}
+        </Box>
         <Box sx={{ px: 3, pb: 2, maxWidth: 360 }}>
           <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>{t('settings.live_sound_theme_hint')}</Typography>
         </Box>
