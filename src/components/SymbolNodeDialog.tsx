@@ -10,7 +10,6 @@ import type { NodeDiagnosis } from '../lib/symbol/api';
 import { NETWORKS } from '../lib/symbol/constants';
 import { MijinReadFailure, detectNodeNetwork, normalizeNodeUrl } from '../lib/symbol/mijin';
 import { useSssProfile, useWatchOnly } from '../hooks/useWatchOnly';
-import { useSssAccount } from '../hooks/useSssAccount';
 import { isAllowedNodeUrl } from '../lib/nodePolicy';
 
 type TestState = NodeDiagnosis | 'loading';
@@ -42,8 +41,7 @@ export default function SymbolNodeDialog({ open, onClose }: { open: boolean; onC
   // A view-only / SSS profile is tied to the network of its address: the network cannot change under it.
   const watchOnly = useWatchOnly();
   const sssProfile = useSssProfile();
-  const sssReady = useSssAccount().state === 'ready';
-  const networkLocked = watchOnly || (sssProfile && sssReady);
+  const networkLocked = watchOnly || sssProfile;
   // mijin v2: its settings were read from the node (until then there is no node list, only the form to add one).
   const isMijin = network === 'mijin';
   const needsSetup = isMijin && !mijinParams;

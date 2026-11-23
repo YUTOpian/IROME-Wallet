@@ -21,7 +21,6 @@ import { nemNetworkOf } from '../../lib/nem/network';
 import SymbolNodeDialog from '../../components/SymbolNodeDialog';
 import InfoCard, { tileGridSx } from '../../components/InfoCard';
 import { useSssProfile, useWatchOnly } from '../../hooks/useWatchOnly';
-import { useSssAccount } from '../../hooks/useSssAccount';
 import TestnetReturnDialog from '../../components/TestnetReturnDialog';
 import CustomThemeDialog from '../../components/CustomThemeDialog';
 import { LIVE_SOUND_THEMES, playLiveSound, previewLiveSound, type LiveSoundTheme } from '../../lib/liveSound';
@@ -71,8 +70,7 @@ export default function SettingsTop() {
   // SSS Extension のプロファイルは、SSS と連携できている間、ネットワークは SSS で決まる（ここでは選べない）。
   // フックは、条件によって呼んだり呼ばなかったりしない（&& の右側に置くと、プロファイルの読み込み後に呼ぶ数が変わり、React がエラーで止まる）。
   const sssProfile = useSssProfile();
-  const sssReady = useSssAccount().state === 'ready';
-  const sssLocked = sssProfile && sssReady;
+  const sssLocked = sssProfile;
   const [showTestnetReturn, setShowTestnetReturn] = useState(false);
   const chainName = CHAINS[chain].name;
   // Hand-entered node: a Symbol REST node or a NEM (NIS1) node, depending on the selected chain.

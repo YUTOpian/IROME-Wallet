@@ -18,7 +18,6 @@ import { nodeRequest } from '../../lib/symbol/api';
 import { MijinReadFailure, detectNodeNetwork } from '../../lib/symbol/mijin';
 import { useAppStore } from '../../store/appStore';
 import { useSssProfile, useWatchOnly } from '../../hooks/useWatchOnly';
-import { useSssAccount } from '../../hooks/useSssAccount';
 import GuideText from './GuideText';
 
 // 「ノードの状態」: 自分のノードの REST（既定 http://127.0.0.1:3000）を一定間隔で見て、正常 / 注意 / 異常を出す。
@@ -66,8 +65,7 @@ export default function NodeWatchCard({ agent, cardSx }: { agent: AgentConn | nu
   // 閲覧用・SSS のプロファイルは、アドレスのネットワークに結び付いている（接続先のダイアログと同じ決まり）。
   const watchOnly = useWatchOnly();
   const sssProfile = useSssProfile();
-  const sssReady = useSssAccount().state === 'ready';
-  const networkLocked = watchOnly || (sssProfile && sssReady);
+  const networkLocked = watchOnly || sssProfile;
 
   const alive = useRef(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

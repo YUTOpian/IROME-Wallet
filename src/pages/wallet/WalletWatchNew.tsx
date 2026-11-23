@@ -59,8 +59,6 @@ export default function WalletWatchNew() {
           <TextField
             fullWidth
             autoFocus
-            multiline
-            minRows={2}
             label={t('watch.address_label')}
             value={address}
             onChange={(e) => setAddress(e.target.value)}

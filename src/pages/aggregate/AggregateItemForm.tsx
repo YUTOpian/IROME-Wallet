@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, Button, Checkbox, FormControlLabel, InputAdornment, MenuItem, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { formatAtomic, parseDecimal } from '../../lib/symbol/amount';
-import { fetchBalances, fetchOwnedMosaics, fetchOwnedNamespaces, resolveRecipientInput } from '../../lib/symbol/api';
-import type { MosaicBalance, OwnedMosaic, OwnedNamespace, RecipientResolution } from '../../lib/symbol/api';
+import { fetchBalances, fetchOwnedMosaics, fetchOwnedNamespaces, fetchRecipientInfo, fetchTransfersWith, resolveRecipientInput } from '../../lib/symbol/api';
+import type { MosaicBalance, OwnedMosaic, OwnedNamespace, RecipientInfo, RecipientResolution, SymbolTransfer } from '../../lib/symbol/api';
+import { WalletsHelper } from '../../lib/storage';
+import RecipientInfoCard from '../top/RecipientInfoCard';
 import { classifyRecipientInput } from '../../lib/symbol/recipientInput';
 import type { RecipientInput } from '../../lib/symbol/recipientInput';
 import { isValidAddress, normalizeAddress, prettyAddress } from '../../lib/symbol/crypto';
@@ -136,6 +138,68 @@ export default function AggregateItemForm({ kind, ctx, index, full, onAdd }: Pro
   } else if (recipient !== '' && !typedRecipientValid) {
     recipientError = t('common.invalid_address');
   }
+
+  // 「送信先の情報」: what the chain knows about the recipient (same card as the send screen), looked up once the
+  // recipient resolves to a valid address. Transfers only.
+  const infoAddress = kind === 'transfer' && toAddress !== '' && isValidAddress(toAddress, networkByte) ? toAddress : '';
+  const [recipientInfo, setRecipientInfo] = useState<RecipientInfo | null | 'loading'>(null);
+  const [recipientHistory, setRecipientHistory] = useState<SymbolTransfer[] | null | 'loading'>(null);
+  const [ownMatch, setOwnMatch] = useState<{ active: boolean; name: string } | null>(null);
+  useEffect(() => {
+    if (infoAddress === '') { setRecipientInfo(null); return undefined; }
+    let cancelled = false;
+    setRecipientInfo('loading');
+    const timer = setTimeout(async () => {
+      try {
+        const info = await fetchRecipientInfo(infoAddress);
+        if (!cancelled) setRecipientInfo(info);
+      } catch (e) {
+        console.error('Failed to load recipient info', e);
+        if (!cancelled) setRecipientInfo(null);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [infoAddress, networkByte]);
+  const recipientKey = recipientInfo !== null && recipientInfo !== 'loading' ? recipientInfo.publicKey : null;
+  const recipientSettled = recipientInfo !== 'loading';
+  useEffect(() => {
+    if (infoAddress === '') { setRecipientHistory(null); return undefined; }
+    if (!recipientSettled) return undefined;
+    let cancelled = false;
+    setRecipientHistory('loading');
+    (async () => {
+      try {
+        const wallet = await WalletsHelper.getActive();
+        if (!wallet) { if (!cancelled) setRecipientHistory(null); return; }
+        const list = await fetchTransfersWith(wallet.address, wallet.publicKey, infoAddress, recipientKey);
+        if (!cancelled) setRecipientHistory(list);
+      } catch (e) {
+        console.error('Failed to load history with recipient', e);
+        if (!cancelled) setRecipientHistory(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [infoAddress, recipientSettled, recipientKey, networkByte]);
+  // Is the recipient one of my own wallets (this one, or another account of the same profile)?
+  useEffect(() => {
+    if (infoAddress === '') { setOwnMatch(null); return undefined; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [active, all] = await Promise.all([WalletsHelper.getActive(), WalletsHelper.gets()]);
+        const hit = all.find((w) => w.chain === 'symbol' && normalizeAddress(w.address) === infoAddress);
+        if (cancelled) return;
+        if (!hit) { setOwnMatch(null); return; }
+        const name = hit.accountName || (hit.accountIndex !== null ? t('wallet.account_index', { index: hit.accountIndex }) : hit.name);
+        setOwnMatch({ active: active?.id === hit.id, name });
+      } catch (e) {
+        console.error('Failed to check own wallets', e);
+        if (!cancelled) setOwnMatch(null);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [infoAddress, networkByte]);
 
   // ---- sender of a transfer ----
   useEffect(() => {
@@ -318,6 +382,7 @@ export default function AggregateItemForm({ kind, ctx, index, full, onAdd }: Pro
               error={recipientError !== ''}
               helperText={recipientError !== '' ? recipientError : recipientNote !== '' ? recipientNote : t('send.input_address_hint')}
               htmlInput={recipientField} />
+            {infoAddress !== '' && <RecipientInfoCard address={infoAddress} recipient={recipientInfo} history={recipientHistory} ownMatch={ownMatch} />}
           </FormRow>
           {noTarget ? <Alert severity="info" sx={{ my: 1 }}>{t('aggregate.no_asset')}</Alert> : (
             <>
