@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, Typography } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
+import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import TextField from '../TextField';
 import { useAppStore } from '../../store/appStore';
 import { WalletsHelper } from '../../lib/storage';
 import { fetchBalances } from '../../lib/symbol/api';
@@ -13,10 +11,10 @@ import { ImageError, processImage } from '../../theme/imageProcessing';
 import type { ImageSlot } from '../../theme/customTheme';
 
 // カスタムテーマの画像に、モザイクに紐づけられた画像（COMSA・NFT-Drive・ウクライナNFT・NEMber ART）を使う。
-// 取り出しは NFTビューアーと同じ（lib/symbol/nftImage.ts）。取り出した画像は、ファイルを選んだときと同じ processImage で
+// 取り出しは、ホームの保有モザイクの画像表示と同じ（lib/symbol/nftImage.ts）。取り出した画像は、ファイルを選んだときと同じ processImage で
 // 枠の大きさ・形式に「描き直して」から保存するので、テーマには元のモザイクへの参照は残らない（保存後はネットワークなしで表示できる）。
-//   ・モザイクID（16桁）を入れて探す。スタート画面（プロファイルを開く前）でも使える。
-//   ・プロファイルを開いているときは、持っているモザイクの中から、画像のあるものを一覧にする。
+//   ・モザイクID（16桁）を入れて探す方法はない。持っているモザイクの中から、画像のあるものを一覧にして、そこから選ぶ。
+//   ・プロファイルを開いていないとき（スタート画面など）は、持っているモザイクが分からないので、一覧は出せない（その旨を表示する）。
 
 const SCAN_CONCURRENCY = 3;
 
@@ -49,10 +47,6 @@ export default function MosaicImageDialog({ open, slot, onClose, onPicked }: Pro
   const { t } = useTranslation();
   const network = useAppStore((s) => s.network);
   const profileOpen = useAppStore((s) => s.activeProfileKey) !== null;
-  const [lookupText, setLookupText] = useState('');
-  const [lookupBusy, setLookupBusy] = useState(false);
-  const [lookupError, setLookupError] = useState('');
-  const [lookupItem, setLookupItem] = useState<Item | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [total, setTotal] = useState(0);
   const [checked, setChecked] = useState(0);
@@ -103,27 +97,10 @@ export default function MosaicImageDialog({ open, slot, onClose, onPicked }: Pro
   // 開いたとき・ネットワーク（メインネット/テストネット）を切り替えたときに調べ直す。閉じたら、調べている途中のものは捨てる。
   useEffect(() => {
     if (!open) return undefined;
-    setLookupItem(null); setLookupError(''); setError('');
+    setError('');
     void scan();
     return () => { runRef.current += 1; };
   }, [open, network, scan]);
-
-  const lookup = async () => {
-    const id = lookupText.trim().toUpperCase();
-    setLookupItem(null); setLookupError(''); setError('');
-    if (!/^[0-9A-F]{16}$/.test(id)) { setLookupError(t('settings.custom_theme_mosaic_invalid')); return; }
-    setLookupBusy(true);
-    try {
-      const image = await findNftImage(id);
-      if (image) setLookupItem({ id, label: id, image });
-      else setLookupError(t('settings.custom_theme_mosaic_none'));
-    } catch (e) {
-      console.warn('NFT lookup failed', e);
-      setLookupError(t('settings.custom_theme_mosaic_load_error'));
-    } finally {
-      setLookupBusy(false);
-    }
-  };
 
   const use = async (item: Item) => {
     setError('');
@@ -147,31 +124,8 @@ export default function MosaicImageDialog({ open, slot, onClose, onPicked }: Pro
         <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>{t('settings.custom_theme_mosaic_hint')}</Typography>
         {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
 
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <TextField
-            size="small" label={t('settings.custom_theme_mosaic_id_label')} value={lookupText} sx={{ flexGrow: 1, minWidth: 220 }}
-            onChange={(e) => setLookupText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') void lookup(); }}
-            error={lookupError !== ''} helperText={lookupError || ' '}
-            slotProps={{ htmlInput: { spellCheck: false, autoCapitalize: 'characters', maxLength: 16 } }}
-          />
-          <Button variant="outlined" startIcon={lookupBusy ? <CircularProgress size={16} /> : <SearchIcon />} disabled={lookupBusy || applying} onClick={() => void lookup()} sx={{ height: 40 }}>
-            {t('settings.custom_theme_mosaic_search')}
-          </Button>
-        </Box>
-        {lookupItem && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-            <Thumb item={lookupItem} onUse={(it) => void use(it)} disabled={applying} />
-            <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-              <Chip size="small" label={t(`nftviewer.kind_${lookupItem.image.kind}`)} />
-              <Typography sx={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'text.secondary', wordBreak: 'break-all', mt: 0.5 }}>{lookupItem.id}</Typography>
-            </Box>
-            <Button variant="contained" size="small" disabled={applying} onClick={() => void use(lookupItem)}>{t('settings.custom_theme_mosaic_use')}</Button>
-          </Box>
-        )}
-
-        {profileOpen && (
-          <Box sx={{ mt: 2 }}>
+        {profileOpen ? (
+          <Box>
             <Typography sx={{ fontWeight: 'bold', mb: 0.5 }}>{t('settings.custom_theme_mosaic_mine')}</Typography>
             {scanning && (
               <Box sx={{ mb: 1 }}>
@@ -187,6 +141,8 @@ export default function MosaicImageDialog({ open, slot, onClose, onPicked }: Pro
               </Box>
             )}
           </Box>
+        ) : (
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('settings.custom_theme_mosaic_need_profile')}</Typography>
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 1.5 }}>
