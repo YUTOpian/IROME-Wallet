@@ -12,6 +12,7 @@ import { nemTypeKey } from '../lib/nem/history';
 import type { LiveEvent } from '../lib/symbol/live';
 import { typeKey } from '../lib/symbol/history';
 import { playLiveSound } from '../lib/liveSound';
+import { eventHasTomato } from '../lib/tomatina';
 
 // Events that arrive together (confirmed + unconfirmed-removed of one transaction) trigger one refresh.
 const REFRESH_DELAY_MS = 1500;
@@ -31,8 +32,9 @@ export default function LiveUpdates() {
   const { pathname } = useLocation();
   const chain = useAppStore((s) => s.chain);
   const network = useAppStore((s) => s.network);
-  const sound = useAppStore((s) => s.liveSound);
-  const soundTheme = useAppStore((s) => s.liveSoundTheme);
+  // The sound settings of the chain being followed (Symbol and NEM have their own).
+  const sound = useAppStore((s) => s.liveSoundByChain[s.chain]);
+  const soundTheme = useAppStore((s) => s.liveSoundThemeByChain[s.chain]);
   const bumpLiveTick = useAppStore((s) => s.bumpLiveTick);
 
   // The account being followed, with the chain / network it was looked up for: right after a switch the chain is
@@ -94,7 +96,13 @@ export default function LiveUpdates() {
       }
       setToast(next);
       setOpen(true);
-      if (ding) playLiveSound(theme, e.kind === 'confirmed' ? 'confirmed' : 'started');
+      if (ding) {
+        const kind = e.kind === 'confirmed' ? 'confirmed' : 'started';
+        // A tomato mosaic (lib/tomatina.ts) changes the sound; looking its name up can take a moment, and a failure just means the usual sound.
+        // 'tomatina' needs no look-up, and neither does 'custom' (its own sounds win).
+        if (theme === 'tomatina' || theme === 'custom') playLiveSound(theme, kind, chain);
+        else void eventHasTomato(e, chain).catch(() => false).then((tomato) => playLiveSound(theme, kind, chain, tomato));
+      }
     };
     const stop = chain === 'nem' ? startNemLiveListener(address, onEvent) : startLiveListener(address, onEvent);
     // A page in the background may have missed events (the connection sleeps): look again when it comes back to the front.

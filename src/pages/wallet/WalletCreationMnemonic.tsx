@@ -83,7 +83,8 @@ export default function WalletCreationMnemonic() {
         </Grid>
 
         <MnemonicCopyButton mnemonic={mnemonic} />
-        <PaperWalletButton source={mnemonic ? { kind: 'mnemonic', mnemonic, symbolCoinType: getNetwork() === 'testnet' ? SYMBOL_TESTNET_COIN_TYPE : undefined } : null} />
+        {/* A new profile always carries the official-compatible testnet key (coin type 1), so a testnet sheet uses it. */}
+        <PaperWalletButton source={mnemonic ? { kind: 'mnemonic', mnemonic, symbolCoinType: SYMBOL_TESTNET_COIN_TYPE } : null} />
         <MnemonicKeystoreButton mnemonic={mnemonic} symbolCoinType={getNetwork() === 'testnet' ? SYMBOL_TESTNET_COIN_TYPE : undefined} />
 
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>

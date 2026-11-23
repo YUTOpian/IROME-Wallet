@@ -15,6 +15,10 @@ import type { CustomImages, CustomThemeData, CustomValues, LookValues } from './
 // a rose -> orchid balance card and a blush side menu.
 // It keeps its own character, but the chain still tints it (Symbol rose / NEM mint / mijin sky blue).
 //
+// トマティーナ (tomatina): the tomato-fight festival. Same soft & round structure as さくら, but a ripe-red look: a cream stage with
+// tiny tomatoes, a tomato-red -> deep-red gradient and a deep red balance card with white text, basil-green leaves.
+// Like 色目 it is the same for Symbol, NEM and mijin (the chain never tints it).
+//
 // 色目 (irome): the colourful one - the whole five-colour logo gradient everywhere on a warm cream stage with soft corner
 // glows and a faint seigaiha pattern. It is the same for Symbol and NEM (and mijin): the chain never tints it.
 //
@@ -222,6 +226,26 @@ const IROME = {
   heroStops: ['#D9534A', '#C74F8B', '#8B5FBF', '#2F9C8B', '#249E63'] as const,
 };
 
+const TOMATINA: BlossomLook = {
+  bg: '#FFF4EC', glow: '#FFDACE', menuBottom: '#FFE5DB', accent: '#C9301F', ink: '#3E1713', inkRgb: '62,23,19', wordmark: '#A52617',
+  gradientStops: '#F0553A 0%, #DC3326 52%, #B3201A 100%',
+  hero: 'linear-gradient(135deg, #E8503A 0%, #CF2E22 55%, #8E1B14 100%)',
+  petal: '#E5503C',
+  menuActive: 'linear-gradient(135deg, #F0553A 0%, #C9301F 100%)',
+};
+
+// A tile of tiny tomatoes (with a green calyx) and juice drops as a CSS background layer (used by トマティーナ).
+function tomatoPattern(color: string, opacity = 0.22, leaf = '#4E9F3D'): string {
+  const tomato = (x: number, y: number, k: number) => `<g transform='translate(${x} ${y}) scale(${k})'><ellipse cx='0' cy='2' rx='9' ry='8' fill='${color}' fill-opacity='${opacity}'/>`
+    + `<path d='M0 -6L2 -2L6 -5L3 -1L7 1L2 1L0 5L-2 1L-7 1L-3 -1L-6 -5L-2 -2Z' fill='${leaf}' fill-opacity='${Math.min(1, opacity * 2.2)}' transform='translate(0 -4) scale(0.7)'/></g>`;
+  const drop = (x: number, y: number, k: number) => `<path transform='translate(${x} ${y}) scale(${k})' d='M0 -7C5 0 6 3 0 6C-6 3 -5 0 0 -7Z' fill='${color}' fill-opacity='${opacity}'/>`;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'>`
+    + `${tomato(30, 32, 1)}${tomato(118, 84, 0.85)}${tomato(66, 128, 0.7)}${drop(100, 26, 0.9)}${drop(24, 98, 0.8)}${drop(142, 140, 0.9)}`
+    + `<circle cx='80' cy='70' r='2.4' fill='${color}' fill-opacity='${opacity}'/><circle cx='142' cy='34' r='2' fill='${color}' fill-opacity='${opacity}'/><circle cx='12' cy='150' r='2.2' fill='${color}' fill-opacity='${opacity}'/>`
+    + `</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 0 0 / 160px 160px repeat`;
+}
+
 // A tile of seigaiha arcs (three concentric half circles per scale) as a CSS background layer.
 function seigaihaPattern(color: string, opacity: number): string {
   const scale = (cx: number, cy: number) => [12, 8, 4].map((r) => `<path d='M${cx - r} ${cy}A${r} ${r} 0 0 1 ${cx + r} ${cy}'/>`).join('');
@@ -302,8 +326,10 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
   const irome = baseMode === 'irome';
   // 色目 never takes the chain's tint: it always uses the whole-gradient look of the first-run screens.
   const look = irome ? LOOK.base : LOOK[chain];
-  const blossom = baseMode === 'blossom';
-  const bl = BLOSSOM[chain];
+  const tomatina = baseMode === 'tomatina';
+  // トマティーナ shares さくら's soft & round structure (rounded font and corners, menu pill, glows); its colours and the deep hero card are its own.
+  const blossom = baseMode === 'blossom' || tomatina;
+  const bl = tomatina ? TOMATINA : BLOSSOM[chain];
   // The themes other than dark / 宵 are light schemes as far as MUI is concerned.
   const mode: 'dark' | 'light' = baseMode === 'dark' || baseMode === 'yoi' ? 'dark' : 'light'; // 宵 は以前のダーク
   const dark = mode === 'dark';
@@ -373,7 +399,7 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
   const menuText0 = sd ? SYMBOL_DARK.menuText : dark ? '#F1F6CF' : ink;
   const menuText = cv.menuText ?? menuText0;
   const menuCustom = Boolean(cv.menuTop || cv.menuBottom || cv.menuText);
-  const heroText = cv.heroText ?? (blossom ? bl.ink : '#FFFFFF');
+  const heroText = cv.heroText ?? (blossom && !tomatina ? bl.ink : '#FFFFFF'); // the deep red card of トマティーナ has white text
   // カスタムテーマ images (data:image/... strings that theme/customTheme.ts has already checked).
   const images: CustomImages = requestedMode === 'custom' && custom?.images ? custom.images : {};
   const backgroundDim = cv.backgroundDim ?? 0.35;
@@ -395,22 +421,22 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
   const tokens: IromeTokens = {
     chain,
     bg,
-    stageBg: images.background ? `linear-gradient(${alpha(bg, backgroundDim)}, ${alpha(bg, backgroundDim)}), url("${images.background}") center / cover no-repeat` : sw ? `radial-gradient(circle at 4% 6%, ${alpha(NEM_WHITE.logo.orange, 0.14)} 0%, transparent 38%), radial-gradient(circle at 96% 8%, ${alpha(NEM_WHITE.logo.blue, 0.14)} 0%, transparent 40%), radial-gradient(circle at 50% 100%, ${alpha(NEM_WHITE.logo.teal, 0.14)} 0%, transparent 46%), ${bg}` : blossom ? `${petalPattern(bl.petal)}, radial-gradient(ellipse at 50% 22%, ${glow} 0%, ${bg} 70%)` : irome ? `${seigaihaPattern(IROME_LOGO.lavender, 0.2)}, radial-gradient(circle at 6% 4%, ${alpha(IROME_LOGO.coral, 0.30)} 0%, transparent 44%), radial-gradient(circle at 94% 10%, ${alpha(IROME_LOGO.lavender, 0.34)} 0%, transparent 46%), radial-gradient(circle at 8% 94%, ${alpha(IROME_LOGO.aqua, 0.34)} 0%, transparent 46%), radial-gradient(circle at 96% 92%, ${alpha(IROME_LOGO.mint, 0.30)} 0%, transparent 44%), ${bg}` : `radial-gradient(ellipse at 50% 22%, ${glow} 0%, ${bg} 70%)`,
+    stageBg: images.background ? `linear-gradient(${alpha(bg, backgroundDim)}, ${alpha(bg, backgroundDim)}), url("${images.background}") center / cover no-repeat` : sw ? `radial-gradient(circle at 4% 6%, ${alpha(NEM_WHITE.logo.orange, 0.14)} 0%, transparent 38%), radial-gradient(circle at 96% 8%, ${alpha(NEM_WHITE.logo.blue, 0.14)} 0%, transparent 40%), radial-gradient(circle at 50% 100%, ${alpha(NEM_WHITE.logo.teal, 0.14)} 0%, transparent 46%), ${bg}` : blossom ? `${tomatina ? tomatoPattern(bl.petal) : petalPattern(bl.petal)}, radial-gradient(ellipse at 50% 22%, ${glow} 0%, ${bg} 70%)` : irome ? `${seigaihaPattern(IROME_LOGO.lavender, 0.2)}, radial-gradient(circle at 6% 4%, ${alpha(IROME_LOGO.coral, 0.30)} 0%, transparent 44%), radial-gradient(circle at 94% 10%, ${alpha(IROME_LOGO.lavender, 0.34)} 0%, transparent 46%), radial-gradient(circle at 8% 94%, ${alpha(IROME_LOGO.aqua, 0.34)} 0%, transparent 46%), radial-gradient(circle at 96% 92%, ${alpha(IROME_LOGO.mint, 0.30)} 0%, transparent 44%), ${bg}` : `radial-gradient(ellipse at 50% 22%, ${glow} 0%, ${bg} 70%)`,
     gradient,
     gradientV,
     hero: heroImageLayer + (heroCustom
       ? `linear-gradient(135deg, ${heroStops3[0]} 0%, ${heroStops3[1]} 55%, ${heroStops3[2]} 100%)`
       : blossom
-      ? `${petalPattern('#FFFFFF', 0.7)}, ${bl.hero}`
+      ? `${tomatina ? tomatoPattern('#FFFFFF', 0.16, '#FFFFFF') : petalPattern('#FFFFFF', 0.7)}, ${bl.hero}`
       : irome
       ? `${seigaihaPattern('#FFFFFF', 0.26)}, linear-gradient(135deg, ${IROME.heroStops[0]} 0%, ${IROME.heroStops[1]} 27%, ${IROME.heroStops[2]} 52%, ${IROME.heroStops[3]} 78%, ${IROME.heroStops[4]} 100%)`
       : `linear-gradient(135deg, ${look.heroStops[0]} 0%, ${look.heroStops[1]} 55%, ${look.heroStops[2]} 100%)`),
     heroText,
     ink: cv.onGradient ?? ink,
-    heroTextSoft: cv.heroText ? alpha(cv.heroText, 0.86) : blossom ? alpha(bl.ink, 0.72) : 'rgba(255,255,255,0.86)',
+    heroTextSoft: cv.heroText ? alpha(cv.heroText, 0.86) : blossom && !tomatina ? alpha(bl.ink, 0.72) : 'rgba(255,255,255,0.86)',
     // A soft pastel card with dark text: no dark shadow, just a faint white glow.
-    heroTextShadow: blossom ? '0 1px 0 rgba(255,255,255,0.7)' : '0 1px 3px rgba(0,0,0,0.28)',
-    heroChipBg: blossom ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.22)',
+    heroTextShadow: blossom && !tomatina ? '0 1px 0 rgba(255,255,255,0.7)' : '0 1px 3px rgba(0,0,0,0.28)',
+    heroChipBg: blossom && !tomatina ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.22)',
     // 背景の模様や色むらの上でも文字が埋もれないよう、少し太くして、背景色の細い縁取り（影）を付ける。
     stageText: { fontWeight: 500, textShadow: dark ? `0 1px 3px ${alpha(bg, 0.95)}, 0 0 8px ${alpha(bg, 0.85)}` : '0 0 2px rgba(255,255,255,0.95), 0 0 6px rgba(255,255,255,0.9), 0 1px 10px rgba(255,255,255,0.8)' },
     wordmark,

@@ -33,12 +33,12 @@ export type HomePanel = 'mosaics' | 'invoice' | 'send' | 'apostille' | 'history'
 
 // Colour scheme of the whole app. 'dark' (the IROME stage, the default), 'light' (white),
 // 'blossom', 'irome' (色目: the colourful five-colour theme, the same for Symbol and NEM) or 'custom' (the person's own CSS, see theme/customTheme.ts).
-export type ThemeMode = 'dark' | 'light' | 'blossom' | 'irome' | 'yoi' | 'custom';
+export type ThemeMode = 'dark' | 'light' | 'blossom' | 'tomatina' | 'irome' | 'yoi' | 'custom';
 // 'yoi' (宵 🌙): 以前のダーク（くすんだ紫がかった炭色の背景に、ライム寄りのクリーム色の文字）。'dark' は Symbolダーク。
 
 /** テーマの「選択」を表す文字列として正しいか（組み込みの4つ、または 'custom:<id>'）。 */
 export function isValidThemeChoice(choice: string): boolean {
-  if (choice === 'dark' || choice === 'light' || choice === 'blossom' || choice === 'irome' || choice === 'yoi') return true;
+  if (choice === 'dark' || choice === 'light' || choice === 'blossom' || choice === 'tomatina' || choice === 'irome' || choice === 'yoi') return true;
   return choice.startsWith('custom:') && choice.length > 'custom:'.length && choice.length <= 64;
 }
 
@@ -92,9 +92,10 @@ interface AppState {
   // Live updates from the node (Symbol): bumped when something happened so open screens reload.
   liveTick: number;
   // Play the sounds for new transactions (the one for a new transaction and the one for a confirmed one together; on by default).
-  liveSound: boolean;
-  // Which sounds: the new IROME ones ('default') or the former ones ('classic').
-  liveSoundTheme: LiveSoundTheme;
+  // Kept per chain: Symbol and NEM each have their own switch (設定 changes the one of the chain that is open).
+  liveSoundByChain: Record<ChainKey, boolean>;
+  // Which sounds: the new IROME ones ('default'), 'soft' or the former ones ('classic'). Per chain, like the switch.
+  liveSoundThemeByChain: Record<ChainKey, LiveSoundTheme>;
   // Symbol: also list the transactions of the multisig accounts this wallet cosigns in 履歴 (off by default).
   showMultisigHistory: boolean;
   // Symbol: may signature requests (cosign) from addresses that are not in the address book be signed? true = yes, with a warning (as before).
@@ -142,8 +143,8 @@ interface AppState {
   clearSendDraft: () => void;
   setHomePanel: (panel: HomePanel) => void;
   bumpLiveTick: () => void;
-  setLiveSound: (on: boolean) => void;
-  setLiveSoundTheme: (theme: LiveSoundTheme) => void;
+  setLiveSound: (chain: ChainKey, on: boolean) => void;
+  setLiveSoundTheme: (chain: ChainKey, theme: LiveSoundTheme) => void;
   setShowMultisigHistory: (on: boolean) => void;
   setAllowUnknownSigners: (on: boolean) => void;
 }
@@ -182,8 +183,8 @@ export const useAppStore = create<AppState>()(
       defaultFeeSpeed: FEE_SPEED_FALLBACK,
       homePanel: 'history',
       liveTick: 0,
-      liveSound: true,
-      liveSoundTheme: DEFAULT_LIVE_SOUND_THEME,
+      liveSoundByChain: { symbol: true, nem: true },
+      liveSoundThemeByChain: { symbol: DEFAULT_LIVE_SOUND_THEME, nem: DEFAULT_LIVE_SOUND_THEME },
       showMultisigHistory: false,
       allowUnknownSigners: true,
 
@@ -294,7 +295,7 @@ export const useAppStore = create<AppState>()(
       pruneProfileThemes: (keepKeys) => set((state) => {
         const keep = new Set(keepKeys);
         const entries = Object.entries(state.profileThemes);
-        const kept = entries.filter(([key]) => keep.has(key));
+        const kept = entries.filter(([key]) => keep.has(key.split('#')[0])); // `<profileKey>#symbol` / `#nem` belong to the same profile
         return kept.length === entries.length ? {} : { profileThemes: Object.fromEntries(kept) };
       }),
       setSendMosaicId: (id) => set({ sendMosaicId: id }),
@@ -312,8 +313,10 @@ export const useAppStore = create<AppState>()(
       clearSendDraft: () => set({ sendAmount: '', sendMessage: '', sendEncrypt: false, sendExtraMosaics: [], sendNoMosaics: false, sendFeeSpeed: null }),
       setHomePanel: (panel) => set({ homePanel: panel }),
       bumpLiveTick: () => set((state) => ({ liveTick: state.liveTick + 1 })),
-      setLiveSound: (liveSound) => set({ liveSound }),
-      setLiveSoundTheme: (liveSoundTheme) => set({ liveSoundTheme: isLiveSoundTheme(liveSoundTheme) ? liveSoundTheme : DEFAULT_LIVE_SOUND_THEME }),
+      setLiveSound: (chain, on) => set((state) => ({ liveSoundByChain: { ...state.liveSoundByChain, [chain]: on } })),
+      setLiveSoundTheme: (chain, theme) => set((state) => ({
+        liveSoundThemeByChain: { ...state.liveSoundThemeByChain, [chain]: isLiveSoundTheme(theme) ? theme : DEFAULT_LIVE_SOUND_THEME },
+      })),
       setShowMultisigHistory: (showMultisigHistory) => set({ showMultisigHistory }),
       setAllowUnknownSigners: (allowUnknownSigners) => set({ allowUnknownSigners }),
     }),
@@ -343,6 +346,15 @@ export const useAppStore = create<AppState>()(
         // Builds before v208 kept a single `customTheme`: it becomes the first of the list.
         const legacy = sanitizeCustomTheme((saved as { customTheme?: unknown }).customTheme);
         const customThemes = sanitizeSavedThemes(saved.customThemes ?? (legacy ? [legacy] : []));
+        const legacySound = saved as { liveSound?: unknown; liveSoundTheme?: unknown };
+        const soundOn = (chain: ChainKey): boolean => {
+          const own = saved.liveSoundByChain?.[chain];
+          return typeof own === 'boolean' ? own : typeof legacySound.liveSound === 'boolean' ? legacySound.liveSound : true;
+        };
+        const soundTheme = (chain: ChainKey): LiveSoundTheme => {
+          const own = saved.liveSoundThemeByChain?.[chain];
+          return isLiveSoundTheme(own) ? own : isLiveSoundTheme(legacySound.liveSoundTheme) ? legacySound.liveSoundTheme : DEFAULT_LIVE_SOUND_THEME;
+        };
         const customThemeId = customThemes.some((t) => t.id === saved.customThemeId) ? (saved.customThemeId as string) : (customThemes[0]?.id ?? null);
         // プロファイルごとのテーマも、壊れた値・想定外の値は捨てる（無くなったカスタムテーマを指すものは、共通の設定に戻す）。
         const profileThemes: Record<string, string> = {};
@@ -359,8 +371,10 @@ export const useAppStore = create<AppState>()(
           customThemes,
           customThemeId,
           profileThemes,
-          // 保存が無い・壊れている場合は、新しい音（既定）。
-          liveSoundTheme: isLiveSoundTheme(saved.liveSoundTheme) ? saved.liveSoundTheme : DEFAULT_LIVE_SOUND_THEME,
+          // 通知音のオン・オフと種類はチェーンごと。以前の保存（チェーン共通の liveSound / liveSoundTheme）は、
+          // 両方のチェーンにそのまま引き継ぐ。保存が無い・壊れている場合は、オンと新しい音（既定）。
+          liveSoundByChain: { symbol: soundOn('symbol'), nem: soundOn('nem') },
+          liveSoundThemeByChain: { symbol: soundTheme('symbol'), nem: soundTheme('nem') },
           // 廃止した「シンプル」（'business'）を選んでいた人は「色目」に移す。
           themeMode: (saved.themeMode as string) === 'business' ? 'irome' : saved.themeMode === 'custom' && customThemes.length === 0 ? 'dark' : (saved.themeMode ?? current.themeMode),
           symbolNodeLists: {
@@ -386,8 +400,8 @@ export const useAppStore = create<AppState>()(
         customThemeId: state.customThemeId,
         profileThemes: state.profileThemes,
         activeProfileKey: state.activeProfileKey,
-        liveSound: state.liveSound,
-        liveSoundTheme: state.liveSoundTheme,
+        liveSoundByChain: state.liveSoundByChain,
+        liveSoundThemeByChain: state.liveSoundThemeByChain,
         showMultisigHistory: state.showMultisigHistory,
         allowUnknownSigners: state.allowUnknownSigners,
         defaultFeeSpeed: state.defaultFeeSpeed,

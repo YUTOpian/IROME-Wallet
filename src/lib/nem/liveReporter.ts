@@ -26,9 +26,9 @@ export function liveIds(entry: EntryLike): string[] {
 
 export interface LiveReporter {
   /** The node has the transaction, not yet in a block. `ids` name it (see liveIds), `hash` is shown. */
-  reportUnconfirmed: (ids: string[], hash: string, txType: number | undefined) => void;
+  reportUnconfirmed: (ids: string[], hash: string, txType: number | undefined, mosaicNames?: string[]) => void;
   /** The transaction is in a block. One never seen waiting is reported as "unconfirmed" first. */
-  reportConfirmed: (ids: string[], hash: string, txType: number | undefined) => void;
+  reportConfirmed: (ids: string[], hash: string, txType: number | undefined, mosaicNames?: string[]) => void;
   /** After this, news is reported. Before it, everything is only remembered (what already existed when we started). */
   prime: () => void;
   isPrimed: () => boolean;
@@ -58,13 +58,13 @@ export function createLiveReporter(onEvent: (event: LiveEvent) => void, minGapMs
     }
   };
 
-  const reportUnconfirmed = (ids: string[], hash: string, txType: number | undefined) => {
+  const reportUnconfirmed = (ids: string[], hash: string, txType: number | undefined, mosaicNames?: string[]) => {
     if (ids.length === 0 || has(seenUnconfirmed, ids) || has(seenConfirmed, ids)) return;
     remember(seenUnconfirmed, ids);
-    emit({ kind: 'unconfirmed', hash, txType });
+    emit({ kind: 'unconfirmed', hash, txType, mosaicNames });
   };
 
-  const reportConfirmed = (ids: string[], hash: string, txType: number | undefined) => {
+  const reportConfirmed = (ids: string[], hash: string, txType: number | undefined, mosaicNames?: string[]) => {
     if (ids.length === 0 || has(seenConfirmed, ids)) return;
     remember(seenConfirmed, ids);
     if (!has(seenUnconfirmed, ids)) {
@@ -72,9 +72,9 @@ export function createLiveReporter(onEvent: (event: LiveEvent) => void, minGapMs
       // as Symbol's WebSocket always does, so a new transaction is heard twice. A transaction that WAS seen waiting
       // (announced from here, or reported by the WebSocket) never gets this: after the confirmation only ding2 is heard.
       remember(seenUnconfirmed, ids);
-      emit({ kind: 'unconfirmed', hash, txType });
+      emit({ kind: 'unconfirmed', hash, txType, mosaicNames });
     }
-    emit({ kind: 'confirmed', hash, txType });
+    emit({ kind: 'confirmed', hash, txType, mosaicNames });
   };
 
   return {

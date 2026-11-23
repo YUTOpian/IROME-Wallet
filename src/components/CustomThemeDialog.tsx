@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store/appStore';
 import { selectActiveCustomTheme } from '../store/appStore';
 import { applyProfileThemeChoice, useProfileThemeChoice } from '../theme/useThemeChoices';
+import type { ProfileThemeScope } from '../theme/useThemeChoices';
 import { MAX_ALL_IMAGE_CHARS, MAX_CUSTOM_THEMES, MAX_TOTAL_IMAGE_CHARS, buildThemeCss, imageCharsOf } from '../theme/customTheme';
 import type { SavedCustomTheme, ThemeParseResult } from '../theme/customTheme';
 import { editorFromSaved, editorHasContent, editorToTheme, emptyEditor } from '../theme/themeDraft';
@@ -30,7 +31,8 @@ type Pending = { kind: 'close' } | { kind: 'new' } | { kind: 'stop' } | { kind: 
 //   3. 下のボタン「保存して使う」で、色・フォント・画像をまとめて1つのテーマとして保存
 //   scope 'app'（既定）: 「使う」「保存して使う」は共通のテーマ（スタート画面・プロファイル選択画面）に使う。
 //   scope 'profile': 開いているプロファイルだけのテーマに使う（共通のテーマは変えない）。
-export default function CustomThemeDialog({ open, onClose, scope = 'app' }: { open: boolean; onClose: () => void; scope?: 'app' | 'profile' }) {
+// profileScope（scope 'profile' のとき）: プロファイルの Symbol・NEM 共通（'all'、既定）か、片方のチェーンだけか。
+export default function CustomThemeDialog({ open, onClose, scope = 'app', profileScope = 'all' }: { open: boolean; onClose: () => void; scope?: 'app' | 'profile'; profileScope?: ProfileThemeScope }) {
   const { t } = useTranslation();
   const muiTheme = useTheme();
   const fullScreen = useMediaQuery(muiTheme.breakpoints.down('sm'));
@@ -41,9 +43,9 @@ export default function CustomThemeDialog({ open, onClose, scope = 'app' }: { op
   const selectCustomTheme = useAppStore((s) => s.selectCustomTheme);
   const removeCustomTheme = useAppStore((s) => s.removeCustomTheme);
   const addCustomThemes = useAppStore((s) => s.addCustomThemes);
-  const profileChoice = useProfileThemeChoice();
+  const profileChoice = useProfileThemeChoice(profileScope);
   // 「使う」の行き先。プロファイルのときは、そのプロファイルのテーマにする。
-  const applyChosenTheme = (id: string) => { if (scope === 'profile') applyProfileThemeChoice(`custom:${id}`); else selectCustomTheme(id); };
+  const applyChosenTheme = (id: string) => { if (scope === 'profile') applyProfileThemeChoice(`custom:${id}`, profileScope); else selectCustomTheme(id); };
 
   // The theme being edited. With no saved theme the editor is open from the start; otherwise it opens from 「新しいテーマを作る」 / 「編集」.
   const [editor, setEditor] = useState<EditorTheme | null>(null);

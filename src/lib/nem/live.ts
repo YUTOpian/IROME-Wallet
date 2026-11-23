@@ -22,14 +22,21 @@ const AFTER_ANNOUNCE_MS = [300, 2500];
 // How many other nodes are tried besides the one the wallet talks to.
 const EXTRA_SOCKET_NODES = 3;
 
+interface RawMosaic { mosaicId?: { namespaceId?: string } }
+
 interface RawEntry {
   meta?: { hash?: { data?: string }; innerHash?: { data?: string }; data?: string };
-  transaction: { type: number; signature?: string; otherTrans?: { type: number } };
+  transaction: { type: number; signature?: string; mosaics?: RawMosaic[]; otherTrans?: { type: number; mosaics?: RawMosaic[] } };
 }
 
 const hashOf = (e: RawEntry): string => e.meta?.hash?.data ?? e.meta?.data ?? '';
 // A multisig wrapper is reported as what it carries.
 const typeOf = (e: RawEntry): number => (e.transaction.type === NEM_TX_TYPE_MULTISIG && e.transaction.otherTrans ? e.transaction.otherTrans.type : e.transaction.type);
+// The namespaces of the mosaics a transfer carries (a multisig wrapper is looked into), for the tomato sound (lib/tomatina.ts).
+const mosaicNamesOf = (e: RawEntry): string[] => {
+  const list = e.transaction.mosaics ?? e.transaction.otherTrans?.mosaics ?? [];
+  return list.map((m) => m?.mosaicId?.namespaceId).filter((n): n is string => typeof n === 'string');
+};
 const isEntry = (value: unknown): value is RawEntry => typeof value === 'object' && value !== null && typeof (value as RawEntry).transaction === 'object' && (value as RawEntry).transaction !== null;
 
 /** Where to try the WebSocket: the node the wallet already talks to first, then a few others (not when a node was typed in by hand). */
@@ -90,9 +97,9 @@ export function startNemLiveListener(address: string, onEvent: (event: LiveEvent
         nodeRequest<{ data?: RawEntry[] }>(`/account/transfers/all?address=${addr}`),
       ]);
       if (stopped) return;
-      for (const e of pending.data ?? []) reporter.reportUnconfirmed(liveIds(e), hashOf(e), typeOf(e));
+      for (const e of pending.data ?? []) reporter.reportUnconfirmed(liveIds(e), hashOf(e), typeOf(e), mosaicNamesOf(e));
       // Oldest first, so several new blocks are reported in order.
-      for (const e of [...(confirmed.data ?? [])].reverse()) reporter.reportConfirmed(liveIds(e), hashOf(e), typeOf(e));
+      for (const e of [...(confirmed.data ?? [])].reverse()) reporter.reportConfirmed(liveIds(e), hashOf(e), typeOf(e), mosaicNamesOf(e));
       reporter.prime();
     } catch {
       // The node is unreachable right now; the next poll tries again.
@@ -126,12 +133,12 @@ export function startNemLiveListener(address: string, onEvent: (event: LiveEvent
     onUnconfirmed: (entry) => {
       if (!isEntry(entry)) return;
       logDebug('nem-live', `unconfirmed (WebSocket) ${hashOf(entry)}`);
-      reporter.reportUnconfirmed(liveIds(entry), hashOf(entry), typeOf(entry));
+      reporter.reportUnconfirmed(liveIds(entry), hashOf(entry), typeOf(entry), mosaicNamesOf(entry));
     },
     onConfirmed: (entry) => {
       if (!isEntry(entry)) return;
       logDebug('nem-live', `confirmed (WebSocket) ${hashOf(entry)}`);
-      reporter.reportConfirmed(liveIds(entry), hashOf(entry), typeOf(entry));
+      reporter.reportConfirmed(liveIds(entry), hashOf(entry), typeOf(entry), mosaicNamesOf(entry));
     },
     onStatus: ({ connected }) => {
       socketUp = connected;

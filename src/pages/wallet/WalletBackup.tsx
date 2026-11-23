@@ -18,6 +18,7 @@ import { Environment } from '../../lib/environment';
 import cautionIcon from '../../assets/icon_caution.png';
 import { getChain } from '../../lib/chain';
 import type { ChainKey } from '../../lib/chain';
+import type { PaperWalletAccount } from '../../lib/paperWalletExport';
 import { BACKUP_SCREEN_IDLE_MS, useSecretAutoHide } from '../../hooks/useSecretAutoHide';
 
 export default function WalletBackup() {
@@ -49,6 +50,9 @@ export default function WalletBackup() {
   const [hasMnemonic, setHasMnemonic] = useState(true);
   // テストネットで公式互換の鍵（コイン種別 1）を使っているプロファイルのとき 1（ペーパーウォレットの導出に合わせる）。
   const [symbolCoinType, setSymbolCoinType] = useState<number | undefined>(undefined);
+  // The accounts the profile shows (not hidden) that the recovery phrase derives: the paper wallet can add a private-key
+  // page for each. Only indices and names - no secret.
+  const [profileAccounts, setProfileAccounts] = useState<PaperWalletAccount[]>([]);
   const [walletNotFound, setWalletNotFound] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [showPinDialog, setShowPinDialog] = useState(false);
@@ -90,6 +94,10 @@ export default function WalletBackup() {
         setHasMnemonic(true);
         setProfileKey(wallet.profileKey);
         setKeyWallet({ chain: wallet.chain, publicKey: wallet.publicKey });
+        if (mode === 'mnemonic') {
+          const shown = (await WalletsHelper.getProfileWallets(wallet.id)).filter((w) => !w.hidden && !w.keyless && w.accountIndex !== null);
+          setProfileAccounts(shown.map((w) => ({ index: w.accountIndex as number, chain: w.chain, name: w.accountName })));
+        }
         if (!(await PinCodeHelper.hasSavedCode(wallet.profileKey))) {
           // 本当のパスワードがまだ無いプロファイル（旧ビルドの固定の既定パスワードのまま）。既定パスワードは
           // ソースに載っている公開値なので、それで自動的に復号して秘密を見せることはしない。
@@ -206,7 +214,7 @@ export default function WalletBackup() {
             </Grid>
             <MnemonicCopyButton mnemonic={key} />
             <MnemonicQrExport mnemonic={key} />
-            <PaperWalletButton source={key.length > 0 ? { kind: 'mnemonic', mnemonic: key, symbolCoinType } : null} />
+            <PaperWalletButton source={key.length > 0 ? { kind: 'mnemonic', mnemonic: key, symbolCoinType, accounts: profileAccounts } : null} />
             <MnemonicKeystoreButton mnemonic={key} symbolCoinType={symbolCoinType} />
             {key.length > 0 && <OfficialProfileExportButton walletId={profileWalletId} />}
           </>

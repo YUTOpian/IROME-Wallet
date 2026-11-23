@@ -10,6 +10,8 @@ export interface LiveEvent {
   hash: string;
   txType?: number; // transaction type (confirmed / unconfirmed / partial events)
   code?: string; // rejection reason (status events), e.g. "Failure_Core_Insufficient_Balance"
+  mosaicIds?: string[]; // Symbol: ids of the mosaics in the transaction (16 hex), for the tomato sound (lib/tomatina.ts)
+  mosaicNames?: string[]; // NEM: namespace names of the mosaics in the transaction (e.g. "foo.tomato")
 }
 
 /** REST node URL -> its WebSocket URL (https -> wss, http -> ws, path /ws). */
@@ -19,11 +21,25 @@ export function wsUrlFor(node: string): string {
 
 const CHANNELS = ['confirmedAdded', 'unconfirmedAdded', 'unconfirmedRemoved', 'partialAdded', 'partialRemoved', 'cosignature', 'status'];
 
+interface RawTx {
+  type?: number;
+  mosaics?: Array<{ id?: string }>;
+  transactions?: Array<{ transaction?: RawTx }>; // an aggregate carries its inner transactions
+}
+
+/** The mosaic ids of a transaction (and of the transactions inside an aggregate). */
+function mosaicIdsOf(tx: RawTx | undefined, depth = 0): string[] {
+  if (!tx || depth > 2) return [];
+  const own = (Array.isArray(tx.mosaics) ? tx.mosaics : []).map((m) => m?.id).filter((id): id is string => typeof id === 'string');
+  const inner = (Array.isArray(tx.transactions) ? tx.transactions : []).flatMap((t) => mosaicIdsOf(t?.transaction, depth + 1));
+  return [...own, ...inner];
+}
+
 interface WsMessage {
   uid?: string;
   topic?: string;
   data?: {
-    transaction?: { type?: number };
+    transaction?: RawTx;
     meta?: { hash?: string };
     parentHash?: string;
     hash?: string;
@@ -43,9 +59,9 @@ export function parseLiveMessage(raw: string): LiveEvent | null {
   const name = msg.topic.split('/')[0];
   const d = msg.data;
   switch (name) {
-    case 'confirmedAdded': return { kind: 'confirmed', hash: d.meta?.hash ?? '', txType: d.transaction?.type };
-    case 'unconfirmedAdded': return { kind: 'unconfirmed', hash: d.meta?.hash ?? '', txType: d.transaction?.type };
-    case 'partialAdded': return { kind: 'partial', hash: d.meta?.hash ?? '', txType: d.transaction?.type };
+    case 'confirmedAdded': return { kind: 'confirmed', hash: d.meta?.hash ?? '', txType: d.transaction?.type, mosaicIds: mosaicIdsOf(d.transaction) };
+    case 'unconfirmedAdded': return { kind: 'unconfirmed', hash: d.meta?.hash ?? '', txType: d.transaction?.type, mosaicIds: mosaicIdsOf(d.transaction) };
+    case 'partialAdded': return { kind: 'partial', hash: d.meta?.hash ?? '', txType: d.transaction?.type, mosaicIds: mosaicIdsOf(d.transaction) };
     case 'unconfirmedRemoved':
     case 'partialRemoved': return { kind: 'removed', hash: d.meta?.hash ?? '' };
     case 'cosignature': return { kind: 'cosignature', hash: d.parentHash ?? '' };

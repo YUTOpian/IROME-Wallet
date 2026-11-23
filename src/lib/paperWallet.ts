@@ -1,4 +1,9 @@
-// IROME paper wallet: builds the printable A4 PDF (recovery phrase or private key + QR codes).
+// IROME paper wallet: builds the printable card PDF (recovery phrase or private key + QR codes).
+//
+// Layout: a landscape card with the same proportions as the official Symbol paper wallet (left: IROME mark on a
+// faint wave pattern, middle: two QR cards + the secret in text form, right: a dark band with the brush-written
+// IROME wordmark, "PAPER WALLET" and the chain / network). One page per sheet.
+// (The A4 helpers below - header, footer, qrCard ... - are still used by the invoice PDF, lib/invoicePdf.ts.)
 //
 // This module is pure - it only lays out a page with pdf-lib from data the caller hands over
 // (see paperWalletExport.ts for where that data comes from). No PDF template and no embedded
@@ -6,6 +11,7 @@
 // small and the secret never leaves the device. All printed text is therefore plain ASCII
 // (the BIP39 words, addresses and keys are ASCII anyway).
 import type { SymbolNetwork } from './symbol/constants';
+import { IROME_BRUSH, IROME_BRUSH_VIEWBOX } from './iromeBrushPaths';
 import {
   PDFDocument,
   PDFFont,
@@ -14,6 +20,7 @@ import {
   appendBezierCurve,
   clip,
   closePath,
+  degrees,
   endPath,
   lineTo,
   moveTo,
@@ -35,6 +42,9 @@ export interface PaperWalletInput {
   privateKey?: string;
   /** Address and public key of the account printed on the sheet. */
   address: string;
+  /** The two addresses printed on the sheet (the wallet is one wallet for both chains). Default: `address` for the sheet's own chain. */
+  symbolAddress?: string;
+  nemAddress?: string;
   publicKey: string;
   /** BIP44 path of the printed account (kind = 'mnemonic'), e.g. m/44'/4343'/0'/0'/0'. */
   derivationPath?: string;
@@ -42,9 +52,23 @@ export interface PaperWalletInput {
   secretQrPng?: Uint8Array;
   /** PNG of the public QR (address / contact). */
   publicQrPng: Uint8Array;
+  /** PNG of the Symbol contact QR / the NEM address QR. Default: `publicQrPng` for the sheet's own chain. */
+  symbolQrPng?: Uint8Array;
+  nemQrPng?: Uint8Array;
   /** PNG of the IROME mark (transparent background). */
   markPng: Uint8Array;
+  /** PNGs of the Symbol / NEM logos: they replace the IROME mark in the top right of a private-key sheet of that chain. */
+  symbolLogoPng?: Uint8Array;
+  nemLogoPng?: Uint8Array;
   createdAt: Date;
+  /** Short ASCII tag printed next to the date (which account of the profile the sheet is for), e.g. "INDEX 2". */
+  accountLabel?: string;
+  /**
+   * Private-key sheets added after the main sheet(s) - one account of one chain each (page 2 onwards).
+   * Each entry is a complete input of kind 'key' for a single chain (`chain`, `address`, `privateKey`, `publicQrPng`,
+   * and for Symbol `secretQrPng`); its own `extraSheets` are ignored.
+   */
+  extraSheets?: PaperWalletInput[];
 }
 
 // ---- IROME palette (same values as theme/iromeTheme.ts) ----
@@ -61,6 +85,7 @@ export const C = {
   muted: '#7A7080',
   line: '#E4DDEC',
   tint: '#F6F2FA',
+  cream: '#FFF8F1',
   warnBg: '#FFF1EF',
   warnText: '#B23A30',
 } as const;
@@ -76,6 +101,10 @@ export const PAGE_H = 841.89;
 export const MARGIN = 32;
 export const CONTENT_W = PAGE_W - MARGIN * 2;
 export const HEADER_H = 92;
+
+// The card: A4 landscape width, height from the official Symbol paper wallet's proportions (1568 x 626).
+export const CARD_W = 841.89;
+export const CARD_H = (CARD_W * 626) / 1568;
 
 // ---- small drawing helpers (all take "top-down" y, converted to PDF's bottom-up here) ----
 function hex(color: string) {
@@ -121,7 +150,7 @@ interface BoxStyle {
 export function box(page: PDFPage, x: number, top: number, w: number, h: number, style: BoxStyle) {
   page.drawSvgPath(roundedRectPath(w, h, style.radius ?? 0), {
     x,
-    y: PAGE_H - top,
+    y: page.getHeight() - top,
     color: style.fill ? hex(style.fill) : undefined,
     borderColor: style.border ? hex(style.border) : undefined,
     borderWidth: style.border ? (style.borderWidth ?? 0.75) : 0,
@@ -132,7 +161,7 @@ export function box(page: PDFPage, x: number, top: number, w: number, h: number,
 export function gradientBox(page: PDFPage, x: number, top: number, w: number, h: number, radius: number, stops = GRADIENT) {
   const r = Math.min(radius, w / 2, h / 2);
   const k = r * 0.5523;
-  const y0 = PAGE_H - top - h; // bottom edge in PDF space
+  const y0 = page.getHeight() - top - h; // bottom edge in PDF space
   const x1 = x + w;
   const y1 = y0 + h;
   page.pushOperators(
@@ -159,14 +188,14 @@ export function gradientBox(page: PDFPage, x: number, top: number, w: number, h:
 }
 
 export function text(page: PDFPage, s: string, x: number, top: number, size: number, font: PDFFont, color: string) {
-  page.drawText(s, { x, y: PAGE_H - top - size * 0.82, size, font, color: hex(color) });
+  page.drawText(s, { x, y: page.getHeight() - top - size * 0.82, size, font, color: hex(color) });
 }
 
 /** Text with extra letter spacing (pdf-lib has none built in). Returns the drawn width. */
 export function spaced(page: PDFPage, s: string, x: number, top: number, size: number, font: PDFFont, color: string, spacing: number): number {
   let cx = x;
   for (const ch of s) {
-    page.drawText(ch, { x: cx, y: PAGE_H - top - size * 0.82, size, font, color: hex(color) });
+    page.drawText(ch, { x: cx, y: page.getHeight() - top - size * 0.82, size, font, color: hex(color) });
     cx += font.widthOfTextAtSize(ch, size) + spacing;
   }
   return cx - x - spacing;
@@ -201,24 +230,24 @@ export function formatAddress(address: string): string {
   return (address.replace(/-/g, '').match(/.{1,6}/g) ?? []).join('-');
 }
 
-// The IROME wordmark (same strokes as components/irome/IromeLogo.tsx), viewBox -8 -8 856 166.
-const WORDMARK = [
-  'M 8 0 V 150', 'M 122 2 L 10 80', 'M 38 62 L 126 150', // K
-  'M 140 150 L 217 0 L 294 150 M 172 108 H 262', // A
-  'M 404 30 C 392 8 322 2 318 40 C 314 78 408 68 408 114 C 408 152 332 150 316 122', // S
-  'M 424 150 L 501 0 L 578 150 M 456 108 H 546', // A
-  'M 600 150 V 0', 'M 600 0 L 712 150', 'M 712 150 V 0', // N
-  'M 836 7 H 744 V 143 H 840 M 744 75 H 826', // E
-].join(' ');
+// The IROME wordmark: the brush-written "IROME" of the on-screen logo (components/irome/BrushLogo.tsx), filled.
+const BRUSH = IROME_BRUSH_VIEWBOX;
+/** Height / width of the wordmark. */
+export const WORDMARK_RATIO = BRUSH.h / BRUSH.w;
 
 export function wordmark(page: PDFPage, x: number, top: number, width: number, color: string) {
-  const s = width / 856;
-  page.drawSvgPath(WORDMARK, {
-    x: x + 8 * s,
-    y: PAGE_H - (top + 8 * s),
-    scale: s,
-    borderColor: hex(color),
-    borderWidth: 13, // scaled together with the path
+  const sc = width / BRUSH.w;
+  IROME_BRUSH.forEach((d) => {
+    page.drawSvgPath(d, { x: x - BRUSH.x * sc, y: page.getHeight() - (top - BRUSH.y * sc), scale: sc, color: hex(color) });
+  });
+}
+
+/** The wordmark standing upright, reading bottom to top (like the vertical title of the official sheet). */
+export function wordmarkVertical(page: PDFPage, left: number, bottomTop: number, length: number, color: string) {
+  const sc = length / BRUSH.w;
+  IROME_BRUSH.forEach((d) => {
+    // rotated 90 degrees counter-clockwise around (x, y): svg (px, py) lands at (x + py*sc, y + px*sc)
+    page.drawSvgPath(d, { x: left - BRUSH.y * sc, y: page.getHeight() - bottomTop - BRUSH.x * sc, scale: sc, rotate: degrees(90), color: hex(color) });
   });
 }
 
@@ -231,10 +260,10 @@ export function drawHeader(page: PDFPage, mark: Awaited<ReturnType<PDFDocument['
 
   const markW = 76;
   const markH = (markW * 984) / 1140;
-  page.drawImage(mark, { x: MARGIN + 24, y: PAGE_H - top - (h - markH) / 2 - markH + 2, width: markW, height: markH });
+  page.drawImage(mark, { x: MARGIN + 24, y: page.getHeight() - top - (h - markH) / 2 - markH + 2, width: markW, height: markH });
 
   wordmark(page, MARGIN + 124, top + 24, 168, C.lime);
-  spaced(page, subtitle, MARGIN + 125, top + 24 + 168 * (166 / 856) + 11, 10, f.regular, C.lime, 3.4);
+  spaced(page, subtitle, MARGIN + 125, top + 24 + 168 * WORDMARK_RATIO + 11, 10, f.regular, C.lime, 3.4);
 
   // chain / network pill, top right
   const pillW = spacedWidth(pillLabel, 8.5, f.bold, 1.4) + 28;
@@ -246,23 +275,6 @@ export function drawHeader(page: PDFPage, mark: Awaited<ReturnType<PDFDocument['
   gradientBox(page, MARGIN + 24, top + h - 9, CONTENT_W - 48, 1.6, 0.8, GRADIENT);
 }
 
-function header(page: PDFPage, mark: Awaited<ReturnType<PDFDocument['embedPng']>>, f: Fonts, input: PaperWalletInput) {
-  drawHeader(page, mark, f, 'PAPER WALLET', `${input.chain === 'symbol' ? 'SYMBOL' : 'NEM'}  ${input.network === 'mainnet' ? 'MAINNET' : input.network === 'mijin' ? 'MIJIN V2' : 'TESTNET'}`);
-}
-
-function warning(page: PDFPage, f: Fonts, top: number, input: PaperWalletInput): number {
-  const secretName = input.kind === 'mnemonic' ? 'recovery phrase or the secret QR' : 'private key or the secret QR';
-  const body = input.chain === 'nem' && input.kind === 'mnemonic'
-    ? 'Anyone who sees the recovery phrase can take everything in this wallet. Keep it offline, away from cameras and cloud-connected printers, and never share it.'
-    : `Anyone who sees the ${secretName} can take everything in this wallet. Keep it offline, away from cameras and cloud-connected printers, and never share it.`;
-  const lines = wrap(body, f.regular, 8.6, CONTENT_W - 36);
-  const h = 28 + lines.length * 11;
-  box(page, MARGIN, top, CONTENT_W, h, { fill: C.warnBg, border: C.coral, borderWidth: 1, radius: 12 });
-  spaced(page, 'KEEP THIS SHEET PRIVATE', MARGIN + 18, top + 11, 9, f.bold, C.warnText, 1.6);
-  lines.forEach((line, i) => text(page, line, MARGIN + 18, top + 26 + i * 11, 8.6, f.regular, C.text));
-  return top + h;
-}
-
 export function sectionTitle(page: PDFPage, f: Fonts, top: number, title: string, right?: string) {
   spaced(page, title, MARGIN, top, 9.5, f.bold, C.text, 2);
   gradientBox(page, MARGIN, top + 16, 34, 2.4, 1.2, GRADIENT);
@@ -270,35 +282,6 @@ export function sectionTitle(page: PDFPage, f: Fonts, top: number, title: string
     const w = spacedWidth(right, 7.6, f.bold, 1.2);
     spaced(page, right, MARGIN + CONTENT_W - w, top + 1.5, 7.6, f.bold, C.warnText, 1.2);
   }
-}
-
-function wordGrid(page: PDFPage, f: Fonts, top: number, words: string[]): number {
-  const cols = 4;
-  const gap = 6;
-  const cellW = (CONTENT_W - gap * (cols - 1)) / cols;
-  const cellH = 24;
-  words.forEach((word, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const x = MARGIN + col * (cellW + gap);
-    const y = top + row * (cellH + gap);
-    box(page, x, y, cellW, cellH, { fill: C.tint, border: C.line, borderWidth: 0.8, radius: 8 });
-    const num = String(i + 1);
-    text(page, num, x + 9, y + 8.6, 7.2, f.regular, C.muted);
-    text(page, word, x + 27, y + 6.6, 12.5, f.monoBold, C.text);
-  });
-  const rows = Math.ceil(words.length / cols);
-  return top + rows * cellH + (rows - 1) * gap;
-}
-
-function secretLine(page: PDFPage, f: Fonts, top: number, value: string): number {
-  // Private key: two lines of 32 hex chars in a single card.
-  const half = Math.ceil(value.length / 2);
-  const lines = [value.slice(0, half), value.slice(half)];
-  const h = 62;
-  box(page, MARGIN, top, CONTENT_W, h, { fill: C.tint, border: C.line, borderWidth: 0.8, radius: 12 });
-  lines.forEach((line, i) => centered(page, line, MARGIN + CONTENT_W / 2, top + 14 + i * 20, 14, f.monoBold, C.text));
-  return top + h;
 }
 
 export function qrCard(
@@ -326,7 +309,7 @@ export function qrCard(
   box(page, tagX, top + 13, tagW, 15, { fill: tag.secret ? C.coral : C.aqua, radius: 7.5 });
   spaced(page, tag.label, tagX + 7, top + 17.6, 7, f.bold, tag.secret ? '#FFFFFF' : C.ink, 1.2);
 
-  page.drawImage(qr, { x: x + (w - size) / 2, y: PAGE_H - top - 34 - size, width: size, height: size });
+  page.drawImage(qr, { x: x + (w - size) / 2, y: page.getHeight() - top - 34 - size, width: size, height: size });
   caption.forEach((line, i) => centered(page, line, x + w / 2, top + 34 + size + 6 + i * 11, 7.6, f.regular, C.muted));
 }
 
@@ -335,20 +318,20 @@ export function detailRow(page: PDFPage, f: Fonts, top: number, label: string, v
   text(page, value, MARGIN + 112, top, size, mono ? f.monoBold : f.bold, C.text);
 }
 
-function restoreInfo(input: PaperWalletInput): string[] {
-  if (input.kind === 'key') {
-    return input.chain === 'symbol'
+function restoreInfo(chain: PaperChain, kind: PaperKind): string[] {
+  if (kind === 'key') {
+    return chain === 'symbol'
       ? ['Import the private key (or scan the SECRET QR) in any Symbol wallet, then check that the address matches this sheet.']
       : ['Import the private key in any NEM wallet, then check that the address matches this sheet.'];
   }
-  return input.chain === 'symbol'
+  return chain === 'symbol'
     ? ['Enter the words in order in any Symbol wallet that supports BIP39 (IROME, Symbol Wallet ...). Wallets that read Symbol mnemonic QR codes can also scan the SECRET QR. Check that the address matches this sheet.']
-    : ['Enter the words in order in any NEM wallet that supports BIP39 and the path above. NEM has no standard recovery-phrase QR, so none is printed. Check that the address matches this sheet.'];
+    : ['Enter the words in order in any NEM wallet that supports BIP39. NEM has no standard recovery-phrase QR, so none is printed. Check that the address matches this sheet.'];
 }
 
 /** The footer of every IROME PDF: gradient rule, generated-on-device note and the IROME tag. */
 export function drawFooter(page: PDFPage, f: Fonts, createdAt: Date) {
-  const footerTop = PAGE_H - MARGIN - 10;
+  const footerTop = page.getHeight() - MARGIN - 10;
   gradientBox(page, MARGIN, footerTop - 10, CONTENT_W, 2, 1, GRADIENT);
   const date = createdAt.toISOString().slice(0, 10);
   text(page, `Generated locally on this device by IROME Wallet  -  ${date}`, MARGIN, footerTop, 7.6, f.regular, C.muted);
@@ -361,6 +344,177 @@ export interface Fonts {
   regular: PDFFont;
   bold: PDFFont;
   monoBold: PDFFont;
+}
+
+// ---- the card ----
+const CARD_BAND_X = 654; // the dark band on the right starts here
+const CARD_TEXT_X = 214; // the QR cards and the text start here
+const CARD_TEXT_W = 420;
+
+type Img = Awaited<ReturnType<PDFDocument['embedPng']>>;
+
+/** Text standing upright, reading bottom to top. `bottomTop` is where the text starts (top-down y). */
+function verticalSpaced(page: PDFPage, s: string, cx: number, bottomTop: number, size: number, font: PDFFont, color: string, spacing: number): number {
+  let y = page.getHeight() - bottomTop;
+  const x = cx + size * 0.36; // baseline; the glyphs rise to its left
+  for (const ch of s) {
+    page.drawText(ch, { x, y, size, font, color: hex(color), rotate: degrees(90) });
+    y += font.widthOfTextAtSize(ch, size) + spacing;
+  }
+  return y - (page.getHeight() - bottomTop) - spacing;
+}
+
+function verticalSpacedWidth(s: string, size: number, font: PDFFont, spacing: number): number {
+  return spacedWidth(s, size, font, spacing);
+}
+
+function clipRect(page: PDFPage, x: number, top: number, w: number, h: number) {
+  const y0 = page.getHeight() - top - h;
+  page.pushOperators(pushGraphicsState(), moveTo(x, y0), lineTo(x + w, y0), lineTo(x + w, y0 + h), lineTo(x, y0 + h), closePath(), clip(), endPath());
+}
+
+/** Seigaiha (wave) scales, the pattern of the IROME mark, drawn faintly on the left of the card. */
+function drawWaves(page: PDFPage, width: number) {
+  const R = 22;
+  clipRect(page, 0, 0, width, page.getHeight());
+  for (let row = 0, y = 4; y < page.getHeight() + R; row += 1, y += R / 2) {
+    for (let x = row % 2 === 0 ? 0 : R; x < width + R; x += R * 2) {
+      const cy = page.getHeight() - y;
+      page.drawCircle({ x, y: cy, size: R, color: hex(C.cream), borderColor: hex(C.lavender), borderWidth: 0.6, borderOpacity: 0.55 });
+      page.drawCircle({ x, y: cy, size: R * 0.68, borderColor: hex(C.lavender), borderWidth: 0.5, borderOpacity: 0.4 });
+      page.drawCircle({ x, y: cy, size: R * 0.36, borderColor: hex(C.lavender), borderWidth: 0.5, borderOpacity: 0.3 });
+    }
+  }
+  page.pushOperators(popGraphicsState());
+}
+
+/** Gradient running top to bottom (the gradientBox helper runs left to right). */
+function verticalGradient(page: PDFPage, x: number, top: number, w: number, h: number, stops = GRADIENT) {
+  const strips = Math.max(24, Math.ceil(h / 2));
+  const sh = h / strips;
+  for (let i = 0; i < strips; i += 1) {
+    page.drawRectangle({ x, y: page.getHeight() - top - (i + 1) * sh, width: w, height: sh + 0.6, color: lerpStops(stops, (i + 0.5) / strips) });
+  }
+}
+
+/** A QR card of the sheet: the QR on the left, its name standing upright on the right. */
+function cardQr(page: PDFPage, f: Fonts, qr: Img, x: number, top: number, side: number, label: string, secret: boolean) {
+  box(page, x, top, side, side, { fill: '#FFFFFF', border: C.line, borderWidth: 0.9, radius: 12 });
+  gradientBox(page, x + 14, top, side - 28, 2.6, 1.3, secret ? [[0, C.coral], [1, C.pink]] : [[0, C.aqua], [1, C.mint]]);
+  const qrSize = side - 34;
+  page.drawImage(qr, { x: x + 9, y: page.getHeight() - top - (side - qrSize) / 2 - qrSize, width: qrSize, height: qrSize });
+  const len = verticalSpacedWidth(label, 7.2, f.bold, 1.7);
+  verticalSpaced(page, label, x + side - 13, top + side / 2 + len / 2, 7.2, f.bold, secret ? C.warnText : C.text, 1.7);
+}
+
+/** Shrinks `size` until `s` fits in `maxW`. */
+function fitSize(s: string, font: PDFFont, size: number, maxW: number): number {
+  const w = font.widthOfTextAtSize(s, size);
+  return w <= maxW ? size : (size * maxW) / w;
+}
+
+/** Which chain a card page is about: both (recovery phrase sheet) or one of them (a private key belongs to one chain). */
+type CardView = PaperChain | 'both';
+
+function drawCard(page: PDFPage, f: Fonts, input: PaperWalletInput, img: { mark: Img; bandLogo: Img; symbolQr: Img | null; nemQr: Img | null; secretQr: Img | null }, view: CardView) {
+  const H = page.getHeight();
+  const networkName = input.network === 'mainnet' ? 'MAINNET' : input.network === 'mijin' ? 'MIJIN V2' : 'TESTNET';
+
+  // background + left decoration
+  page.drawRectangle({ x: 0, y: 0, width: CARD_W, height: H, color: hex(C.cream) });
+  drawWaves(page, 196);
+  // the IROME mark, large, on the left
+  const markW = 150;
+  const markH = (markW * 984) / 1140;
+  page.drawImage(img.mark, { x: 24, y: (H - markH) / 2, width: markW, height: markH });
+
+  // QR cards: both chains = the secret, the Symbol address, the NEM address (small); one chain = the secret, that address
+  const single = view !== 'both';
+  const side = single ? 150 : 132;
+  const gap = 12;
+  const cardTop = 20;
+  const slot = (i: number) => CARD_TEXT_X + i * (side + gap);
+  const secretLabel = input.kind === 'mnemonic' ? 'MNEMONIC' : 'PRIVATE KEY';
+  if (img.secretQr) {
+    cardQr(page, f, img.secretQr, slot(0), cardTop, side, secretLabel, true);
+  } else {
+    // NEM has no standard QR for the secret: the slot says how to restore instead
+    const pad = single ? 14 : 12;
+    box(page, slot(0), cardTop, side, side, { fill: C.tint, border: C.line, borderWidth: 0.9, radius: 12 });
+    spaced(page, 'HOW TO RESTORE', slot(0) + pad, cardTop + pad, single ? 8 : 7.4, f.bold, C.text, 1.2);
+    const fs = single ? 7.8 : 6.9;
+    wrap(restoreInfo(view === 'both' ? input.chain : view, input.kind)[0], f.regular, fs, side - pad * 2).forEach((line, i) => text(page, line, slot(0) + pad, cardTop + pad + 17 + i * (fs + 2.7), fs, f.regular, C.text));
+  }
+  if (view === 'both') {
+    if (img.symbolQr) cardQr(page, f, img.symbolQr, slot(1), cardTop, side, 'SYMBOL ADDRESS', false);
+    if (img.nemQr) cardQr(page, f, img.nemQr, slot(2), cardTop, side, 'NEM ADDRESS', false);
+  } else {
+    const qr = view === 'symbol' ? img.symbolQr : img.nemQr;
+    if (qr) cardQr(page, f, qr, slot(1), cardTop, side, `${view.toUpperCase()} ADDRESS`, false);
+  }
+
+  // addresses and the secret in text form
+  const symbolAddress = view === 'nem' ? undefined : input.symbolAddress ?? (input.chain === 'symbol' ? input.address : undefined);
+  const nemAddress = view === 'symbol' ? undefined : input.nemAddress ?? (input.chain === 'nem' ? input.address : undefined);
+  let y = cardTop + side + 16;
+  const heading = (title: string, accent: [number, string][]) => {
+    text(page, title, CARD_TEXT_X, y, 13, f.bold, C.text);
+    gradientBox(page, CARD_TEXT_X, y + 17, 28, 2, 1, accent);
+    y += 24;
+  };
+  const addressRow = (title: string, address: string) => {
+    heading(title, GRADIENT);
+    const pretty = formatAddress(address);
+    text(page, pretty, CARD_TEXT_X, y, fitSize(pretty, f.monoBold, 10.5, CARD_TEXT_W), f.monoBold, C.ink);
+    y += 21;
+  };
+  if (symbolAddress) addressRow('Your Symbol Address', symbolAddress);
+  if (nemAddress) addressRow('Your NEM Address', nemAddress);
+
+  const chainWord = view === 'symbol' ? 'Symbol ' : view === 'nem' ? 'NEM ' : '';
+  heading(input.kind === 'mnemonic' ? 'Your Mnemonic' : `Your ${chainWord}Private Key`, [[0, C.coral], [1, C.pink]]);
+  if (input.kind === 'mnemonic') {
+    const words = input.words as string[];
+    const rows: string[] = [];
+    for (let i = 0; i < words.length; i += 12) rows.push(words.slice(i, i + 12).join(' '));
+    const size = Math.min(...rows.map((r) => fitSize(r, f.bold, 9.6, CARD_TEXT_W)));
+    rows.forEach((row, i) => text(page, row, CARD_TEXT_X, y + i * 13.5, size, f.bold, C.ink));
+  } else {
+    const key = input.privateKey as string;
+    text(page, key, CARD_TEXT_X, y, fitSize(key, f.monoBold, 10, CARD_TEXT_W), f.monoBold, C.ink);
+  }
+
+  // creation date, top left
+  const date = input.createdAt.toISOString().slice(0, 10);
+  const dateW = spacedWidth(date, 7.6, f.bold, 1) + 18;
+  box(page, 10, 10, dateW, 17, { fill: C.cream, border: C.line, borderWidth: 0.8, radius: 8.5 });
+  spaced(page, date, 19, 10 + 5.2, 7.6, f.bold, C.text, 1);
+  // which account of the profile this sheet is for (private-key sheets of a profile)
+  if (input.accountLabel) {
+    const label = input.accountLabel;
+    const labelW = spacedWidth(label, 7.6, f.bold, 1) + 18;
+    box(page, 10 + dateW + 6, 10, labelW, 17, { fill: C.cream, border: C.line, borderWidth: 0.8, radius: 8.5 });
+    spaced(page, label, 10 + dateW + 6 + 9, 10 + 5.2, 7.6, f.bold, C.text, 1);
+  }
+
+  // the dark band on the right
+  const bandW = CARD_W - CARD_BAND_X;
+  page.drawRectangle({ x: CARD_BAND_X, y: 0, width: bandW, height: H, color: hex(C.stage) });
+  verticalGradient(page, CARD_BAND_X, 0, 4, H);
+  const bandCx = CARD_BAND_X + 4 + (bandW - 4) / 2;
+  // top right: the IROME mark, or on a private-key sheet the logo of its chain (fitted into a 62 x 56 box)
+  const logoScale = Math.min(62 / img.bandLogo.width, 56 / img.bandLogo.height);
+  const logoW = img.bandLogo.width * logoScale;
+  const logoH = img.bandLogo.height * logoScale;
+  page.drawImage(img.bandLogo, { x: bandCx - logoW / 2, y: H - 18 - 56 / 2 - logoH / 2, width: logoW, height: logoH });
+
+  const bottom = H - 20; // the vertical texts start here and read upward
+  const wmLen = 152;
+  const wmThick = wmLen * WORDMARK_RATIO;
+  wordmarkVertical(page, bandCx - 46 - wmThick / 2, bottom, wmLen, C.lime);
+  const title = 'PAPER WALLET';
+  verticalSpaced(page, title, bandCx + 4, bottom, 17, f.bold, '#FFFFFF', 4.2);
+  verticalSpaced(page, `${view === 'both' ? 'SYMBOL / NEM' : view.toUpperCase()}  ${networkName}`, bandCx + 48, bottom, 8, f.bold, C.lime, 2.4);
 }
 
 export async function buildPaperWalletPdf(input: PaperWalletInput): Promise<Uint8Array> {
@@ -380,69 +534,40 @@ export async function buildPaperWalletPdf(input: PaperWalletInput): Promise<Uint
     monoBold: await pdf.embedFont(StandardFonts.CourierBold),
   };
   const mark = await pdf.embedPng(input.markPng);
-  const publicQr = await pdf.embedPng(input.publicQrPng);
-  const secretQr = input.secretQrPng ? await pdf.embedPng(input.secretQrPng) : null;
+  const symbolLogo = input.symbolLogoPng ? await pdf.embedPng(input.symbolLogoPng) : mark;
+  const nemLogo = input.nemLogoPng ? await pdf.embedPng(input.nemLogoPng) : mark;
 
-  const page = pdf.addPage([PAGE_W, PAGE_H]);
+  // Adds the card page(s) of one input: `views` says which chain(s) each page is about.
+  const addSheets = async (sheet: PaperWalletInput, views: CardView[]) => {
+    const ownQr = await pdf.embedPng(sheet.publicQrPng);
+    const symbolQr = sheet.symbolQrPng ? await pdf.embedPng(sheet.symbolQrPng) : sheet.chain === 'symbol' ? ownQr : null;
+    const nemQr = sheet.nemQrPng ? await pdf.embedPng(sheet.nemQrPng) : sheet.chain === 'nem' ? ownQr : null;
+    const secretQr = sheet.secretQrPng ? await pdf.embedPng(sheet.secretQrPng) : null;
+    for (const view of views) {
+      const page = pdf.addPage([CARD_W, CARD_H]);
+      drawCard(page, fonts, sheet, {
+        mark,
+        bandLogo: view === 'symbol' ? symbolLogo : view === 'nem' ? nemLogo : mark,
+        symbolQr,
+        nemQr,
+        // the secret QR is in the Symbol format: not on the NEM sheet
+        secretQr: view === 'nem' ? null : secretQr,
+      }, view);
+    }
+  };
 
-  header(page, mark, fonts, input);
-  let y = warning(page, fonts, MARGIN + HEADER_H + 12, input) + 18;
+  // A recovery phrase is one sheet for both chains. A private key belongs to one chain, so it gets one sheet per
+  // chain (Symbol first, then NEM), each with that chain's logo in the top right.
+  const hasSymbol = input.symbolAddress != null || input.chain === 'symbol';
+  const hasNem = input.nemAddress != null || input.chain === 'nem';
+  const views: CardView[] = input.kind === 'mnemonic' ? ['both'] : [...(hasSymbol ? ['symbol' as const] : []), ...(hasNem ? ['nem' as const] : [])];
+  await addSheets(input, views);
 
-  // 1. the secret in text form
-  if (input.kind === 'mnemonic') {
-    const words = input.words as string[];
-    sectionTitle(page, fonts, y, 'RECOVERY PHRASE', `${words.length} WORDS  -  KEEP SECRET`);
-    y = wordGrid(page, fonts, y + 26, words) + 20;
-  } else {
-    sectionTitle(page, fonts, y, 'PRIVATE KEY', 'KEEP SECRET');
-    y = secretLine(page, fonts, y + 26, input.privateKey as string) + 20;
+  // Page 2 onwards: the private key of each account of the profile, one page per account and chain.
+  for (const extra of input.extraSheets ?? []) {
+    if (extra.kind !== 'key' || !extra.privateKey) throw new Error('paper wallet: an extra sheet needs a private key');
+    await addSheets(extra, [extra.chain]);
   }
-
-  // 2. QR codes
-  sectionTitle(page, fonts, y, secretQr ? 'QR CODES' : 'ADDRESS QR');
-  y += 26;
-  const cardGap = 14;
-  const cardW = (CONTENT_W - cardGap) / 2;
-  const cardH = 180;
-  const publicCaption = input.chain === 'symbol'
-    ? ['Symbol contact QR (name + public key)', 'Safe to share - others can send to you']
-    : ['NEM address QR', 'Safe to share - others can send to you'];
-  if (secretQr) {
-    qrCard(page, fonts, secretQr, MARGIN, y, cardW, cardH, { label: 'SECRET', secret: true },
-      input.kind === 'mnemonic' ? 'RECOVERY PHRASE QR' : 'PRIVATE KEY QR',
-      ['Symbol standard format (not encrypted)', 'Anyone who scans it owns the wallet']);
-    qrCard(page, fonts, publicQr, MARGIN + cardW + cardGap, y, cardW, cardH, { label: 'PUBLIC', secret: false },
-      'ADDRESS QR', publicCaption);
-  } else {
-    qrCard(page, fonts, publicQr, MARGIN, y, cardW, cardH, { label: 'PUBLIC', secret: false }, 'ADDRESS QR', publicCaption);
-    // NEM: the second slot explains how to restore instead of showing a QR
-    const x2 = MARGIN + cardW + cardGap;
-    box(page, x2, y, cardW, cardH, { fill: C.tint, border: C.line, borderWidth: 0.9, radius: 14 });
-    spaced(page, 'HOW TO RESTORE', x2 + 16, y + 16, 8.6, fonts.bold, C.text, 1.5);
-    wrap(restoreInfo(input)[0], fonts.regular, 8.8, cardW - 32).forEach((line, i) => text(page, line, x2 + 16, y + 40 + i * 13, 8.8, fonts.regular, C.text));
-  }
-  y += cardH + 18;
-
-  // 3. account details
-  sectionTitle(page, fonts, y, 'ACCOUNT DETAILS');
-  y += 26;
-  const network = input.network === 'mijin' ? 'mijin' : `${input.chain === 'symbol' ? 'Symbol' : 'NEM'} ${input.network === 'mainnet' ? 'Mainnet' : 'Testnet'}`;
-  const rows: [string, string, boolean, number][] = [
-    ['ADDRESS', formatAddress(input.address), true, 10],
-    ['PUBLIC KEY', input.publicKey, true, 7.6],
-    ['NETWORK', input.derivationPath ? `${network}   -   path ${input.derivationPath}` : network, false, 8.6],
-  ];
-  const detailsH = rows.length * 18 + 14;
-  box(page, MARGIN, y, CONTENT_W, detailsH, { fill: C.tint, border: C.line, borderWidth: 0.8, radius: 12 });
-  rows.forEach(([label, value, mono, size], i) => detailRow(page, fonts, y + 11 + i * 18, label, value, mono, size));
-  y += detailsH + 12;
-
-  // 4. restore note (Symbol shows it here; NEM already shows it in the card above)
-  if (secretQr) {
-    wrap(restoreInfo(input)[0], fonts.regular, 7.8, CONTENT_W - 4).forEach((line, i) => text(page, line, MARGIN + 2, y + i * 10.5, 7.8, fonts.regular, C.muted));
-  }
-
-  drawFooter(page, fonts, input.createdAt);
 
   return pdf.save();
 }
