@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
-import { Box, ButtonBase, Card, Typography } from '@mui/material';
+import { Box, ButtonBase, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import BackButton from '../../components/BackButton';
-import { FlatSectionsContext } from '../multisig/parts';
 
 // The frame of the offline screens (オフライントランザクション), laid out like the official wallet's offline screen:
 //   [ 転送トランザクション | トランザクションに連署 | 読み込んで送信 ]      <- what to do (the screens)
@@ -34,11 +33,7 @@ export default function OfflineShell({ tab, steps, step, children }: Props) {
     <Box sx={{ minHeight: '100vh', pb: 4 }}>
       {/* Always the profile selection, whatever the history holds (history -1 can land somewhere else or nowhere). */}
       <BackButton onBack={() => navigate('/wallet/select', { replace: true })} />
-      {/* 中身の幅（読みやすい幅）に合わせた白いカード。左右に空白を作らないよう、カードの幅を中身に合わせる（中の枠つきの区画は、枠なしになる）。 */}
-      <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pt: 1, pb: 2, boxSizing: 'border-box' }}>
-      <Card sx={{ width: '100%', maxWidth: 840, mx: 'auto' }}>
-      <FlatSectionsContext.Provider value>
-      <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
+      <Box sx={{ width: '100%', maxWidth: 760, mx: 'auto', px: { xs: 2, md: 3 }, py: 1, boxSizing: 'border-box', textAlign: 'left' }}>
         <Typography component="h1" sx={{ fontSize: 20, fontWeight: 'bold', mb: 0.5 }}>{t('offline.hub_title')}</Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.8, mb: 2 }}>{t('offline_ui.lead')}</Typography>
 
@@ -77,7 +72,7 @@ export default function OfflineShell({ tab, steps, step, children }: Props) {
                   display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1, borderRadius: 1.5, fontSize: '0.9rem',
                   fontWeight: active ? 'bold' : 'normal',
                   background: (th) => (active ? th.irome.gradient : 'transparent'),
-                  color: (th) => (active ? th.irome.onGradient : done ? th.palette.text.primary : th.palette.text.disabled),
+                  color: (th) => (active ? th.irome.ink : done ? th.palette.text.primary : th.palette.text.disabled),
                   border: 1, borderColor: active ? 'transparent' : 'divider',
                 }}
               >
@@ -90,9 +85,6 @@ export default function OfflineShell({ tab, steps, step, children }: Props) {
 
         {children}
 
-      </Box>
-      </FlatSectionsContext.Provider>
-      </Card>
       </Box>
 
     </Box>
