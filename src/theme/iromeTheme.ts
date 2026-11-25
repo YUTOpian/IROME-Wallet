@@ -577,6 +577,8 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
           },
         },
       },
+      // 警告などの枠（Alert）も、ホームのカードと同じ角丸にする。
+      MuiAlert: { styleOverrides: { root: { borderRadius: tokens.cardRadius } } },
       MuiAppBar: {
         defaultProps: { elevation: 0 },
         styleOverrides: {
@@ -652,6 +654,8 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
         },
       },
       MuiTabs: { styleOverrides: { indicator: { height: 3, borderRadius: 3, background: gradient } } },
+      // タブは、白いカードの外でIROME模様の上に置かれることがある。選ばれていないタブの文字は、明るいテーマでは濃い黒にして、模様と重なっても読めるようにする。
+      MuiTab: { styleOverrides: { root: dark ? {} : { '&:not(.Mui-selected)': { color: '#111', opacity: 1 } } } },
       MuiLinearProgress: { styleOverrides: { bar: { background: gradient } } },
       MuiChip: { styleOverrides: { root: { borderRadius: buttonRadius } } },
       MuiCheckbox: { defaultProps: { color: 'primary' } },

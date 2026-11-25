@@ -12,6 +12,7 @@ import type { PollHeader } from '../../lib/symbol/voting';
 import { fetchPollHeaders } from '../../lib/symbol/votingApi';
 import { useAppStore } from '../../store/appStore';
 import { pollTypeLabelKey } from './votingText';
+import { SectionCard } from '../multisig/parts';
 
 type Filter = 'all' | 'active' | 'ended';
 
@@ -123,11 +124,12 @@ export default function SymbolVotingList() {
   return (
     <Box sx={{ minHeight: '100vh', pb: 4 }}>
       <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box' }}>
-        <Button variant="contained" color="primary" size="large" startIcon={<AddIcon />} onClick={() => navigate('/voting/create')} sx={{ py: 1.25, px: 4, width: { xs: '100%', md: 'auto' } }}>
+        <Button variant="contained" color="primary" size="large" startIcon={<AddIcon />} onClick={() => navigate('/voting/create')} sx={{ py: 1.25, px: 4, mb: 2.5, width: { xs: '100%', md: 'auto' } }}>
           {t('nemvoting.create_button')}
         </Button>
 
-        <Typography sx={{ mt: 3, mb: 0.5, fontWeight: 'bold' }}>{t('nemvoting.open_by_address')}</Typography>
+        <SectionCard>
+        <Typography sx={{ mb: 0.5, fontWeight: 'bold' }}>{t('nemvoting.open_by_address')}</Typography>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', maxWidth: 640 }}>
           <TextField
             size="small"
@@ -143,8 +145,10 @@ export default function SymbolVotingList() {
             {t('nemvoting.open')}
           </Button>
         </Box>
+        </SectionCard>
 
-        <Typography sx={{ mt: 2, mb: 0.5, fontWeight: 'bold' }}>{t('nemvoting.polls_title')}</Typography>
+        <SectionCard>
+        <Typography sx={{ mb: 0.5, fontWeight: 'bold' }}>{t('nemvoting.polls_title')}</Typography>
         <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 1.5 }}>{t('symbolvoting.list_hint')}</Typography>
         <TextField
           select
@@ -158,6 +162,7 @@ export default function SymbolVotingList() {
             <MenuItem key={f} value={f}>{t(`nemvoting.filter_${f}`)}</MenuItem>
           ))}
         </TextField>
+        </SectionCard>
 
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={26} /></Box>
