@@ -9,6 +9,7 @@ import type { MosaicBalance } from '../../lib/symbol/api';
 import { findNftImage } from '../../lib/symbol/nftImage';
 import { useWatchOnly } from '../../hooks/useWatchOnly';
 import { useAppStore } from '../../store/appStore';
+import { cardRadius } from '../../theme/cardRadius';
 
 // タイル右上に出す、モザイクに紐づけられた画像（オンチェーンNFT。取り出しは lib/symbol/nftImage.ts。読み込みは MosaicsPanel がまとめて行う）。
 // 押すと、大きくしたものをポップアップで出す。
@@ -210,7 +211,7 @@ export default function MosaicsPanel({ onShowOnBalanceCard, balanceHidden }: { o
         }}
       >
         {visibleList.map((m) => (
-          <Box key={m.id} sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, minWidth: 0, p: 1.75, border: 1, borderColor: 'divider', borderRadius: 2, textAlign: 'left' }}>
+          <Box key={m.id} sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, minWidth: 0, p: 1.75, border: 1, borderColor: 'divider', borderRadius: cardRadius, textAlign: 'left' }}>
             {/* 名前とIDの右に、モザイクに紐づけられた画像があれば表示する（Symbol のみ。ネイティブ通貨には無いので読まない）。 */}
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, minWidth: 0, ...(chain === 'symbol' ? { minHeight: TILE_IMAGE_SIZE } : {}) }}>
             <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>

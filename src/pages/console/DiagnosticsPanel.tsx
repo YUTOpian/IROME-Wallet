@@ -8,6 +8,7 @@ import type { LogLevel } from '../../lib/diagnostics';
 import { getConnectedNode, nodeRequest as symbolRequest, resolveNode, testNode } from '../../lib/symbol/api';
 import { nodeRequest as nemRequest, resolveNemNode } from '../../lib/nem/api';
 import { saveTextFile } from '../../lib/saveTextFile';
+import { cardRadius } from '../../theme/cardRadius';
 
 const LEVEL_COLOR: Record<LogLevel, string> = { debug: 'text.disabled', info: 'text.primary', warn: 'warning.main', error: 'error.main' };
 
@@ -97,7 +98,7 @@ export default function DiagnosticsPanel({ visible = true }: { visible?: boolean
 
       <Box
         ref={box}
-        sx={{ mt: 1.5, height: '50vh', minHeight: 240, overflow: 'auto', bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 2, p: 1, fontFamily: 'monospace', fontSize: 12, lineHeight: 1.5 }}
+        sx={{ mt: 1.5, height: '50vh', minHeight: 240, overflow: 'auto', bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, p: 1, fontFamily: 'monospace', fontSize: 12, lineHeight: 1.5 }}
       >
         {shown.length === 0 && <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>{t('settings.diag_empty')}</Typography>}
         {shown.map((e) => (

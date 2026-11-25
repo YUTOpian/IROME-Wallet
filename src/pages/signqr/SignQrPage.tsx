@@ -41,6 +41,7 @@ import { parseNemBundle, parseNemSigned } from '../../lib/nem/offline';
 import type { ParsedNemBundle, ParsedNemSigned } from '../../lib/nem/offline';
 import { ItemView, mono } from '../multisig/parts';
 import NemSignedView, { NemBundleView } from './NemSignedView';
+import { cardRadius } from '../../theme/cardRadius';
 
 const TYPE_TRANSFER = 0x4154;
 const TYPE_AGGREGATE_COMPLETE = 0x4141;
@@ -64,7 +65,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 function Card({ children }: { children: ReactNode }) {
   return (
-    <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 3, px: 2, py: 1, mb: 2, textAlign: 'left' }}>
+    <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 2, py: 1, mb: 2, textAlign: 'left' }}>
       {children}
     </Box>
   );
@@ -542,7 +543,7 @@ function ReaderIntro({ withAddress }: { withAddress: boolean }) {
     <Box sx={{ mb: 2.5 }}>
       <Typography variant="body1" sx={{ fontWeight: 500, mb: 1.5, lineHeight: 1.7 }}>{t('signqr.intro_lead')}</Typography>
       {/* One bordered panel with a line between the rows: the same frame as the folded details below it (no accent bar, no pills). */}
-      <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+      <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: cardRadius, overflow: 'hidden' }}>
         {kinds.map(([title, desc], i) => (
           <Box key={title} sx={{ px: 2, py: 1.5, borderTop: i === 0 ? 0 : '1px solid', borderColor: 'divider' }}>
             <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.6 }}>{t(title)}</Typography>
@@ -551,7 +552,7 @@ function ReaderIntro({ withAddress }: { withAddress: boolean }) {
         ))}
       </Box>
       <Alert severity="info" variant="outlined" sx={{ mt: 1.5, lineHeight: 1.7 }}>{t('signqr.intro_safe')}</Alert>
-      <Accordion disableGutters elevation={0} square sx={{ mt: 1.5, bgcolor: 'transparent', border: '1px solid', borderColor: 'divider', borderRadius: 2, '&:before': { display: 'none' } }}>
+      <Accordion disableGutters elevation={0} square sx={{ mt: 1.5, bgcolor: 'transparent', border: '1px solid', borderColor: 'divider', borderRadius: cardRadius, '&:before': { display: 'none' } }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography variant="body2" sx={{ fontWeight: 500 }}>{t('signqr.intro_adv_title')}</Typography>
         </AccordionSummary>

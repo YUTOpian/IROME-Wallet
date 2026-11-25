@@ -6,7 +6,7 @@
 // co-signs it later (from its own wallet: 署名待ち / 連署). Only when the owner is a multisig account that the
 // wallet alone can approve (minApproval 1) is the aggregate complete and announced directly.
 // Entries are stored per (source, target, key): they never overwrite the owner's own entries for the same key.
-import { getDefaultFeeSpeed } from './feeSpeed';
+import { getDefaultFeeSpeed, type FeeSpeed } from './feeSpeed';
 import { announceSigned, feeMultipliers, fetchMetadataValue, networkTimeMs, nodeRequest, quoteFeesForSize, resolveRecipientInput } from './api';
 import type { MetadataTargetRef } from './api';
 import { resolveSigner } from './aggregateApi';
@@ -94,12 +94,12 @@ export interface MetadataOtherQuote {
 }
 
 /** Cost of setting the given values on another account's target, at the standard fee level. */
-export async function quoteMetadataForOther(type: MetadataTargetType, valueLengths: number[], owner: AggregateSigner): Promise<MetadataOtherQuote> {
+export async function quoteMetadataForOther(type: MetadataTargetType, valueLengths: number[], owner: AggregateSigner, speed: FeeSpeed = getDefaultFeeSpeed()): Promise<MetadataOtherQuote> {
   const bonded = metadataNeedsBonded(owner);
   const cosignatures = bonded ? owner.cosignatures : 0;
   const size = metadataAggregateSize(type, valueLengths) + COSIGNATURE_SIZE * cosignatures;
   const [fees, lockAmount] = await Promise.all([quoteFeesForSize(size), bonded ? fetchHashLockAmount() : Promise.resolve(0n)]);
-  const quote = fees[getDefaultFeeSpeed()];
+  const quote = fees[speed];
   return {
     fee: quote.fee,
     lockFee: bonded ? BigInt(HASH_LOCK_SIZE) * BigInt(quote.multiplier) : 0n,
@@ -116,6 +116,7 @@ export interface SetMetadataOtherInput {
   owner: AggregateSigner; // the account the metadata is attached to / that owns the target
   target: MetadataTarget;
   items: MetadataItem[];
+  feeSpeed?: FeeSpeed; // default: the app's default level
 }
 
 export interface SetMetadataOtherResult {
@@ -147,7 +148,7 @@ export async function setMetadataForOther(input: SetMetadataOtherInput): Promise
   })));
   const bonded = metadataNeedsBonded(input.owner);
   const multipliers = await feeMultipliers();
-  const multiplier = multipliers[getDefaultFeeSpeed()];
+  const multiplier = multipliers[input.feeSpeed ?? getDefaultFeeSpeed()];
   const now = BigInt(await networkTimeMs());
   const signed = signMetadata(input.privateKey, cfg.generationHash, {
     signerPublicKey: input.publicKey,

@@ -20,6 +20,7 @@ import { useAppStore } from '../store/appStore';
 import { useSocialHiddenStore } from '../store/socialHiddenStore';
 import { fetchSocialDirectoryPage, matchesSocialQuery } from '../lib/symbol/socialMetadata';
 import type { SocialDirectoryItem, SocialDirectoryPage } from '../lib/symbol/socialMetadata';
+import { cardRadius } from '../theme/cardRadius';
 
 // 「サービス」の「ソーシャルメタデータ」: S.M.D（実際に登録されているものを見る・検索する）と、登録（自分のアドレスに登録する）の2択。
 
@@ -154,7 +155,7 @@ export function SocialDirectoryView(): ReactElement {
               key={item.address}
               onClick={() => setSelected(item)}
               title={item.meta.name}
-              sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: 68, borderRadius: 2, p: 0.5, alignItems: 'center', opacity: hiddenSet.has(item.address) ? 0.45 : 1 }}
+              sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, width: 68, borderRadius: cardRadius, p: 0.5, alignItems: 'center', opacity: hiddenSet.has(item.address) ? 0.45 : 1 }}
             >
               <SocialAvatar meta={item.meta} size={60} personFallback />
               <Typography noWrap sx={{ width: '100%', fontSize: '0.78rem', color: 'primary.main', fontWeight: 600 }}>{item.meta.name || item.meta.namespace}</Typography>

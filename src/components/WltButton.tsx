@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Typography } from '@mui/material';
 import TextField from './TextField';
+import CloseIcon from '@mui/icons-material/Close';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import { useTranslation } from 'react-i18next';
 import { saveFile } from '../lib/paperWalletExport';
@@ -78,7 +79,10 @@ export default function WltButton({ source }: { source: WltSource | null }) {
       </Button>
 
       <Dialog open={open} onClose={close} fullWidth maxWidth="xs">
-        <DialogTitle>{t('wallet.wlt_title')}</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
+          {t('wallet.wlt_title')}
+          <IconButton aria-label={t('common.close')} onClick={close} disabled={busy}><CloseIcon /></IconButton>
+        </DialogTitle>
         <DialogContent>
           <Typography sx={{ color: 'text.secondary', fontSize: 13, mb: 2 }}>{t('wallet.wlt_ask_hint')}</Typography>
           <TextField fullWidth label={t('wallet.wlt_name_label')} value={name} onChange={(e) => { setName(e.target.value); setError(''); }} sx={{ mb: 2 }} />
@@ -88,7 +92,6 @@ export default function WltButton({ source }: { source: WltSource | null }) {
           {error !== '' && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
         </DialogContent>
         <DialogActions>
-          <Button onClick={close} disabled={busy}>{t('common.cancel')}</Button>
           <Button
             variant="contained"
             onClick={() => { void onDownload(); }}

@@ -18,7 +18,8 @@ import { quoteAggregate, sendAggregate } from '../../lib/symbol/aggregateApi';
 import type { AggregateQuote } from '../../lib/symbol/aggregateApi';
 import { aggregateNamespaceId } from '../../lib/symbol/aggregate';
 import type { AggregateItem } from '../../lib/symbol/aggregate';
-import { getDefaultFeeSpeed } from '../../lib/symbol/feeSpeed';
+import type { FeeSpeed } from '../../lib/symbol/feeSpeed';
+import FeeSpeedSelect from '../../components/FeeSpeedSelect';
 import { showTxNotice } from '../../store/txNoticeStore';
 import { WalletsHelper } from '../../lib/storage';
 import {
@@ -37,6 +38,7 @@ import {
 } from '../../lib/symbol/tx';
 import { useAppStore } from '../../store/appStore';
 import { fieldBoxSx } from '../../components/fieldBox';
+import { cardRadius } from '../../theme/cardRadius';
 
 // Maps the node's transaction-status codes (and local failures) to a message key + detail.
 function classifyError(error: unknown): { kind: string; detail: string } {
@@ -91,6 +93,7 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
   // cost / balance
   const [fees, setFees] = useState<NamespaceRentalFees | null | 'loading'>('loading');
   const [txFee, setTxFee] = useState<bigint | null>(null);
+  const [feeSpeed, setFeeSpeed] = useState<FeeSpeed>(() => useAppStore.getState().defaultFeeSpeed);
   const [xymBalance, setXymBalance] = useState<bigint | null>(null);
 
   // confirm / done
@@ -166,17 +169,17 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
         .then((q) => {
           if (cancelled || !q) return;
           setAggQuote(q);
-          setTxFee(q.fees[getDefaultFeeSpeed()].fee + q.lockFees[getDefaultFeeSpeed()]);
+          setTxFee(q.fees[feeSpeed].fee + q.lockFees[feeSpeed]);
         })
         .catch(() => { /* shown as unavailable */ });
     } else {
-      quoteNamespaceRegistrationFee(nameValid ? name : 'a', metadataLengthsKey === '' ? [] : metadataLengthsKey.split(',').map(Number))
+      quoteNamespaceRegistrationFee(nameValid ? name : 'a', metadataLengthsKey === '' ? [] : metadataLengthsKey.split(',').map(Number), feeSpeed)
         .then((q) => { if (!cancelled) setTxFee(q.fee); })
         .catch(() => { /* shown as unavailable */ });
     }
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, nameValid, metadataLengthsKey, network, signer, kind, parentId]);
+  }, [name, nameValid, metadataLengthsKey, network, signer, kind, parentId, feeSpeed]);
 
   const rentalFee: bigint | null = fees === 'loading' || fees === null
     ? null
@@ -207,7 +210,7 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
       if (signer) {
         const sentAgg = await sendAggregate({
           privateKey, keyless: wallet.sss ? { kind: 'sss' } : undefined, publicKey: wallet.publicKey, address: wallet.address,
-          items: multisigItems(), feeSpeed: getDefaultFeeSpeed(),
+          items: multisigItems(), feeSpeed,
         });
         showTxNotice({ lines: t('namespace.done_message', { returnObjects: true }) as string[], explorerUrl: explorerTxUrl(sentAgg.hash), explorerLabel: t('namespace.view_explorer') });
         onSent();
@@ -221,6 +224,7 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
         parentId: kind === 'child' ? parentId : undefined,
         durationBlocks: kind === 'root' ? durationBlocks : undefined,
         metadata: draftsToItems(metadataDrafts),
+        feeSpeed,
       });
       showTxNotice({ lines: t('namespace.done_message', { returnObjects: true }) as string[], explorerUrl: explorerTxUrl(registered.hash), explorerLabel: t('namespace.view_explorer') });
       onSent();
@@ -266,7 +270,7 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
       <Box sx={rootSx}>
         <BackButton onBack={onBack} back="/namespace/register" />
         <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 3, md: 5 }, py: 3, boxSizing: 'border-box', textAlign: 'left' }}>
-          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 4, px: 3, py: 1 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 3, py: 1 }}>
             {rows.map((row, i) => (
               <Box key={row.label}>
                 {i > 0 && <Divider />}
@@ -288,7 +292,7 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
           onClose={() => setShowCaution(false)}
         />
 
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{registering ? t('namespace.registering') : t('namespace.confirm_ready')}</Typography>
             <Button
@@ -400,28 +404,18 @@ function NamespaceRegister({ embedded = false, fixedKind, onShowList, onSent }: 
 
         <Box sx={{ mt: 3, ...fieldBoxSx }}>
           <Typography sx={{ fontWeight: 'bold', mb: 1 }}>{t('namespace.cost_title')}</Typography>
+          <FeeSpeedSelect value={feeSpeed} onChange={setFeeSpeed} label={t('namespace.tx_fee')} />
           {costRows.map((r) => (
             <Typography key={r.label} variant="body2" sx={{ py: 0.25, fontWeight: r.bold ? 'bold' : 'normal', wordBreak: 'break-all' }}>{r.label}: {r.value}</Typography>
           ))}
           <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>{t('namespace.cost_hint')}</Typography>
           {balanceShort && <Alert severity="warning" sx={{ mt: 1.5 }}>{t('namespace.xym_short_warning')}</Alert>}
         </Box>
-      </Box>
-
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Box>
-          <Button
-            variant="contained"
-            color="primary"
-            size="large"
-            fullWidth
-            disabled={!canContinue}
-            onClick={() => { setStep('confirm'); setShowCaution(true); }}
-            sx={{ py: 1.5 }}
-          >
-            {t('namespace.go_confirm')}
-          </Button>
-        </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5, minWidth: 220 }}>
+              {t('namespace.go_confirm')}
+            </Button>
+          </Box>
       </Box>
     </Box>
   );

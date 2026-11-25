@@ -23,6 +23,8 @@ import { treeRows } from '../../lib/symbol/multisigTree';
 import type { MultisigGraph } from '../../lib/symbol/multisigTree';
 import type { RestrictionKind } from '../../lib/symbol/restrictions';
 import { fieldBoxSx } from '../../components/fieldBox';
+import { cardRadius } from '../../theme/cardRadius';
+import { fieldRadius } from '../../theme/fieldRadius';
 
 export const xymText = (amount: bigint) => `${formatAtomic(amount, CURRENCY_DIVISIBILITY)} ${CURRENCY_SYMBOL}`;
 
@@ -47,7 +49,7 @@ export function classifyError(error: unknown): { kind: string; detail: string } 
   return { kind: 'unknown', detail: code && code !== detail ? `${code}: ${detail}` : detail };
 }
 
-export function CostBox({ cost, hasBalanceShort }: { cost: MultisigCost | null; hasBalanceShort: boolean }) {
+export function CostBox({ cost, hasBalanceShort, action }: { cost: MultisigCost | null; hasBalanceShort: boolean; action?: ReactNode }) {
   const { t } = useTranslation();
   const val = (v: bigint | undefined) => (v === undefined ? t('multisig.cost_unavailable') : xymText(v));
   const rows: [string, bigint | undefined][] = [[t('multisig.tx_fee'), cost?.aggregateFee.fee]];
@@ -56,20 +58,23 @@ export function CostBox({ cost, hasBalanceShort }: { cost: MultisigCost | null; 
   }
   rows.push([t('multisig.total_needed'), cost?.totalNeeded]);
   return (
-    <Box sx={{ mt: 2, ...fieldBoxSx }}>
-      <Typography sx={{ fontWeight: 'bold', mb: 1 }}>{t('multisig.cost_title')}</Typography>
-      {rows.map(([label, v], i) => (
-        <Typography key={label} variant="body2" sx={{ fontWeight: i === rows.length - 1 ? 'bold' : 'normal', wordBreak: 'break-all' }}>
-          {label}: {val(v)}
-        </Typography>
-      ))}
-      {cost && (
-        <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>
-          {cost.bonded ? t('multisig.bonded_hint', { amount: xymText(cost.lockAmount) }) : t('multisig.complete_hint')}
-        </Typography>
-      )}
-      {hasBalanceShort && <Alert severity="warning" sx={{ mt: 1.5 }}>{t('multisig.xym_short_warning')}</Alert>}
-    </Box>
+    <>
+      <Box sx={{ mt: 2, ...fieldBoxSx }}>
+        <Typography sx={{ fontWeight: 'bold', mb: 1 }}>{t('multisig.cost_title')}</Typography>
+        {rows.map(([label, v], i) => (
+          <Typography key={label} variant="body2" sx={{ fontWeight: i === rows.length - 1 ? 'bold' : 'normal', wordBreak: 'break-all' }}>
+            {label}: {val(v)}
+          </Typography>
+        ))}
+        {cost && (
+          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>
+            {cost.bonded ? t('multisig.bonded_hint', { amount: xymText(cost.lockAmount) }) : t('multisig.complete_hint')}
+          </Typography>
+        )}
+        {hasBalanceShort && <Alert severity="warning" sx={{ mt: 1.5 }}>{t('multisig.xym_short_warning')}</Alert>}
+      </Box>
+      {action && <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>{action}</Box>}
+    </>
   );
 }
 
@@ -106,7 +111,7 @@ export function ConfirmScreen({ rows, onBack, onPassword }: {
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <BackButton onBack={onBack} />
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 3, md: 5 }, py: 3, boxSizing: 'border-box', textAlign: 'left' }}>
-        <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 4, px: 3, py: 1 }}>
+        <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 3, py: 1 }}>
           {rows.map((row, i) => (
             <Box key={`${row.label}-${i}`}>
               {i > 0 && <Divider />}
@@ -121,7 +126,7 @@ export function ConfirmScreen({ rows, onBack, onPassword }: {
         </Box>
       </Box>
       <MessageDialog open={showCaution} title={t('multisig.confirm_title')} texts={t('multisig.confirm_dialog_message', { returnObjects: true }) as string[]} onClose={() => setShowCaution(false)} />
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+      <Box sx={{ px: 3, py: 2.5 }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
           <Typography variant="body2" align="center">{sending ? t('multisig.sending') : t('multisig.confirm_ready')}</Typography>
           <Button variant="contained" color="primary" size="large" fullWidth disabled={sending} onClick={() => setShowPassword(true)} startIcon={<LockOutlinedIcon />} sx={{ py: 1.5 }}>
@@ -212,14 +217,17 @@ const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 /** A white panel with an optional title: one block of a multisig screen. */
 /** true inside DesktopPage: sections are flat (a bold label and the content right under it) and a form row puts its label above the field. */
 export const FlatSectionsContext = createContext(false);
+/** true inside the service screens: every SectionCard is its own white card on the pattern (the form rows keep the flat style). */
+export const SeparateCardsContext = createContext(false);
 
 export function SectionCard({ title, children, sx, compact: compactProp, action }: { title?: string; children: ReactNode; sx?: SxProps<Theme>; compact?: boolean; action?: ReactNode }) {
   const flat = useContext(FlatSectionsContext);
-  const compact = compactProp ?? flat;
+  const separate = useContext(SeparateCardsContext);
+  const compact = compactProp ?? (flat && !separate);
   // compact: no box. A bold label with its content right under it (like the metadata screen), sections one under the other.
   return (
     <Box sx={compact ? { mb: 2.5, ...sx } : {
-      bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 3,
+      bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius,
       px: { xs: 2, md: 4 }, py: { xs: 2, md: 3 }, mb: 2, ...sx,
     }}>
       {(title || action) && (
@@ -314,11 +322,13 @@ interface FieldProps {
   htmlInput?: InputHTMLAttributes<HTMLInputElement>;
   /** Shown inside the field at its right end (a unit such as XYM). */
   endAdornment?: ReactNode;
+  /** select only: what the closed dropdown shows for the chosen value (default: the chosen item's own text). */
+  renderValue?: (value: string) => ReactNode;
   children?: ReactNode;
 }
 
 /** A grey, borderless input (the label is the FormRow's, so the field itself carries only an aria-label). */
-export function Field({ ariaLabel, htmlInput, endAdornment, children, ...rest }: FieldProps) {
+export function Field({ ariaLabel, htmlInput, endAdornment, renderValue, children, ...rest }: FieldProps) {
   return (
     <TextField
       {...rest}
@@ -326,7 +336,7 @@ export function Field({ ariaLabel, htmlInput, endAdornment, children, ...rest }:
       hiddenLabel
       size="small"
       fullWidth
-      slotProps={{ input: { disableUnderline: true, sx: { borderRadius: 1.5 }, endAdornment }, htmlInput: { 'aria-label': ariaLabel, ...htmlInput } }}
+      slotProps={{ input: { disableUnderline: true, sx: { borderRadius: fieldRadius }, endAdornment }, htmlInput: { 'aria-label': ariaLabel, ...htmlInput }, ...(renderValue ? { select: { renderValue: (v: unknown) => renderValue(String(v)) } } : {}) }}
     >
       {children}
     </TextField>
@@ -335,7 +345,7 @@ export function Field({ ariaLabel, htmlInput, endAdornment, children, ...rest }:
 
 /** A read-only value in a grey box (an address). */
 export function ValueBox({ children }: { children: ReactNode }) {
-  return <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, px: 1.5, py: 1, fontSize: 13, ...mono }}>{children}</Box>;
+  return <Box sx={{ bgcolor: 'action.hover', borderRadius: fieldRadius, px: 1.5, py: 1, fontSize: 13, ...mono }}>{children}</Box>;
 }
 
 /**

@@ -38,6 +38,8 @@ import type { ProtectionKey } from '../../store/consoleSettingsStore';
 import { accountLabel, useSigningAccounts } from '../offline/signingAccounts';
 import ConsoleSignDialog from './ConsoleSignDialog';
 import DiagnosticsPanel from './DiagnosticsPanel';
+import { cardRadius } from '../../theme/cardRadius';
+import { SectionCard } from '../multisig/parts';
 
 // 「コンソール」(Symbol / NEM): コードを1つずつ打ち込んで、このウォレットのアカウントで動かす対話画面。
 // 今のチェーン（Symbol か NEM）に合わせて、facade・SDK・ノード・サンプルが切り替わる。切り替えると画面ごと作り直す（別のチェーンの変数は持ち越さない）。
@@ -107,8 +109,8 @@ export default function ConsolePage() {
         </Tabs>
       )}
       {ledger && <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>{t('console.ledger_diag_only')}</Typography>}
-      {!ledger && <Box sx={{ display: tab === 'run' ? 'block' : 'none' }}><ConsoleScreen key={chain} chain={chain} visible={tab === 'run'} /></Box>}
-      <Box sx={{ display: tab === 'diagnostics' ? 'block' : 'none' }}><DiagnosticsPanel visible={tab === 'diagnostics'} /></Box>
+      {!ledger && <SectionCard sx={{ display: tab === 'run' ? 'block' : 'none' }}><ConsoleScreen key={chain} chain={chain} visible={tab === 'run'} /></SectionCard>}
+      <SectionCard sx={{ display: tab === 'diagnostics' ? 'block' : 'none' }}><DiagnosticsPanel visible={tab === 'diagnostics'} /></SectionCard>
     </Box>
   );
 }
@@ -570,7 +572,7 @@ function ConsoleScreen({ chain, visible }: { chain: ChainKey; visible: boolean }
         sx={{
           fontFamily: MONO, fontSize: '0.9rem', lineHeight: 1.6, height: { xs: '60vh', md: '58vh' }, minHeight: 280, overflow: 'auto',
           resize: 'vertical', // 右下の角をドラッグして、高さを変えられる（height は初期値）
-          bgcolor: CON_BG, color: outColor.log, borderRadius: 3, p: 2, cursor: 'text', colorScheme: 'dark',
+          bgcolor: CON_BG, color: outColor.log, borderRadius: cardRadius, p: 2, cursor: 'text', colorScheme: 'dark',
           '& ::selection': { bgcolor: 'rgba(123,228,228,0.3)' },
         }}
       >

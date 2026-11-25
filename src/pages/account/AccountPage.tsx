@@ -48,6 +48,7 @@ import type { AccountTab } from '../../components/ProfileSwitch';
 import type { RestrictionList } from '../../lib/symbol/restrictions';
 import { copySensitiveText } from '../../lib/sensitiveClipboard';
 import { REVEALED_KEY_IDLE_MS, useSecretAutoHide } from '../../hooks/useSecretAutoHide';
+import { cardRadius } from '../../theme/cardRadius';
 
 // メニューの「アカウント」。いまのプロファイル（=1つのニーモニック）のアカウントを一覧し、選んだアカウントの
 // 情報（名前・アドレス・公開鍵・秘密鍵・エイリアス・メタデータ）を右側に表示する。
@@ -495,7 +496,8 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
 
   // --- 描画 ---------------------------------------------------------------------------
   const cardSx = {
-    bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 3, boxSizing: 'border-box',
+    bgcolor: 'background.paper', border: 1, borderColor: 'divider', boxSizing: 'border-box',
+    borderRadius: cardRadius, // ホームのカードと同じ角丸（テーマのカード角丸）
   } as const;
 
   const accountRow = (w: Wallet) => {
@@ -505,7 +507,7 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
         key={w.id}
         selected={isSelected}
         onClick={() => selectAccount(w)}
-        sx={{ borderRadius: 2, py: 1.2, gap: 1.5, alignItems: 'center' }}
+        sx={{ borderRadius: cardRadius, py: 1.2, gap: 1.5, alignItems: 'center' }}
       >
         <ListItemText
           primary={displayName(w)}
@@ -588,7 +590,7 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
               {/* QR（アドレスのみ。公式ウォレットでも読み込める形式: Symbol は type 0、NEM は type 1） */}
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, flexShrink: 0, maxWidth: 220 }}>
                 <Typography sx={{ fontWeight: 700, fontSize: '0.95rem', textAlign: 'center' }}>{t('account.qr_label')}</Typography>
-                <Box sx={{ p: 1, bgcolor: '#fff', borderRadius: 2, lineHeight: 0 }}>
+                <Box sx={{ p: 1, bgcolor: '#fff', borderRadius: cardRadius, lineHeight: 0 }}>
                   <QRCodeCanvas
                     ref={qrRef}
                     value={chainAddressQr(selected.address, displayName(selected), selected.publicKey)}
@@ -753,7 +755,7 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
                       <Box
                         key={e.key}
                         onClick={selected.noSigner ? undefined : () => setShowMetadata(true)}
-                        sx={{ border: 1, borderColor: 'divider', borderRadius: 2, px: 2, py: 1, cursor: e.valueText === null || selected.noSigner ? 'default' : 'pointer' }}
+                        sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 2, py: 1, cursor: e.valueText === null || selected.noSigner ? 'default' : 'pointer' }}
                       >
                         <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', ...mono }}>{e.key}</Typography>
                         <Typography sx={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{e.valueText ?? `0x${e.valueHex}`}</Typography>
@@ -785,7 +787,7 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
               ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   {restrictions.map((l) => (
-                    <Box key={`${l.rule.kind}-${l.rule.direction}`} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Box key={`${l.rule.kind}-${l.rule.direction}`} sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                       <Typography sx={{ flexGrow: 1 }}>
                         {l.rule.kind === 'address' ? `${t('restriction.kind_address')} (${t(`restriction.dir_${l.rule.direction}`)})` : t(`restriction.kind_${l.rule.kind}`)}
                       </Typography>
@@ -832,7 +834,7 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
             />
           )}
         </DialogContent>
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5, borderTop: 1, borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5 }}>
           <Button color="inherit" onClick={() => { setShowRestriction(false); setRestrictionTick((n) => n + 1); }}>{t('common.close')}</Button>
         </Box>
       </Dialog>
@@ -868,7 +870,10 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
 
       {/* 秘密鍵でインポート */}
       <Dialog open={showImport} onClose={() => setShowImport(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('wallet.account_import_title')}</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
+          {t('wallet.account_import_title')}
+          <IconButton aria-label={t('common.close')} onClick={() => setShowImport(false)}><CloseIcon /></IconButton>
+        </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{t('wallet.account_import_message')}</Typography>
           <TextField
@@ -895,7 +900,6 @@ function AccountsView({ switcher }: { switcher: React.ReactNode }) {
           )}
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, pb: 2 }}>
             <Button variant="contained" color="primary" disabled={!importKeyValid} onClick={() => setImportPassword(true)}>OK</Button>
-            <Button variant="contained" color="secondary" onClick={() => setShowImport(false)}>CANCEL</Button>
           </Box>
         </DialogContent>
       </Dialog>

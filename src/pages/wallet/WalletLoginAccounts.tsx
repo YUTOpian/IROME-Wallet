@@ -9,6 +9,7 @@ import { deriveAddresses, scanAccounts } from '../../lib/importScan';
 import type { ScannedAccount } from '../../lib/importScan';
 import { CHAIN_ORDER, chainMeta } from '../../lib/chain';
 import type { ChainKey } from '../../lib/chain';
+import { cardRadius } from '../../theme/cardRadius';
 
 type PerChain<T> = Record<ChainKey, T>;
 
@@ -183,7 +184,7 @@ export function AccountSelectView({ phrase, chain: initialChain, initialShown, b
                   component="label"
                   sx={{
                     flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1.25,
-                    border: 1, borderRadius: 2, boxSizing: 'border-box',
+                    border: 1, borderRadius: cardRadius, boxSizing: 'border-box',
                     borderColor: checked ? 'primary.main' : 'divider',
                     bgcolor: (th) => (checked ? alpha(th.palette.primary.main, 0.1) : alpha(th.palette.mode === 'dark' ? th.palette.common.white : th.palette.common.black, 0.04)),
                     cursor: 'pointer',
@@ -228,13 +229,9 @@ export function AccountSelectView({ phrase, chain: initialChain, initialShown, b
 
         <Box
           sx={{
-            // デスクトップでは帯をやめて、ボタンだけを中央に揃える。スマホは一覧が長いので下に固定する。
-            position: { xs: 'sticky', md: 'static' }, bottom: 0, zIndex: 1, mt: { xs: 2, md: 4 }, pb: { xs: 1.5, md: 1 }, pt: { xs: 1.5, md: 0 },
-            mx: { xs: -2, md: 0 }, px: { xs: 2, md: 0 },
+            // 線や固定の帯は使わず、ボタンだけを中央に並べる。
+            mt: { xs: 2, md: 4 }, pb: { xs: 1.5, md: 1 },
             display: 'flex', justifyContent: 'center', gap: 2,
-            backdropFilter: { xs: 'blur(12px)', md: 'none' },
-            bgcolor: (th) => ({ xs: alpha(th.palette.mode === 'dark' ? th.palette.common.black : th.palette.common.white, th.palette.mode === 'dark' ? 0.25 : 0.6), md: 'transparent' }),
-            borderTop: { xs: 1, md: 0 }, borderColor: 'divider',
           }}
         >
           <Button variant="outlined" disabled={busy} onClick={() => navigate(back)} sx={{ minWidth: 160 }}>{t('wallet.login_accounts_back')}</Button>

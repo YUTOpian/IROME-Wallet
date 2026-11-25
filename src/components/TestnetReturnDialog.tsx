@@ -13,6 +13,7 @@ import { ensureLedgerConnected, ledgerErrorKey, preferredLedgerLink } from '../l
 import { SymbolSendError } from '../lib/symbol/api';
 import { executeTestnetReturn, planTestnetReturn } from '../lib/testnetReturn';
 import type { TestnetReturnPlan } from '../lib/testnetReturn';
+import { cardRadius } from '../theme/cardRadius';
 
 // 設定 > 「テストXYMを返還」「テストXEMを返還」。テストネットのときだけ開く。
 // 返還先・残高・手数料・返還額を見せ、ボタン1つ（全額返還する）→ パスワード（Ledger はデバイス）で、
@@ -132,7 +133,7 @@ export default function TestnetReturnDialog({ open, onClose }: { open: boolean; 
               {loading && <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 2 }}><CircularProgress size={18} /><Typography variant="body2">{t('settings.testnet_return_loading')}</Typography></Box>}
               {loadError && <Alert severity="error" sx={{ my: 1 }}>{t('settings.testnet_return_load_failed', { detail: loadError })}</Alert>}
               {plan && (
-                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 3, px: 2, py: 0.5 }}>
+                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 2, py: 0.5 }}>
                   {row(t('settings.testnet_return_to'), plan.recipientPretty)}
                   {row(t('settings.testnet_return_balance'), fmt(plan.balance))}
                   {row(t('settings.testnet_return_fee'), fmt(plan.fee))}

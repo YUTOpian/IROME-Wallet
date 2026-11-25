@@ -9,6 +9,7 @@ import { WalletsHelper } from '../../lib/storage';
 import { isSssAutoAdd, setSssAutoAdd } from '../../lib/sss';
 import { useSssAccount } from '../../hooks/useSssAccount';
 import { useAppStore } from '../../store/appStore';
+import { cardRadius } from '../../theme/cardRadius';
 
 // 新規プロファイル →「SSS Extension」。拡張が持っている公開鍵だけを読み、秘密鍵・ニーモニック・パスワードはこの端末に残さない。
 // SSS でアカウントを切り替えると、この画面の表示もすぐ切り替わる（useSssAccount が追いかける）。
@@ -72,7 +73,7 @@ export default function WalletSssNew() {
           {account === null && <Alert severity="info">{t('sss.status_no_account')}</Alert>}
 
           {account && (
-            <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, px: 2, py: 1.5 }}>
+            <Box sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 2, py: 1.5 }}>
               <Typography variant="caption" color="text.secondary">{t('sss.current_account')}</Typography>
               <Typography sx={{ fontWeight: 600 }}>{account.name || t('sss.default_name')}</Typography>
               <Typography variant="body2" sx={{ wordBreak: 'break-all', mt: 0.5 }}>{account.address}</Typography>

@@ -199,7 +199,7 @@ function NemMosaicCreate({ embedded = false, onShowList, onEdit, onSent }: NemMo
           <ConfirmRows rows={rows} />
         </Box>
         <MessageDialog open={showCaution} title={t('nemmosaic.confirm_title')} texts={t('nemmosaic.confirm_dialog_message', { returnObjects: true }) as string[]} onClose={() => setShowCaution(false)} />
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{creating ? t('nemmosaic.creating') : t('nemmosaic.confirm_ready')}</Typography>
             <Button variant="contained" color="primary" size="large" fullWidth disabled={creating} onClick={() => setShowPasswordDialog(true)} startIcon={<LockOutlinedIcon />} sx={{ py: 1.5 }}>
@@ -342,13 +342,13 @@ function NemMosaicCreate({ embedded = false, onShowList, onEdit, onSent }: NemMo
           </Typography>
           {balanceShort && <Alert severity="warning" sx={{ mt: 1.5 }}>{t('nemmosaic.xem_short_warning')}</Alert>}
         </Box>
-      </Box>
-
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Button variant="contained" color="primary" size="large" fullWidth disabled={!canContinue || checking} onClick={onContinue} sx={{ py: 1.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <Button variant="contained" color="primary" size="large" disabled={!canContinue || checking} onClick={onContinue} sx={{ py: 1.5, minWidth: 220 }}>
           {t('nemmosaic.go_confirm')}
         </Button>
+          </Box>
       </Box>
+
     </Box>
   );
 }

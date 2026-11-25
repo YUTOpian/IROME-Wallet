@@ -12,6 +12,7 @@ import { nemHexToBytes, readNemTransfer } from '../../lib/nem/offline';
 import type { NemAnnounceBody, NemTransferSummary, ParsedNemBundle, ParsedNemSigned } from '../../lib/nem/offline';
 import { isDeviceOffline } from '../../lib/offline/issue';
 import { mono } from '../multisig/parts';
+import { cardRadius } from '../../theme/cardRadius';
 
 // 「署名・連署QR」 / 「オフライントランザクション」の「読み込んで送信」: a transaction that was signed offline on NEM (IROME's NEM
 // QR, or the announce body NanoWallet makes). A transfer is read in full; any other kind (mosaic, namespace, multisig,
@@ -31,7 +32,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 function Card({ children }: { children: ReactNode }) {
   return (
-    <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 3, px: 2, py: 1, mb: 2, textAlign: 'left' }}>
+    <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 2, py: 1, mb: 2, textAlign: 'left' }}>
       {children}
     </Box>
   );

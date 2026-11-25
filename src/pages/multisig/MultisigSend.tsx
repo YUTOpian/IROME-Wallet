@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, MenuItem } from '@mui/material';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { CardFrame } from '../../components/TabCard';
 import BackButton from '../../components/BackButton';
 import QrTextDialog from '../../components/QrTextDialog';
 import { WalletsHelper } from '../../lib/storage';
@@ -173,6 +174,7 @@ function MultisigSend({ onSent }: SentProps) {
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <BackButton onBack={() => navigate('/multisig')} />
+      <CardFrame>
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
         <Alert severity="info" sx={{ mb: 2 }}>{t('multisig.send_note')}</Alert>
         {loading && <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>}
@@ -228,7 +230,11 @@ function MultisigSend({ onSent }: SentProps) {
                 />
               </FormRow>
             </SectionCard>
-            <CostBox cost={cost} hasBalanceShort={balanceShort} />
+            <CostBox cost={cost} hasBalanceShort={balanceShort} action={
+          <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => setStep('confirm')} sx={{ py: 1.5, minWidth: 220 }}>
+          {t('multisig.go_confirm')}
+        </Button>
+        } />
             {canContinue && mosaic && amount !== null && (
               <>
                 <Button variant="outlined" color="primary" fullWidth onClick={() => setTemplateQrOpen(true)} sx={{ mt: 2 }}>{t('signqr.template_make_button')}</Button>
@@ -244,11 +250,7 @@ function MultisigSend({ onSent }: SentProps) {
           </>
         )}
       </Box>
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Button variant="contained" color="primary" size="large" fullWidth disabled={!canContinue} onClick={() => setStep('confirm')} sx={{ py: 1.5 }}>
-          {t('multisig.go_confirm')}
-        </Button>
-      </Box>
+      </CardFrame>
     </Box>
   );
 }

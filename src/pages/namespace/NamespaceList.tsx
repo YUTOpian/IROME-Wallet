@@ -2,11 +2,12 @@ import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogTitle, FormControlLabel, IconButton, LinearProgress,
-  Link as MuiLink, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, Tabs, Tooltip,
+  Link as MuiLink, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, Tooltip,
   Typography, useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
+import TabCard from '../../components/TabCard';
 import CloseIcon from '@mui/icons-material/Close';
 import DataObjectOutlinedIcon from '@mui/icons-material/DataObjectOutlined';
 import LinkIcon from '@mui/icons-material/Link';
@@ -27,6 +28,7 @@ import CosignAccountPicker from '../../components/CosignAccountPicker';
 import { useCosignAccounts } from '../../hooks/useCosignAccounts';
 import { aliasActionFor } from '../../lib/symbol/namespaceAlias';
 import { isExpiringSoon, isRenewableRoot } from '../../lib/symbol/namespaceRenew';
+import { cardRadius } from '../../theme/cardRadius';
 
 type SortKey = 'id' | 'name' | 'expiry';
 export type NamespaceTab = 'held' | 'create_root' | 'create_child';
@@ -173,20 +175,15 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pt: 2, boxSizing: 'border-box' }}>
-        <Tabs
-          value={watchOnly ? 'held' : tab}
-          variant={compact ? 'scrollable' : 'standard'}
-          allowScrollButtonsMobile
-          onChange={(_, v: NamespaceTab) => setTab(v)}
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab value="held" label={t('namespace.tab_held')} />
-          {!watchOnly && <Tab value="create_root" label={t('namespace.tab_create_root')} icon={<AddCircleIcon fontSize="small" />} iconPosition="start" />}
-          {!watchOnly && <Tab value="create_child" label={t('namespace.tab_create_child')} icon={<AddCircleIcon fontSize="small" />} iconPosition="start" />}
-        </Tabs>
-      </Box>
-
+      <TabCard
+        value={watchOnly ? 'held' : tab}
+        onChange={setTab}
+        tabs={[
+          { value: 'held', label: t('namespace.tab_held') },
+          { value: 'create_root', label: t('namespace.tab_create_root'), icon: <AddCircleIcon fontSize="small" />, hidden: watchOnly },
+          { value: 'create_child', label: t('namespace.tab_create_child'), icon: <AddCircleIcon fontSize="small" />, hidden: watchOnly },
+        ]}
+      >
       {creating ? (
         <NamespaceRegister
           key={tab}
@@ -196,7 +193,7 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
           onSetMetadata={(id) => setMetadataDialog({ id })}
         />
       ) : (
-        <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pb: 4, boxSizing: 'border-box' }}>
+        <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pb: 3, boxSizing: 'border-box' }}>
           {!watchOnly && <Box sx={{ mt: 1.5 }}><CosignAccountPicker accounts={accounts} onPick={() => { setSort(null); setRows([]); }} /></Box>}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', columnGap: 2, rowGap: 0.5, mt: 1.5, mb: 1 }}>
             {!watchOnly && <Button size="small" startIcon={<DataObjectOutlinedIcon />} onClick={() => setMetadataDialog({})}>{t('namespace.add_metadata')}</Button>}
@@ -247,7 +244,7 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
               ))}
             </Box>
           ) : (
-            <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
+            <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, bgcolor: 'background.paper' }}>
               {loading && <LinearProgress />}
               <Table size="small" sx={{ '& td, & th': { py: 1.25, whiteSpace: 'nowrap' }, '& th': { color: 'text.secondary', fontWeight: 'bold' } }}>
                 <TableHead>
@@ -279,6 +276,7 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
           )}
         </Box>
       )}
+      </TabCard>
 
       {/* Namespace metadata is set right here, on top of this screen. */}
       <Dialog open={aliasNamespaceId !== null} onClose={() => setAliasNamespaceId(null)} fullWidth maxWidth="sm" scroll="paper" fullScreen={compact}>
@@ -288,7 +286,7 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
         </DialogTitle>
         <Box sx={{ overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           {aliasNamespaceId !== null && (
-            <NamespaceAlias embedded initialNamespaceId={aliasNamespaceId} initialAccountAddr={accountAddr} onDone={() => { setAliasNamespaceId(null); load(); }} />
+            <NamespaceAlias embedded initialNamespaceId={aliasNamespaceId} onDone={() => { setAliasNamespaceId(null); load(); }} />
           )}
         </Box>
       </Dialog>
@@ -300,7 +298,7 @@ export default function NamespaceList({ initialTab = 'held' }: { initialTab?: Na
         </DialogTitle>
         <Box sx={{ overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           {renewNamespaceId !== null && (
-            <NamespaceRenew embedded initialNamespaceId={renewNamespaceId} initialAccountAddr={accountAddr} onDone={() => { setRenewNamespaceId(null); load(); }} />
+            <NamespaceRenew embedded initialNamespaceId={renewNamespaceId} onDone={() => { setRenewNamespaceId(null); load(); }} />
           )}
         </Box>
       </Dialog>

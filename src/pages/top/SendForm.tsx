@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, AppBar, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, InputAdornment, MenuItem, Select, Switch, Toolbar, Typography } from '@mui/material';
 import TextField from '../../components/TextField';
+import { fieldBoxSx } from '../../components/fieldBox';
 import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
 import LinkIcon from '@mui/icons-material/Link';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
@@ -674,12 +675,11 @@ export default function SendForm() {
           </Typography>
         </Box>
 
-        {/* Transaction fee: laid out like the message above - a bold heading, the field, the note under it. */}
-        <Typography sx={{ fontWeight: 'bold', mt: 3, mb: 1 }}>{t('send.fee_label')}</Typography>
-        {/* NEM has a single fixed fee; Symbol offers five levels, the chosen one is what the transfer pays.
-            The fee field is half the width, with the button to the confirmation screen right beside it. */}
-        <Box sx={{ display: 'flex', alignItems: 'stretch', gap: 1.5 }}>
-          <Box sx={{ width: '50%', flexShrink: 0, minWidth: 0 }}>
+        {/* 手数料の枠: 見出し・速さのプルダウン・注意書き。ボタンは枠の右下に置く（幅が広いときは最後の行と同じ高さ）。 */}
+        <Box sx={{ mt: 3, ...fieldBoxSx }}>
+          <Typography sx={{ fontWeight: 'bold', mb: 1 }}>{t('send.fee_label')}</Typography>
+          {/* NEM has a single fixed fee; Symbol offers five levels, the chosen one is what the transfer pays. */}
+          <Box sx={{ width: 280, maxWidth: '100%' }}>
             {isNem ? (
               <TextField
                 value={feeText('standard')}
@@ -704,38 +704,27 @@ export default function SendForm() {
               </Select>
             )}
           </Box>
-          {/* The two buttons are the same width, sharing the other half of the row. */}
-          <Button
-            variant="contained"
-            color="primary"
-            size="large"
-            disabled={!canGo}
-            onClick={onClickedOk}
-            sx={{ flex: '1 1 0', minWidth: 0, px: 1 }}
-          >
-            {t('send.go_confirm')}
-          </Button>
+          {!isNem && <Typography sx={{ color: 'text.secondary', fontSize: 12, mt: 1 }}>{t('send.fee_speed_hint')}</Typography>}
+          {balanceUnknown && (
+            <Alert severity="info" sx={{ mt: 1.5 }}>{t('send.balance_unknown_offline')}</Alert>
+          )}
+          {nativeShort && (
+            <Typography sx={{ color: 'warning.main', fontSize: 12, mt: 1 }}>{t(nativeSpend > 0n ? 'send.amount_plus_fee_warning' : 'send.xym_for_fee_warning')}</Typography>
+          )}
+        </Box>
+
+        {/* ボタンは手数料の枠の外、すぐ下の右寄せ。 */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 1.5, mt: 2 }}>
           {/* Symbol only: the transfer being typed as a transaction URI / QR, in a popup (needs a complete, valid form). */}
           {!isNem && (
-            <Button
-              variant="outlined"
-              color="primary"
-              size="large"
-              disabled={!txUriReady}
-              onClick={() => setTxUriOpen(true)}
-              sx={{ flex: '1 1 0', minWidth: 0, px: 1 }}
-            >
+            <Button variant="outlined" color="primary" size="large" disabled={!txUriReady} onClick={() => setTxUriOpen(true)} sx={{ py: 1.5, minWidth: 180 }}>
               {t('txuri.title')}
             </Button>
           )}
+          <Button variant="contained" color="primary" size="large" disabled={!canGo} onClick={onClickedOk} sx={{ py: 1.5, minWidth: 220 }}>
+            {t('send.go_confirm')}
+          </Button>
         </Box>
-        {!isNem && <Typography sx={{ color: 'text.secondary', fontSize: 12, mt: 0.5 }}>{t('send.fee_speed_hint')}</Typography>}
-        {balanceUnknown && (
-          <Alert severity="info" sx={{ mt: 1.5 }}>{t('send.balance_unknown_offline')}</Alert>
-        )}
-        {nativeShort && (
-          <Typography sx={{ color: 'warning.main', fontSize: 12, mt: 1 }}>{t(nativeSpend > 0n ? 'send.amount_plus_fee_warning' : 'send.xym_for_fee_warning')}</Typography>
-        )}
       </Box>
 
       {txUriReady && (

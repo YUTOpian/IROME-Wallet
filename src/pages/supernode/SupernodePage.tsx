@@ -24,6 +24,8 @@ import {
 import type { SupernodeInfo, SupernodePayout } from '../../lib/nem/supernode';
 import { useAppStore } from '../../store/appStore';
 import { Field, FormRow, SectionCard, mono } from '../multisig/parts';
+import { cardRadius } from '../../theme/cardRadius';
+import { fieldRadius } from '../../theme/fieldRadius';
 
 type TabKey = 'status' | 'enroll' | 'payout';
 
@@ -32,7 +34,7 @@ const xem = (amount: bigint) => `${formatAtomic(amount, NEM_CURRENCY_DIVISIBILIT
 /** A read-only value in a grey box, with an optional unit on the right (the NanoWallet look: label on the left, value in a box). */
 function Val({ children, unit, mono: useMono = false }: { children: ReactNode; unit?: string; mono?: boolean }) {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, bgcolor: 'action.hover', borderRadius: 1.5, px: 1.5, py: 1, minHeight: 20, fontSize: 14, wordBreak: 'break-all', ...(useMono ? mono : {}) }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, bgcolor: 'action.hover', borderRadius: fieldRadius, px: 1.5, py: 1, minHeight: 20, fontSize: 14, wordBreak: 'break-all', ...(useMono ? mono : {}) }}>
       <Box component="span" sx={{ minWidth: 0 }}>{children}</Box>
       {unit && <Typography component="span" sx={{ fontSize: 12, fontWeight: 'bold', color: 'text.secondary', flexShrink: 0 }}>{unit}</Typography>}
     </Box>
@@ -199,7 +201,7 @@ export default function SupernodePage() {
 
   // The state at a glance (big, coloured), what it means, and what to do next.
   const statusBanner = (
-    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2, bgcolor: 'background.paper', border: 1, borderColor: banner.color, borderRadius: 3, px: 2.5, py: 2, mb: 2 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2, bgcolor: 'background.paper', border: 1, borderColor: banner.color, borderRadius: cardRadius, px: 2.5, py: 2, mb: 2 }}>
       <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: banner.color, flexShrink: 0 }} aria-hidden />
       <Box sx={{ flex: 1, minWidth: 200 }}>
         <Typography sx={{ fontWeight: 'bold', fontSize: '1.2rem', color: banner.color }}>{banner.label}</Typography>

@@ -1,6 +1,7 @@
 import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 import { useCosignAccounts } from '../../hooks/useCosignAccounts';
 import CosignAccountPicker from '../../components/CosignAccountPicker';
+import { prettyAddress } from '../../lib/symbol/crypto';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Alert, Box, Button, CircularProgress, IconButton, MenuItem, Tab, Tabs, Tooltip, Typography } from '@mui/material';
@@ -539,8 +540,23 @@ export default function HarvestSettings() {
         />
       )}
 
+      {/* 送信者: 自分のアカウントのほか、連署しているマルチシグアカウントがあれば、ここで選ぶ（画面の一番上の「実行するアカウント」は廃止）。 */}
       <FormRow label={t('harvest.sender_label')}>
-        <ValueBox>{address}</ValueBox>
+        {accounts.signers.length > 0 || accounts.accountAddr !== '' ? (
+          <Field
+            select
+            ariaLabel={t('harvest.sender_label')}
+            // 初期値は「このウォレット」（自分のアドレス）。枠の中にはアドレスだけを出す（一覧の中では、どのアカウントか分かる説明を付ける）。
+            value={accounts.accountAddr || accounts.ownAddress}
+            onChange={(e) => { accounts.setAccountAddr(e.target.value === accounts.ownAddress ? '' : e.target.value); setStatus(null); }}
+            renderValue={(v) => prettyAddress(v)}
+          >
+            <MenuItem value={accounts.ownAddress}>{t('cosign_account.self', { address: accounts.ownAddress ? prettyAddress(accounts.ownAddress) : '' })}</MenuItem>
+            {accounts.signers.map((x) => <MenuItem key={x.address} value={x.address}>{t('cosign_account.multisig', { address: prettyAddress(x.address) })}</MenuItem>)}
+          </Field>
+        ) : (
+          <ValueBox>{address}</ValueBox>
+        )}
       </FormRow>
 
       {needsNode ? (
@@ -664,7 +680,7 @@ export default function HarvestSettings() {
   return (
     <Box sx={{ minHeight: '100vh', pb: 4 }}>
       <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
-        <CosignAccountPicker accounts={accounts} onPick={() => setStatus(null)} lockText={msQuote ? xym(msQuote.lockAmount) : null} />
+        <CosignAccountPicker alertsOnly accounts={accounts} onPick={() => setStatus(null)} lockText={msQuote ? xym(msQuote.lockAmount) : null} />
         {loading && status === null ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress size={26} />

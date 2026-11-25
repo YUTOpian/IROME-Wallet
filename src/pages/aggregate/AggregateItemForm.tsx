@@ -23,6 +23,7 @@ import { CURRENCY_DIVISIBILITY, CURRENCY_SYMBOL } from '../../lib/symbol/constan
 import { getNetworkConfig } from '../../lib/symbol/network';
 import { MOSAIC_FLAG_LABELS } from '../mosaic/mosaicFlags';
 import { Field, FormPair, FormRow } from '../multisig/parts';
+import { fieldRadius } from '../../theme/fieldRadius';
 
 const MAX_MOSAIC_DAYS = 3650;
 
@@ -473,7 +474,7 @@ export default function AggregateItemForm({ kind, ctx, index, full, onAdd }: Pro
             right={{
               label: t('mosaic.blocks_label'),
               children: (
-                <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, px: 1.5, minHeight: 40, display: 'flex', alignItems: 'center', color: !unlimited && /^\d+$/.test(daysText) ? 'text.primary' : 'text.secondary' }}>
+                <Box sx={{ bgcolor: 'action.hover', borderRadius: fieldRadius, px: 1.5, minHeight: 40, display: 'flex', alignItems: 'center', color: !unlimited && /^\d+$/.test(daysText) ? 'text.primary' : 'text.secondary' }}>
                   {!unlimited && /^\d+$/.test(daysText) ? t('mosaic.blocks_value', { blocks: (Number(daysText) * BLOCKS_PER_DAY).toLocaleString() }) : '-'}
                 </Box>
               ),
@@ -541,7 +542,7 @@ export default function AggregateItemForm({ kind, ctx, index, full, onAdd }: Pro
               right={{
                 label: t('namespace.blocks_label'),
                 children: (
-                  <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, px: 1.5, minHeight: 40, display: 'flex', alignItems: 'center', color: /^\d+$/.test(nsDays) ? 'text.primary' : 'text.secondary' }}>
+                  <Box sx={{ bgcolor: 'action.hover', borderRadius: fieldRadius, px: 1.5, minHeight: 40, display: 'flex', alignItems: 'center', color: /^\d+$/.test(nsDays) ? 'text.primary' : 'text.secondary' }}>
                     {/^\d+$/.test(nsDays) ? t('namespace.blocks_value', { blocks: (Number(nsDays) * BLOCKS_PER_DAY).toLocaleString() }) : '-'}
                   </Box>
                 ),

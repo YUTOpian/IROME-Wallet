@@ -191,7 +191,7 @@ function NemNamespaceRenew({ initialName, onDone, lockedAccount, onSent }: NemNa
           onClose={() => setShowCaution(false)}
         />
 
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{sending ? t('nemns.renew_sending') : t('nemns.renew_confirm_ready')}</Typography>
             <Button variant="contained" color="primary" size="large" fullWidth disabled={sending} onClick={() => setShowPassword(true)} startIcon={<LockOutlinedIcon />} sx={{ py: 1.5 }}>
@@ -285,18 +285,16 @@ function NemNamespaceRenew({ initialName, onDone, lockedAccount, onSent }: NemNa
               ]}
               hint={t('nemns.cost_hint')}
               warning={balanceShort ? t('nemns.xem_short_warning') : undefined}
-            />
+            action={
+              <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5, minWidth: 220 }}>
+            {t('nemns.go_confirm')}
+          </Button>
+            }
+          />
           </>
         )}
       </Box>
 
-      {!loading && ns && (
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-          <Button variant="contained" color="primary" size="large" fullWidth disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5 }}>
-            {t('nemns.go_confirm')}
-          </Button>
-        </Box>
-      )}
     </Box>
   );
 }

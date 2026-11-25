@@ -29,6 +29,7 @@ import type { SupplyAction } from '../../lib/symbol/tx';
 import { useAppStore } from '../../store/appStore';
 import { groupDigits } from './mosaicFlags';
 import { fieldBoxSx } from '../../components/fieldBox';
+import { cardRadius } from '../../theme/cardRadius';
 
 // Keep only what a decimal amount can contain: digits and a single '.', limited to `decimals` places.
 function sanitizeAmount(raw: string, decimals: number): string {
@@ -208,7 +209,7 @@ function MosaicSupply({ initialMosaicId, embedded, onDone, onSent }: MosaicSuppl
       <Box sx={rootSx}>
         <BackButton onBack={() => setStep('form')} back="/mosaic" />
         <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 3, md: 5 }, py: 3, boxSizing: 'border-box', textAlign: 'left' }}>
-          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 4, px: 3, py: 1 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 3, py: 1 }}>
             {confirmRows.map((row, i) => (
               <Box key={row.label}>
                 {i > 0 && <Divider />}
@@ -225,7 +226,7 @@ function MosaicSupply({ initialMosaicId, embedded, onDone, onSent }: MosaicSuppl
           <Typography variant="body2" sx={{ color: 'text.secondary', mt: 2 }}>{t('mosaic.supply_caution')}</Typography>
         </Box>
 
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{sending ? t('mosaic.supply_sending') : t('mosaic.supply_confirm_ready')}</Typography>
             <Button
@@ -319,17 +320,15 @@ function MosaicSupply({ initialMosaicId, embedded, onDone, onSent }: MosaicSuppl
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{t('mosaic.supply_fee_title')}: <span style={{ fontWeight: 'normal' }}>{feeText}</span></Typography>
               {feeShort && <Alert severity="warning" sx={{ mt: 1.5 }}>{t('mosaic.supply_fee_short_warning')}</Alert>}
             </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => setStep('confirm')} sx={{ py: 1.5, minWidth: 220 }}>
+            {t('mosaic.supply_go_confirm')}
+          </Button>
+              </Box>
           </>
         )}
       </Box>
 
-      {rows !== null && rows.length > 0 && selected && (
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-          <Button variant="contained" color="primary" size="large" fullWidth disabled={!canContinue} onClick={() => setStep('confirm')} sx={{ py: 1.5 }}>
-            {t('mosaic.supply_go_confirm')}
-          </Button>
-        </Box>
-      )}
     </Box>
   );
 }

@@ -148,7 +148,8 @@ export default function MultisigTop() {
 
         <Alert severity="info" sx={{ mb: 2 }}>{t('multisig.intro')}</Alert>
 
-        {/* このウォレットのアカウント */}
+        {/* このウォレットのアカウント・連署しているアカウント・署名待ちは、同じ項目（1枚の白いカード）。マルチシグツリーは別の項目 */}
+        <SectionCard>
         <SectionCard compact title={t('multisig.manage_title')}>
           {loading && !mine ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>
@@ -206,7 +207,7 @@ export default function MultisigTop() {
         </SectionCard>
 
         {/* 署名待ち */}
-        <SectionCard compact title={t('multisig.pending_title')}>
+        <SectionCard compact sx={{ mb: 0 }} title={t('multisig.pending_title')}>
           <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 1 }}>{t('multisig.pending_hint')}</Typography>
           {pending.length === 0 && !loading && (
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>{t('multisig.pending_none')}</Typography>
@@ -247,9 +248,12 @@ export default function MultisigTop() {
             ))}
           </Box>
         </SectionCard>
-        {/* マルチシグツリー（この画面の一部） */}
+        </SectionCard>
+        {/* マルチシグツリー（この画面の一部。別の項目） */}
         <Box ref={treeRef} sx={{ scrollMarginTop: 16 }}>
-          <MultisigTreeView account={treeAccount} onAccountChange={setTreeAccount} />
+          <SectionCard>
+            <MultisigTreeView account={treeAccount} onAccountChange={setTreeAccount} />
+          </SectionCard>
         </Box>
         {!loading && <Button onClick={load}>{t('multisig.reload')}</Button>}
       </Box>
