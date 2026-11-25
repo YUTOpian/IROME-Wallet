@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Alert, Box, Button, Chip, Divider, IconButton, MenuItem, Select, Tab, Tabs, Typography,
+  Alert, Box, Button, Chip, Divider, IconButton, MenuItem, Select, Snackbar, Tab, Tabs, Typography,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
@@ -32,9 +32,12 @@ import { useAggregateStore } from '../../store/aggregateStore';
 import { useAppStore } from '../../store/appStore';
 import AggregateCsvImport from './AggregateCsvImport';
 import AggregateItemForm from './AggregateItemForm';
+import AggregateUriDialog from './AggregateUriDialog';
+import AggregateUriImportDialog from './AggregateUriImportDialog';
 import type { AggregateContext } from './AggregateItemForm';
-import { SectionCard } from '../multisig/parts';
+import { FlatSectionsContext, SectionCard, SeparateCardsContext } from '../multisig/parts';
 import { fieldBoxSx } from '../../components/fieldBox';
+import { cardRadius } from '../../theme/cardRadius';
 
 const KINDS: AggregateItemKind[] = ['transfer', 'mosaic_definition', 'mosaic_supply', 'namespace'];
 // The tabs: one form per kind of transaction, and 「CSV一括送信」 (a file of transfers, see AggregateCsvImport).
@@ -87,6 +90,18 @@ export default function AggregatePage() {
   const [sending, setSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [sendError, setSendError] = useState<{ kind: string; detail: string } | null>(null);
+  // 「トランザクションURI」（今の内容をURIで表示）と、そのインポート（URIから内容を追加）のポップアップ。
+  const [showUri, setShowUri] = useState(false);
+  const [showUriImport, setShowUriImport] = useState(false);
+  const [importedCount, setImportedCount] = useState(0);
+
+  // タブによって縦スクロールバーが出たり消えたりして、画面の幅が変わらないよう、スクロールバーの場所を常に空けておく。
+  useEffect(() => {
+    const root = document.documentElement;
+    const prev = root.style.scrollbarGutter;
+    root.style.scrollbarGutter = 'stable';
+    return () => { root.style.scrollbarGutter = prev; };
+  }, []);
 
   // The active wallet and what it owns (balances for transfers, owned mosaics / namespaces for supply changes and parents).
   useEffect(() => {
@@ -264,7 +279,7 @@ export default function AggregatePage() {
       <Typography sx={{ fontWeight: 'bold', mb: 1 }}>{t('aggregate.cost_title')}</Typography>
       {step === 'form' && (
         <Box sx={{ mb: 1.5 }}>
-          <Select fullWidth size="small" value={feeSpeed} onChange={(e) => setFeeSpeed(e.target.value as FeeSpeed)} inputProps={{ 'aria-label': t('aggregate.tx_fee') }}>
+          <Select size="small" sx={{ minWidth: 200 }} value={feeSpeed} onChange={(e) => setFeeSpeed(e.target.value as FeeSpeed)} inputProps={{ 'aria-label': t('aggregate.tx_fee') }}>
             {FEE_SPEEDS.map((s) => <MenuItem key={s} value={s}>{t(`send.fee_speed_${s}`)}</MenuItem>)}
           </Select>
         </Box>
@@ -289,7 +304,7 @@ export default function AggregatePage() {
         <BackButton onBack={onBack} back="/aggregate" />
         <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 3, md: 5 }, py: 3, boxSizing: 'border-box', textAlign: 'left' }}>
           <Typography sx={{ fontWeight: 'bold', mb: 1 }}>{t('aggregate.confirm_title', { count: items.length })}</Typography>
-          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 4, px: 3, py: 1 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 3, py: 1 }}>
             {itemCards.map(({ item, title, lines }, i) => (
               <Box key={item.uid}>
                 {i > 0 && <Divider />}
@@ -305,7 +320,7 @@ export default function AggregatePage() {
           {bonded && <Alert severity="info" sx={{ mt: 2 }}>{t('aggregate.bonded_flow', { count: otherSigners(items).length })}</Alert>}
         </Box>
         <MessageDialog open={showCaution} title={t('aggregate.confirm_dialog_title')} texts={t('aggregate.confirm_dialog_message', { returnObjects: true }) as string[]} onClose={() => setShowCaution(false)} />
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{sending ? t(bonded ? 'aggregate.sending_bonded' : 'aggregate.sending') : t('aggregate.confirm_ready')}</Typography>
             <Button variant="contained" size="large" fullWidth disabled={sending} onClick={() => { if (wallet?.sss) void onPassed(''); else setShowPassword(true); }} startIcon={wallet?.sss ? <ExtensionOutlinedIcon /> : <LockOutlinedIcon />} sx={{ py: 1.5 }}>
@@ -324,15 +339,31 @@ export default function AggregatePage() {
   const full = items.length >= MAX_AGGREGATE_INNER;
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* 入力（タブとフォーム）と「まとめる内容」は別の項目なので、それぞれ別の白いカードにする。 */}
+      <FlatSectionsContext.Provider value>
+      <SeparateCardsContext.Provider value>
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
-        <Alert severity="info" sx={{ mb: 2 }}>{t('aggregate.intro')}</Alert>
+        {/* トランザクションURIのインポートは、この説明の枠の右端に置く */}
+        <Alert
+          severity="info"
+          sx={{ mb: 2, alignItems: 'center' }}
+          action={(
+            <Button variant="outlined" size="small" disabled={!wallet} onClick={() => setShowUriImport(true)} sx={{ whiteSpace: 'nowrap' }}>
+              {t('aggregate_uri.import_button')}
+            </Button>
+          )}
+        >
+          {t('aggregate.intro')}
+        </Alert>
         {selfIsMultisig && <Alert severity="warning" sx={{ mb: 2 }}>{t('cosign_account.self_is_multisig')}</Alert>}
 
         {/* 種類ごとのタブ: 入力して「保存」すると、下の「まとめる内容」に積まれる */}
         <SectionCard sx={{ px: { xs: 2, md: 3 }, pt: 0 }}>
-          <Tabs value={formKind} onChange={(_, v: FormKind) => { setFormKind(v); setFormNonce((n) => n + 1); }} variant="scrollable" scrollButtons="auto" sx={{ borderBottom: 1, borderColor: 'divider', mb: 1 }}>
-            {TAB_KINDS.map((k) => <Tab key={k} value={k} label={t(`aggregate.tab_${k}`)} />)}
-          </Tabs>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, borderBottom: 1, borderColor: 'divider', mb: 1 }}>
+            <Tabs value={formKind} onChange={(_, v: FormKind) => { setFormKind(v); setFormNonce((n) => n + 1); }} variant="scrollable" scrollButtons="auto" sx={{ minWidth: 0, flex: '0 1 auto' }}>
+              {TAB_KINDS.map((k) => <Tab key={k} value={k} label={t(`aggregate.tab_${k}`)} />)}
+            </Tabs>
+          </Box>
           {wallet ? (
             formKind === 'csv' ? (
               // Stays mounted after 「追加」, so the 「追加しました」 notice is still there (the draft below shows the new items).
@@ -358,7 +389,7 @@ export default function AggregatePage() {
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {itemCards.map(({ item, title, lines }, i) => (
-                <Box key={item.uid} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, border: 1, borderColor: 'divider', borderRadius: 3, px: 2, py: 1.5 }}>
+                <Box key={item.uid} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 2, py: 1.5 }}>
                   <Chip size="small" label={i + 1} color="primary" />
                   <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                     <Typography sx={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{title}</Typography>
@@ -370,17 +401,33 @@ export default function AggregatePage() {
             </Box>
           )}
           {items.length > 0 && <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>{t('aggregate.order_hint')}</Typography>}
+          {/* 費用は、まとめた内容の下、ボタンの上に置く。 */}
+          {items.length > 0 && costBox}
+          {/* 確認画面へ・トランザクションURIは、まとめる内容の枠の中に置く。狭い画面では折り返す。 */}
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 2.5 }}>
+            <Button variant="contained" size="large" disabled={items.length === 0 || total === null || selfIsMultisig} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5, flex: '0 1 200px' }}>
+              {t('aggregate.go_confirm')}
+            </Button>
+            <Button variant="outlined" size="large" disabled={items.length === 0 || !wallet} onClick={() => setShowUri(true)} sx={{ py: 1.5, flex: '0 1 auto' }}>
+              {t('aggregate_uri.button')}
+            </Button>
+          </Box>
         </SectionCard>
 
         {bonded && <Alert severity="warning" sx={{ mt: 2 }}>{t('aggregate.bonded_notice')}</Alert>}
-        {items.length > 0 && costBox}
       </Box>
+      </SeparateCardsContext.Provider>
+      </FlatSectionsContext.Provider>
 
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Button variant="contained" size="large" fullWidth disabled={items.length === 0 || total === null || selfIsMultisig} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5 }}>
-          {t('aggregate.go_confirm')}
-        </Button>
-      </Box>
+      <AggregateUriDialog open={showUri} onClose={() => setShowUri(false)} items={items} wallet={wallet} feeSpeed={feeSpeed} />
+      <AggregateUriImportDialog
+        open={showUriImport}
+        onClose={() => setShowUriImport(false)}
+        wallet={wallet}
+        existing={items.length}
+        onImport={(list) => { list.forEach(add); setImportedCount(list.length); }}
+      />
+      <Snackbar open={importedCount > 0} autoHideDuration={4000} onClose={() => setImportedCount(0)} message={t('aggregate_uri.imported', { count: importedCount })} />
     </Box>
   );
 }
