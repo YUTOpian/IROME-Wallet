@@ -184,7 +184,7 @@ function NemMosaicSupply({ initialMosaicId, onDone, onSent }: NemMosaicSupplyPro
           <ConfirmRows rows={rows} />
         </Box>
         <MessageDialog open={showCaution} title={t('nemmosaic.supply_confirm_title')} texts={t('nemmosaic.supply_confirm_dialog_message', { returnObjects: true }) as string[]} onClose={() => setShowCaution(false)} />
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{sending ? t('nemmosaic.supply_sending') : t('nemmosaic.supply_confirm_ready')}</Typography>
             <Button variant="contained" color="primary" size="large" fullWidth disabled={sending} onClick={() => setShowPasswordDialog(true)} startIcon={<LockOutlinedIcon />} sx={{ py: 1.5 }}>
@@ -261,13 +261,13 @@ function NemMosaicSupply({ initialMosaicId, onDone, onSent }: NemMosaicSupplyPro
           <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{t('nemmosaic.tx_fee')}: <span style={{ fontWeight: 'normal' }}>{nemXem(NEM_PROVISION_TX_FEE)}</span></Typography>
           {balanceShort && <Alert severity="warning" sx={{ mt: 1.5 }}>{t('nemmosaic.xem_short_warning')}</Alert>}
         </Box>
-      </Box>
-
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Button variant="contained" color="primary" size="large" fullWidth disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5, minWidth: 220 }}>
           {t('nemmosaic.go_confirm')}
         </Button>
+          </Box>
       </Box>
+
     </Box>
   );
 }

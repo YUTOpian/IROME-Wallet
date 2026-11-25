@@ -31,6 +31,7 @@ import { saveFile } from '../../lib/paperWalletExport';
 import { buildZip } from '../../lib/zipStore';
 import type { ZipEntry } from '../../lib/zipStore';
 import { shortDate } from '../../lib/nem/apostille';
+import { cardRadius } from '../../theme/cardRadius';
 
 const MAX_ITEMS = 25;
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
@@ -367,14 +368,14 @@ export default function ApostilleCreate({ update, onCancelUpdate, onCreated }: P
             {mode === 'file' ? (
               <Box sx={{ pt: 1 }}>
                 <input ref={fileInput} type="file" multiple hidden onChange={(e) => onPick(e.target.files)} />
-                <Box sx={{ border: '2px dashed', borderColor: 'divider', borderRadius: 3, px: 2, py: 3, textAlign: 'center' }}>
+                <Box sx={{ border: '2px dashed', borderColor: 'divider', borderRadius: cardRadius, px: 2, py: 3, textAlign: 'center' }}>
                   <Button variant="outlined" startIcon={<FileUploadOutlinedIcon />} onClick={() => fileInput.current?.click()} disabled={items.length >= MAX_ITEMS}>
                     {t('apostille.pick_files')}
                   </Button>
                   <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>{t('apostille.files_max', { max: MAX_ITEMS })}</Typography>
                 </Box>
                 {items.map((i) => (
-                  <Box key={i.key} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, px: 1.5, py: 0.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+                  <Box key={i.key} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, px: 1.5, py: 0.5, border: 1, borderColor: 'divider', borderRadius: cardRadius }}>
                     <Typography sx={{ flexGrow: 1, minWidth: 0, wordBreak: 'break-all' }}>{i.name}</Typography>
                     <Chip size="small" label={fmtSize(i.file?.size ?? 0)} color={(i.file?.size ?? 0) > MAX_FILE_BYTES ? 'error' : 'default'} />
                     <IconButton size="small" aria-label={t('common.delete')} onClick={() => setItems((prev) => prev.filter((x) => x.key !== i.key))}><CloseIcon fontSize="small" /></IconButton>

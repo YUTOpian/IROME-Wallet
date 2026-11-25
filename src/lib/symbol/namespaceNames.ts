@@ -38,7 +38,7 @@ export function aliasIdCandidates(recipient: string): string[] {
 }
 
 /** Full names ("root.child") of namespace ids; an id the node does not know is left out. */
-async function fetchNamespaceNames(ids: string[]): Promise<Record<string, string>> {
+export async function fetchNamespaceNames(ids: string[]): Promise<Record<string, string>> {
   const cache = cacheFor(idCache);
   const wanted = [...new Set(ids.map((i) => i.toUpperCase()))].filter((i) => !cache.has(i));
   const parents = new Map<string, string>();

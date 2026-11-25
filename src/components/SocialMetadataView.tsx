@@ -9,6 +9,7 @@ import { useAppStore } from '../store/appStore';
 import { cachedSocialMetadata, loadSocialImage, loadSocialMetadata, safeHttpUrl } from '../lib/symbol/socialMetadata';
 import type { SocialMetadata } from '../lib/symbol/socialMetadata';
 import { prettyChainAddress } from '../lib/chainApi';
+import { cardRadius } from '../theme/cardRadius';
 
 // ソーシャルメタデータの表示部品。履歴・取引の詳細・送金先の情報で共通に使う。
 // 値は他人が書いたものなので、文字は React が必ずエスケープして出し、URL は http(s) のときだけリンクにする。
@@ -63,7 +64,7 @@ export function SocialOpenDialog({ open, address, meta, onClose }: { open: boole
       <DialogTitle sx={{ fontWeight: 'bold' }}>{t('social.open_title')}</DialogTitle>
       <DialogContent>
         <Typography variant="body2" sx={{ mb: 1.5 }}>{t('social.open_lead')}</Typography>
-        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, px: 1.5, py: 1, mb: 1.5 }}>
+        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 1.5, py: 1, mb: 1.5 }}>
           <Typography variant="caption" color="text.secondary">{t('social.open_address')}</Typography>
           <Typography sx={{ wordBreak: 'break-all', fontFamily: 'monospace', fontSize: '0.9rem' }}>{prettyChainAddress(address)}</Typography>
           {meta.namespace !== '' && (
@@ -130,7 +131,7 @@ export default function SocialMetadataCard({ address, label, loadImage = false }
   if (meta === null || meta === 'loading') return null;
   const href = safeHttpUrl(meta.url);
   return (
-    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 3, px: 2, py: 1.5, my: 1.5, bgcolor: 'background.paper', textAlign: 'left' }}>
+    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 2, py: 1.5, my: 1.5, bgcolor: 'background.paper', textAlign: 'left' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, color: 'primary.main' }}>
         <VerifiedUserOutlinedIcon sx={{ fontSize: 18 }} />
         <Typography sx={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{label ?? t('social.card_title')}</Typography>

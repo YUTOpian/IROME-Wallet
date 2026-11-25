@@ -5,6 +5,7 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useTranslation } from 'react-i18next';
 import type { CheckItem, CheckState } from '../../lib/symbol/harvestEligibility';
+import { cardRadius } from '../../theme/cardRadius';
 
 const ICON: Record<CheckState, { icon: typeof CheckCircleOutlineIcon; color: string }> = {
   ok: { icon: CheckCircleOutlineIcon, color: 'success.main' },
@@ -18,7 +19,7 @@ export default function EligibilityList({ title, items, values }: { title: strin
   const { t } = useTranslation();
   if (items.length === 0) return null;
   return (
-    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, px: 1.5, py: 1, mb: 2 }}>
+    <Box sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 1.5, py: 1, mb: 2 }}>
       <Typography sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 0.5 }}>{title}</Typography>
       {items.map((item) => {
         const { icon: Icon, color } = ICON[item.state];

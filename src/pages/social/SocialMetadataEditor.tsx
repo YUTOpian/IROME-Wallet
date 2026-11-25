@@ -16,6 +16,7 @@ import { explorerTxUrl, fetchBalances, fetchMetadataValue, quoteMetadataFee, set
 import { quoteAggregate, sendAggregate } from '../../lib/symbol/aggregateApi';
 import type { AggregateQuote } from '../../lib/symbol/aggregateApi';
 import CosignAccountPicker from '../../components/CosignAccountPicker';
+import { SectionCard } from '../multisig/parts';
 import { useCosignAccounts } from '../../hooks/useCosignAccounts';
 import { getDefaultFeeSpeed } from '../../lib/symbol/feeSpeed';
 import { formatAtomic } from '../../lib/symbol/amount';
@@ -210,11 +211,13 @@ export default function SocialMetadataEditor({ embedded = false, account, onClos
         {!embedded && <Typography sx={{ fontWeight: 'bold', fontSize: '1.3rem', mb: 1 }}>{t('social.title')}</Typography>}
         <Alert severity="info" sx={{ mb: 2 }}>{t('social.lead')}</Alert>
 
+        {(accounts.signers.length > 0 || accounts.accountAddr !== '' || accounts.selfIsMultisig || address !== '') && (<SectionCard>
         <CosignAccountPicker accounts={accounts} onPick={() => { setForm(EMPTY); setTouched({}); }} lockText={aggQuote ? xym(aggQuote.lockAmount) : null} />
 
         {address !== '' && (
           <Typography variant="body2" sx={{ wordBreak: 'break-all', fontFamily: 'monospace', mb: 2 }}>{address}</Typography>
         )}
+        </SectionCard>)}
 
         {current === 'loading' && <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={26} /></Box>}
         {current === 'failed' && <Alert severity="error" sx={{ mb: 2 }}>{t('social.load_failed')}</Alert>}
@@ -222,6 +225,7 @@ export default function SocialMetadataEditor({ embedded = false, account, onClos
 
         {current !== 'loading' && current !== 'failed' && (
           <>
+            <SectionCard>
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
               <SocialAvatar key={previewMeta.imageUrl} meta={previewMeta} size={88} loadImage={errors.imageUrl === null && form.imageUrl.trim() !== ''} />
             </Box>
@@ -272,6 +276,7 @@ export default function SocialMetadataEditor({ embedded = false, account, onClos
               slotProps={{ htmlInput: { 'aria-label': t('social.field_name') } }}
               sx={{ mb: 2 }}
             />
+            </SectionCard>
 
             {unchanged && <Alert severity="success" sx={{ mb: 2 }}>{t('social.unchanged')}</Alert>}
             {current !== null && !unchanged && valid && <Alert severity="warning" sx={{ mb: 2 }}>{t('social.will_overwrite')}</Alert>}
@@ -287,9 +292,9 @@ export default function SocialMetadataEditor({ embedded = false, account, onClos
         )}
       </Box>
 
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2, display: 'flex', gap: 1.5 }}>
-        <Button variant="outlined" color="inherit" size="large" onClick={onBack} sx={{ flex: 1, py: 1.5 }}>{t('common.cancel')}</Button>
-        <Button variant="contained" color="primary" size="large" disabled={!canUpdate || sending} onClick={() => setConfirmOpen(true)} sx={{ flex: 1, py: 1.5 }}>
+      <Box sx={{ px: 3, py: 2, display: 'flex', justifyContent: 'center' }}>
+        {/* 戻る（左上）と役割が重なるので、キャンセルは置かない。幅は、以前（キャンセルと半分ずつ）のまま、中央に置く。 */}
+        <Button variant="contained" color="primary" size="large" disabled={!canUpdate || sending} onClick={() => setConfirmOpen(true)} sx={{ flex: '0 0 calc(50% - 6px)', py: 1.5 }}>
           {sending ? t('metadata.sending') : t('social.update')}
         </Button>
       </Box>

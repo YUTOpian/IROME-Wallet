@@ -15,6 +15,7 @@ import { withFormReset } from '../../lib/withFormReset';
 import type { SentProps } from '../../lib/withFormReset';
 import { Field, FormRow, SectionCard, mono } from '../multisig/parts';
 import { DaoAction, LoadingBox, useDao } from './daoUi';
+import { cardRadius } from '../../theme/cardRadius';
 
 /** DAO アカウントが持っているモザイク 1 種類ぶん。 */
 interface Holding {
@@ -94,7 +95,7 @@ export default function DaoWallet() {
       {holdings !== null && holdings.length > 0 && (
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 1.5 }}>
           {holdings.map((h) => (
-            <Box key={h.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 2, display: 'flex', flexDirection: 'column', gap: 1.25, minWidth: 0 }}>
+            <Box key={h.id} sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, p: 2, display: 'flex', flexDirection: 'column', gap: 1.25, minWidth: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Typography sx={{ fontWeight: 'bold', wordBreak: 'break-all' }}>{h.label}</Typography>
                 {h.kind !== 'other' && <Chip size="small" variant="outlined" color={h.kind === 'governance' ? 'secondary' : 'primary'} label={t(`dao.wallet_kind_${h.kind}`)} />}

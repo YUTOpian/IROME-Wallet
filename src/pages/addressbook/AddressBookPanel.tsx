@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControlLabel, IconButton, InputAdornment, ListItemButton, Paper, Snackbar, Switch, Tab, Tabs, Typography, alpha, useMediaQuery, useTheme } from '@mui/material';
+import { cardRadius } from '../../theme/cardRadius';
 import TextField from '../../components/TextField';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineOutlined';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -195,7 +196,7 @@ export default function AddressBookPanel({ switcher }: { picking?: boolean; swit
 
   const showDetailPanel = !compact;
   // 「マイアカウント」のカードと同じ見た目。
-  const cardSx = { bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 3, boxSizing: 'border-box' } as const;
+  const cardSx = { bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, boxSizing: 'border-box' } as const;
 
   // 左のパネル（狭い画面・送金先を選ぶ画面では、これだけを出す）。
   const listPanel = (
@@ -249,7 +250,7 @@ export default function AddressBookPanel({ switcher }: { picking?: boolean; swit
                   <ListItemButton
                     selected={active}
                     onClick={() => onClickEntry(entry)}
-                    sx={{ borderRadius: 2, py: 1.25, '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.1) } }}
+                    sx={{ borderRadius: cardRadius, py: 1.25, '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.1) } }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', minWidth: 0 }}>
                       <PersonOutlineOutlinedIcon sx={{ flexShrink: 0 }} />

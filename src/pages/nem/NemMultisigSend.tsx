@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, MenuItem } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { CardFrame } from '../../components/TabCard';
 import BackButton from '../../components/BackButton';
 import { WalletsHelper } from '../../lib/storage';
 import { fetchNemXemBalance } from '../../lib/nem/api';
@@ -120,6 +121,7 @@ function NemMultisigSend({ onSent }: SentProps) {
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <BackButton onBack={() => navigate('/multisig')} />
+      <CardFrame>
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
         <Alert severity="info" sx={{ mb: 2 }}>{t('nemmultisig.send_note')}</Alert>
         {loading && <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>}
@@ -172,13 +174,14 @@ function NemMultisigSend({ onSent }: SentProps) {
                 { label: t('nemmultisig.wrapper_fee_row'), value: nemXem(NEM_MULTISIG_WRAPPER_FEE) },
               ]}
               warning={ownShort ? t('nemmultisig.xem_short_warning') : undefined}
-            />
+            action={
+              <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => setStep('confirm')} sx={{ py: 1.5, minWidth: 220 }}>{t('multisig.go_confirm')}</Button>
+            }
+          />
           </>
         )}
       </Box>
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Button variant="contained" color="primary" size="large" fullWidth disabled={!canContinue} onClick={() => setStep('confirm')} sx={{ py: 1.5 }}>{t('multisig.go_confirm')}</Button>
-      </Box>
+      </CardFrame>
     </Box>
   );
 }

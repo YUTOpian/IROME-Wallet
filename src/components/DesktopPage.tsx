@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { Alert, Box, Typography } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
-import { FlatSectionsContext, FormRow } from '../pages/multisig/parts';
+import { FlatSectionsContext, FormRow, SeparateCardsContext } from '../pages/multisig/parts';
+import { cardRadius } from '../theme/cardRadius';
 
 // 画面の外枠と、縦に積むカード、ラベルを左に置く入力欄（DNS・署名付きメッセージ・アポスティーユで共通）。
 // NEMonster の画面と同じ作り: 幅いっぱいに使い、太字のタイトル、青い説明バー、カードを縦に並べる。
@@ -23,7 +24,7 @@ export default function DesktopPage({ title, about, tabs, children }: DesktopPag
         <Typography variant="h6" component="h1" sx={{ fontWeight: 'bold', mb: 1 }}>{title}</Typography>
         {about && <Alert severity="info" sx={{ mb: 2 }}>{about}</Alert>}
         {tabs}
-        <FlatSectionsContext.Provider value>{children}</FlatSectionsContext.Provider>
+        <FlatSectionsContext.Provider value><SeparateCardsContext.Provider value>{children}</SeparateCardsContext.Provider></FlatSectionsContext.Provider>
       </Box>
     </Box>
   );
@@ -47,7 +48,7 @@ export function FormStack({ label, hint, children }: { label: ReactNode; hint?: 
 /** What a result card shows before there is anything to show. */
 export function EmptyPanel({ children, minHeight = 96 }: { children: ReactNode; minHeight?: number }) {
   return (
-    <Box sx={{ bgcolor: 'action.hover', borderRadius: 1.5, px: 3, py: 3, minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', boxSizing: 'border-box' }}>
+    <Box sx={{ bgcolor: 'action.hover', borderRadius: cardRadius, px: 3, py: 3, minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', boxSizing: 'border-box' }}>
       <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.8 }}>{children}</Typography>
     </Box>
   );

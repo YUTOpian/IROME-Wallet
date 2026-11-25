@@ -147,7 +147,7 @@ function NemNamespaceRegister({ embedded = false, fixedKind, onShowList, onSent 
           <ConfirmRows rows={rows} />
         </Box>
         <MessageDialog open={showCaution} title={t('nemns.confirm_title')} texts={t('nemns.confirm_dialog_message', { returnObjects: true }) as string[]} onClose={() => setShowCaution(false)} />
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{registering ? t('nemns.registering') : t('nemns.confirm_ready')}</Typography>
             <Button variant="contained" color="primary" size="large" fullWidth disabled={registering} onClick={() => setShowPasswordDialog(true)} startIcon={<LockOutlinedIcon />} sx={{ py: 1.5 }}>
@@ -210,12 +210,12 @@ function NemNamespaceRegister({ embedded = false, fixedKind, onShowList, onSent 
           ]}
           hint={t('nemns.cost_hint')}
           warning={balanceShort ? t('nemns.xem_short_warning') : undefined}
-        />
-      </Box>
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Button variant="contained" color="primary" size="large" fullWidth disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5 }}>
+        action={
+              <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5, minWidth: 220 }}>
           {t('nemns.go_confirm')}
         </Button>
+            }
+          />
       </Box>
     </Box>
   );

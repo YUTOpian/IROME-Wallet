@@ -44,6 +44,7 @@ import { useAppStore } from '../../store/appStore';
 import { CostBox } from '../multisig/parts';
 import { showTxNotice } from '../../store/txNoticeStore';
 import { fieldBoxSx } from '../../components/fieldBox';
+import { cardRadius } from '../../theme/cardRadius';
 
 // The "own account" choice of the account picker (the other choices are multisig account addresses).
 const OWN_ACCOUNT = 'own';
@@ -479,7 +480,7 @@ export default function RestrictionPage({ embedded = false, wallet: targetWallet
           ? <Box sx={{ px: { xs: 2, md: 4 }, pt: 1 }}><Button color="inherit" startIcon={<ArrowBackIcon />} onClick={() => setStep('form')}>{t('common.back')}</Button></Box>
           : <BackButton onBack={() => setStep('form')} back="/account" />}
         <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 3, md: 5 }, py: 3, boxSizing: 'border-box', textAlign: 'left' }}>
-          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 4, px: 3, py: 1 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 3, py: 1 }}>
             {rows.map((row, i) => (
               <Box key={row.label}>
                 {i > 0 && <Divider />}
@@ -501,7 +502,7 @@ export default function RestrictionPage({ embedded = false, wallet: targetWallet
           onClose={() => setShowCaution(false)}
         />
 
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{sending ? t('restriction.sending') : t('restriction.confirm_ready')}</Typography>
             <Button
@@ -756,8 +757,20 @@ export default function RestrictionPage({ embedded = false, wallet: targetWallet
             )}
 
             {isMulti ? (
-              hasChanges && multiInfo !== null && <CostBox cost={multiCost} hasBalanceShort={balanceShort} />
+              hasChanges && multiInfo !== null && <CostBox cost={multiCost} hasBalanceShort={balanceShort} action={watchOnly ? undefined : (
+                <Button
+            variant="contained"
+            color="primary"
+            size="large"
+            disabled={!canContinue}
+            onClick={() => { setStep('confirm'); setShowCaution(true); }}
+            sx={{ py: 1.5, minWidth: 220 }}
+          >
+            {t('restriction.go_confirm')}
+          </Button>
+              )} />
             ) : (
+              <>
               <Box sx={{ mt: 1, ...fieldBoxSx }}>
                 <Typography variant="body2" sx={{ fontWeight: 'bold', wordBreak: 'break-all' }}>
                   {t('restriction.tx_fee')}: {hasChanges ? feeText : '-'}
@@ -765,26 +778,17 @@ export default function RestrictionPage({ embedded = false, wallet: targetWallet
                 <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>{t('restriction.fee_hint')}</Typography>
                 {balanceShort && <Alert severity="warning" sx={{ mt: 1.5 }}>{t('restriction.xym_short_warning')}</Alert>}
               </Box>
+              {!watchOnly && (
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                  <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5, minWidth: 220 }} > {t('restriction.go_confirm')} </Button>
+                </Box>
+              )}
+              </>
             )}
           </>
         )}
       </Box>
 
-      {!watchOnly && (
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-          <Button
-            variant="contained"
-            color="primary"
-            size="large"
-            fullWidth
-            disabled={!canContinue}
-            onClick={() => { setStep('confirm'); setShowCaution(true); }}
-            sx={{ py: 1.5 }}
-          >
-            {t('restriction.go_confirm')}
-          </Button>
-        </Box>
-      )}
     </Box>
   );
 }

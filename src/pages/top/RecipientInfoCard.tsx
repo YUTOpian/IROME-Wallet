@@ -9,6 +9,7 @@ import type { RecipientInfo, SymbolTransfer } from '../../lib/symbol/api';
 import { currencySymbol } from '../../lib/chainApi';
 import { useAppStore } from '../../store/appStore';
 import SocialMetadataCard from '../../components/SocialMetadataView';
+import { cardRadius } from '../../theme/cardRadius';
 
 interface Props {
   /** Normalized address being looked up; the card resets its expanders when it changes. */
@@ -64,11 +65,11 @@ export default function RecipientInfoCard({ address, recipient, history, ownMatc
   const unused = recipient !== null && recipient !== 'loading' && !recipient.exists;
 
   return (
-    <Box sx={{ mt: 1.5, bgcolor: 'background.paper', border: 1, borderColor: unused ? 'warning.main' : 'divider', borderRadius: 3, px: 2, py: 1.5 }}>
+    <Box sx={{ mt: 1.5, bgcolor: 'background.paper', border: 1, borderColor: unused ? 'warning.main' : 'divider', borderRadius: cardRadius, px: 2, py: 1.5 }}>
       <Typography sx={{ color: 'primary.main', fontWeight: 'bold', fontSize: '0.9rem', mb: 1 }}>{t('send.recipient_info_title')}</Typography>
 
       {ownMatch !== null && (
-        <Box sx={(th) => ({ mb: 1.5, px: 1.5, py: 1, borderRadius: 2, bgcolor: alpha(th.palette.warning.main, 0.12), border: 1, borderColor: 'warning.main' })}>
+        <Box sx={(th) => ({ mb: 1.5, px: 1.5, py: 1, borderRadius: cardRadius(th), bgcolor: alpha(th.palette.warning.main, 0.12), border: 1, borderColor: 'warning.main' })}>
           <Typography sx={{ color: 'warning.main', fontWeight: 'bold', fontSize: 13 }}>
             {ownMatch.active ? t('send.recipient_is_self_title') : t('send.recipient_is_own_other_title')}
           </Typography>
@@ -114,7 +115,7 @@ export default function RecipientInfoCard({ address, recipient, history, ownMatc
             {recipient.mosaics.length > 0 && (mosaicsOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />)}
           </ButtonBase>
           {mosaicsOpen && (
-            <Box sx={{ mt: 0.5, borderRadius: 2, bgcolor: (th) => alpha(th.palette.primary.main, 0.05), px: 1.5, py: 0.5 }}>
+            <Box sx={{ mt: 0.5, borderRadius: cardRadius, bgcolor: (th) => alpha(th.palette.primary.main, 0.05), px: 1.5, py: 0.5 }}>
               {recipient.mosaics.map((m, i) => (
                 <Box key={m.id} sx={{ py: 0.75, borderTop: i === 0 ? 0 : 1, borderColor: 'divider', wordBreak: 'break-all' }}>
                   <Typography sx={{ fontSize: 14 }}>
@@ -186,7 +187,7 @@ export default function RecipientInfoCard({ address, recipient, history, ownMatc
             sx={(th) => {
               const dealt = Array.isArray(history) && history.length > 0;
               const c = dealt ? th.palette.success.main : Array.isArray(history) ? th.palette.warning.main : th.palette.text.secondary;
-              return { mt: 1.5, px: 1.5, py: 1, borderRadius: 2, bgcolor: alpha(c, 0.1), color: c, fontSize: 13 };
+              return { mt: 1.5, px: 1.5, py: 1, borderRadius: cardRadius(th), bgcolor: alpha(c, 0.1), color: c, fontSize: 13 };
             }}
           >
             {history === 'loading' && t('send.recipient_history_loading')}

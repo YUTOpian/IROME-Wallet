@@ -29,6 +29,7 @@ import { getNetworkConfig } from '../../lib/symbol/network';
 import { BLOCKS_PER_DAY, MAX_NAMESPACE_DAYS, MIN_NAMESPACE_DAYS } from '../../lib/symbol/tx';
 import { useAppStore } from '../../store/appStore';
 import { fieldBoxSx } from '../../components/fieldBox';
+import { cardRadius } from '../../theme/cardRadius';
 
 const DEFAULT_DAYS = 365;
 
@@ -247,7 +248,7 @@ function NamespaceRenew({ initialNamespaceId, initialAccountAddr, onDone, onSent
       <Box sx={rootSx}>
         <BackButton onBack={() => setStep('form')} back="/namespace" />
         <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 3, md: 5 }, py: 3, boxSizing: 'border-box', textAlign: 'left' }}>
-          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 4, px: 3, py: 1 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 3, py: 1 }}>
             {rows.map((row, i) => (
               <Box key={row.label} sx={{ borderTop: i > 0 ? 1 : 0, borderColor: 'divider', py: 2 }}>
                 <Typography sx={{ color: 'primary.main', fontSize: '0.85rem', mb: 0.5 }}>{row.label}</Typography>
@@ -266,7 +267,7 @@ function NamespaceRenew({ initialNamespaceId, initialAccountAddr, onDone, onSent
           onClose={() => setShowCaution(false)}
         />
 
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{sending ? t('namespace.renew_sending') : t('namespace.renew_confirm_ready')}</Typography>
             <Button variant="contained" color="primary" size="large" fullWidth disabled={sending} onClick={() => setShowPasswordDialog(true)} startIcon={<LockOutlinedIcon />} sx={{ py: 1.5 }}>
@@ -365,17 +366,15 @@ function NamespaceRenew({ initialNamespaceId, initialAccountAddr, onDone, onSent
               <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>{t('namespace.cost_hint')}</Typography>
               {balanceShort && <Alert severity="warning" sx={{ mt: 1.5 }}>{t('namespace.xym_short_warning')}</Alert>}
             </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5, minWidth: 220 }}>
+            {t('namespace.go_confirm')}
+          </Button>
+              </Box>
           </>
         )}
       </Box>
 
-      {roots !== null && roots.length > 0 && selected && (
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-          <Button variant="contained" color="primary" size="large" fullWidth disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5 }}>
-            {t('namespace.go_confirm')}
-          </Button>
-        </Box>
-      )}
     </Box>
   );
 }

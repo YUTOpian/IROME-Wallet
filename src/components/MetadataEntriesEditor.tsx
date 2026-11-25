@@ -7,6 +7,7 @@ import {
   MAX_METADATA_ENTRIES_AT_CREATION, MAX_METADATA_VALUE_BYTES, draftErrors, encodeValue, keyToHex, parseMetadataKey,
 } from '../lib/symbol/metadata';
 import type { MetadataDraft } from '../lib/symbol/metadata';
+import { cardRadius } from '../theme/cardRadius';
 
 interface Props {
   drafts: MetadataDraft[];
@@ -41,7 +42,7 @@ export default function MetadataEntriesEditor({ drafts, onChange }: Props) {
         const key = parseMetadataKey(d.key);
         const bytes = encodeValue(d.value).length;
         return (
-          <Box key={d.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 3, p: 1.5, mb: 1.5 }}>
+          <Box key={d.id} sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, p: 1.5, mb: 1.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
               <TextField
                 label={t('metadata.key_label')}

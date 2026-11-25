@@ -22,6 +22,7 @@ import { getNemNetworkConfig } from '../../lib/nem/network';
 import { useAppStore } from '../../store/appStore';
 import { classifyNemError, nemXem } from './parts';
 import './nemonster.css';
+import { cardRadius } from '../../theme/cardRadius';
 
 const PER_PAGE = 6;
 const REFRESH_WHILE_PENDING_MS = 15_000;
@@ -30,7 +31,7 @@ const mono = { fontFamily: 'monospace', wordBreak: 'break-all' } as const;
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <Box sx={{ mt: 2.5 }}>
+    <Box sx={{ mt: 2, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: { xs: 2, md: 3 }, py: 2 }}>
       <Typography sx={{ fontWeight: 'bold', mb: 0.5 }}>{title}</Typography>
       {children}
     </Box>
@@ -236,7 +237,7 @@ export default function NemMonster() {
       <Section title={`${t('nemonster.collection_title')}${state ? ` (${t('nemonster.count', { count: collection.length })})` : ''}`}>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 2 }}>
           {shown.map((c) => (
-            <Box key={c.hash ?? 'starter'} sx={{ border: 1, borderColor: 'divider', borderRadius: 3, p: 2, textAlign: 'center', overflow: 'hidden' }}>
+            <Box key={c.hash ?? 'starter'} sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, p: 2, textAlign: 'center', overflow: 'hidden' }}>
               <Typography sx={{ fontWeight: 'bold', minHeight: 48 }}>{`${c.monster.name1} ${c.monster.name2}`.trim()}</Typography>
               <MonsterView monster={c.monster} />
               <Typography variant="caption" component="div" sx={{ color: 'text.secondary', mt: 1 }}>

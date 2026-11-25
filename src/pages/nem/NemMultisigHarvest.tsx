@@ -5,6 +5,7 @@ import OptionSelect, { OptionItem } from '../../components/OptionSelect';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { CardFrame } from '../../components/TabCard';
 import BackButton from '../../components/BackButton';
 import ErrorSnackbar from '../../components/ErrorSnackbar';
 import MessageDialog from '../../components/MessageDialog';
@@ -538,6 +539,7 @@ export default function NemMultisigHarvest() {
   return (
     <Box sx={{ minHeight: '100vh', pb: 4 }}>
       <BackButton onBack={() => navigate('/multisig')} />
+      <CardFrame>
       <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
         <Alert severity="info" sx={{ mb: 2 }}>{t('nemmsharvest.about')}</Alert>
 
@@ -587,6 +589,7 @@ export default function NemMultisigHarvest() {
           </>
         )}
       </Box>
+      </CardFrame>
 
       <MessageDialog
         open={pending !== null && !passwordOnly && !confirmed}

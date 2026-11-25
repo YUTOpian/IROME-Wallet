@@ -616,7 +616,7 @@ export default function NodePage() {
   useEffect(() => { window.scrollTo(0, 0); }, [connected, hasDock]);
   const openGuide = () => { setParams({ view: 'shoestring' }); window.scrollTo({ top: 0 }); };
   const closeGuide = () => { setParams({}); window.scrollTo({ top: 0 }); };
-  const cardSx = { border: 1, borderColor: 'divider', borderRadius: 1, p: 2, mt: 2, textAlign: 'left' } as const;
+  const cardSx = { bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 1, p: 2, mt: 2, textAlign: 'left' } as const;
 
   const terminalCard = (
     <Box sx={cardSx} id="node-terminal">

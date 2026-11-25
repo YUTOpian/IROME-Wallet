@@ -5,6 +5,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import { useTranslation } from 'react-i18next';
 import BackButton from '../../components/BackButton';
+import { cardRadius } from '../../theme/cardRadius';
 
 // 「投票を作る」の入力画面（NEM・Symbol 共通）の部品。
 // NEMonster の画面と同じ作り: 太字のタイトル、説明バー、角丸のカードを並べる。
@@ -13,7 +14,7 @@ import BackButton from '../../components/BackButton';
 /** One rounded card with a bold title (the same card as the NEMonster page). */
 export function VotingSection({ title, description, children }: { title: ReactNode; description?: ReactNode; children: ReactNode }) {
   return (
-    <Box sx={{ mt: 2.5, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 3, px: { xs: 2, md: 3 }, py: 2 }}>
+    <Box sx={{ mt: 2.5, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: { xs: 2, md: 3 }, py: 2 }}>
       <Typography sx={{ fontWeight: 'bold', fontSize: '1.05rem', mb: description ? 0.5 : 1.5 }}>{title}</Typography>
       {description && <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5, lineHeight: 1.7 }}>{description}</Typography>}
       {children}
@@ -31,7 +32,7 @@ interface FrameProps {
   /** The right column on a wide screen (the rules, then the cost). */
   right: ReactNode;
   /** The button that goes on to the confirm step. */
-  action: ReactNode;
+  action?: ReactNode;
 }
 
 /** The frame of the create form: back button, title, info bar, two columns of cards, and a bar with the button at the bottom. */
@@ -47,9 +48,11 @@ export function VotingFormFrame({ title, intro, onBack, back, left, right, actio
           <Box sx={{ minWidth: 0 }}>{right}</Box>
         </Box>
       </Box>
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Box sx={{ maxWidth: 640, mx: 'auto' }}>{action}</Box>
-      </Box>
+      {action && (
+        <Box sx={{ px: 3, py: 2 }}>
+          <Box sx={{ maxWidth: 640, mx: 'auto' }}>{action}</Box>
+        </Box>
+      )}
     </Box>
   );
 }

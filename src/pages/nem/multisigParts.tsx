@@ -8,6 +8,7 @@ import MessageDialog from '../../components/MessageDialog';
 import PasswordDialog from '../../components/PasswordDialog';
 import { getNemNetworkConfig } from '../../lib/nem/network';
 import { SymbolSendError } from '../../lib/symbol/api';
+import { cardRadius } from '../../theme/cardRadius';
 
 export interface NemConfirmRow { label: string; value: string; big?: boolean }
 
@@ -51,7 +52,7 @@ export function NemConfirmScreen({ rows, onBack, onPassword }: { rows: NemConfir
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <BackButton onBack={onBack} />
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 3, md: 5 }, py: 3, boxSizing: 'border-box', textAlign: 'left' }}>
-        <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 4, px: 3, py: 1 }}>
+        <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 3, py: 1 }}>
           {rows.map((row, i) => (
             <Box key={`${row.label}-${i}`}>
               {i > 0 && <Divider />}
@@ -64,7 +65,7 @@ export function NemConfirmScreen({ rows, onBack, onPassword }: { rows: NemConfir
         </Box>
       </Box>
       <MessageDialog open={showCaution} title={t('multisig.confirm_title')} texts={t('nemmultisig.confirm_dialog_message', { returnObjects: true }) as string[]} onClose={() => setShowCaution(false)} />
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+      <Box sx={{ px: 3, py: 2.5 }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
           <Typography variant="body2" align="center">{sending ? t('nemmultisig.sending') : t('multisig.confirm_ready')}</Typography>
           <Button variant="contained" color="primary" size="large" fullWidth disabled={sending} onClick={() => setShowPassword(true)} startIcon={<LockOutlinedIcon />} sx={{ py: 1.5 }}>

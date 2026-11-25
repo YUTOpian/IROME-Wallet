@@ -300,7 +300,7 @@ export default function AggregatePage() {
           {bonded && <Alert severity="info" sx={{ mt: 2 }}>{t('aggregate.bonded_flow', { count: otherSigners(items).length })}</Alert>}
         </Box>
         <MessageDialog open={showCaution} title={t('aggregate.confirm_dialog_title')} texts={t('aggregate.confirm_dialog_message', { returnObjects: true }) as string[]} onClose={() => setShowCaution(false)} />
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{sending ? t(bonded ? 'aggregate.sending_bonded' : 'aggregate.sending') : t('aggregate.confirm_ready')}</Typography>
             <Button variant="contained" size="large" fullWidth disabled={sending} onClick={() => { if (wallet?.sss) void onPassed(''); else setShowPassword(true); }} startIcon={wallet?.sss ? <ExtensionOutlinedIcon /> : <LockOutlinedIcon />} sx={{ py: 1.5 }}>
@@ -371,7 +371,7 @@ export default function AggregatePage() {
         {items.length > 0 && costBox}
       </Box>
 
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
+      <Box sx={{ px: 3, py: 2 }}>
         <Button variant="contained" size="large" fullWidth disabled={items.length === 0 || total === null || selfIsMultisig} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5 }}>
           {t('aggregate.go_confirm')}
         </Button>

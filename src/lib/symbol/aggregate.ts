@@ -283,6 +283,15 @@ export function signAggregate(privateKey: string, generationHash: string, p: Agg
   return { payload: bytesToHex(tx.serialize()), hash: facade.hashTransaction(tx).toString(), fee: BigInt(tx.fee.value), bonded: p.bonded ?? needsBonded(p.items) };
 }
 
+/**
+ * The unsigned aggregate (signature left as zeros) as hex: what a 「トランザクションURI」 carries. Whoever opens
+ * it reviews and signs it themselves, so it contains no signature (and no cosignatures).
+ */
+export function serializeUnsignedAggregate(p: AggregateParams): { payload: string; bonded: boolean } {
+  const { tx } = buildAggregate(p);
+  return { payload: bytesToHex(tx.serialize()), bonded: p.bonded ?? needsBonded(p.items) };
+}
+
 /** The mosaic or namespace id that an item creates, or null for items that create nothing. */
 export function createdId(item: AggregateItem, ownerAddress: string): string | null {
   if (item.kind === 'mosaic_definition') return aggregateMosaicId(item.signer?.address ?? ownerAddress, item.nonce);
