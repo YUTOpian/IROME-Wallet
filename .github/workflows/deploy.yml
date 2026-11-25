@@ -20,17 +20,13 @@ jobs:
     permissions:
       contents: read
 
-  deploy:
-    name: Deploy to GitHub Pages
+  # ビルドとアップロード（公式推奨の「build / deploy を別ジョブにする」形）
+  build:
+    name: Build for GitHub Pages
     needs: ci
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -42,8 +38,20 @@ jobs:
       - run: npm ci
       # base: './' と HashRouter なので、https://<user>.github.io/<repo>/ のようなサブパスでもそのまま動く。
       - run: npm run build
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4
