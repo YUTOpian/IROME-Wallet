@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { parseWatchAddress } from '../lib/watchAddress';
 import { LIMITS } from '../lib/addressBook';
 import { useAddressBookStore } from '../store/addressBookStore';
+import { cardRadius } from '../theme/cardRadius';
 
 interface SaveContactDialogProps {
   open: boolean;
@@ -54,7 +55,7 @@ export default function SaveContactDialog({ open, address, onClose }: SaveContac
       <DialogTitle>{t('addressbook.save_prompt_title')}</DialogTitle>
       <DialogContent>
         <Typography variant="body2" sx={{ mb: 1.5 }}>{t('addressbook.save_prompt_message')}</Typography>
-        <Box sx={{ p: 1.5, mb: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+        <Box sx={{ p: 1.5, mb: 2, border: 1, borderColor: 'divider', borderRadius: cardRadius }}>
           <Typography sx={{ wordBreak: 'break-all', fontSize: '0.9rem' }}>{address}</Typography>
         </Box>
         <TextField

@@ -12,6 +12,7 @@ import { readNemTransfer } from '../lib/nem/offline';
 import { formatAtomic } from '../lib/symbol/amount';
 import { CURRENCY_DIVISIBILITY, CURRENCY_SYMBOL } from '../lib/symbol/constants';
 import { NEM_CURRENCY_DIVISIBILITY, NEM_CURRENCY_SYMBOL, NEM_TX_TYPE_TRANSFER } from '../lib/nem/constants';
+import { cardRadius } from '../theme/cardRadius';
 
 // 端末がオフラインのとき（ノードに届かないとき）に、送ろうとしたトランザクションを署名済みのQRコードにして出す確認画面。
 // QRはここにしか無い（保存しない）ので、背景をクリックしても閉じない。「閉じる」を押したときだけ閉じる。
@@ -90,7 +91,7 @@ function IssueBody({ issue }: { issue: OfflineIssue }) {
       <Typography sx={{ fontWeight: 'bold', mb: 0.5 }}>{t('offline_tx.network', { name: `${chainName} ${issue.networkLabel}` })}</Typography>
       {issue.parts.length > 1 && <Typography sx={{ color: 'text.secondary', fontSize: 13, mb: 1 }}>{t('offline_tx.count_title', { count: issue.parts.length })}</Typography>}
 
-      <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, px: 1.5, py: 0.5, mb: 2 }}>
+      <Box sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 1.5, py: 0.5, mb: 2 }}>
         {rows.map((info, i) => (
           <Box key={i} sx={{ py: 0.75, borderTop: i > 0 ? 1 : 0, borderColor: 'divider' }}>
             {info === null ? <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>{t('common.loading')}</Typography> : (

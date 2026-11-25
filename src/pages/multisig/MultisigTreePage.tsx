@@ -17,6 +17,7 @@ import { MAX_MULTISIG_DEPTH, levelsBelow, mergeGraphs, missingSignatures, planAp
 import type { MultisigGraph } from '../../lib/symbol/multisigTree';
 import { useAppStore } from '../../store/appStore';
 import { Field, SectionCard, addressPrefix, addressProblem, mono } from './parts';
+import { cardRadius } from '../../theme/cardRadius';
 
 // 「マルチシグツリー」 (Multisig Tree): the whole multi-level multisig hierarchy around an account, drawn like a tournament bracket.
 // The accounts that actually sign (ordinary accounts) are on the LEFT; every multisig account collects the signatures of its
@@ -94,7 +95,7 @@ function AccountBox({ ctx, address, repeated, expandable, open, hidden, onToggle
     <Box
       sx={{
         width: CARD_W, flexShrink: 0, boxSizing: 'border-box', position: 'relative', textAlign: 'left',
-        px: 1, py: 0.75, borderRadius: 2, border: 2,
+        px: 1, py: 0.75, borderRadius: cardRadius, border: 2,
         borderColor: isMe ? 'success.main' : multisig ? 'primary.main' : 'divider',
         bgcolor: isTarget ? 'action.selected' : 'background.paper',
       }}

@@ -22,6 +22,7 @@ import { prettyAddress } from '../../lib/symbol/crypto';
 import { getNetworkConfig } from '../../lib/symbol/network';
 import { FormRow } from '../multisig/parts';
 import type { AggregateContext } from './AggregateItemForm';
+import { cardRadius } from '../../theme/cardRadius';
 
 const mono = { fontFamily: 'monospace', wordBreak: 'break-all' } as const;
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -184,7 +185,7 @@ export default function AggregateCsvImport({ ctx, full, onAdd }: Props) {
           {preview.warnings.map((p, i) => <Alert key={`w${i}`} severity="warning" sx={{ mt: 1 }}>{problemText(p)}</Alert>)}
 
           {preview.rows.length > 0 && (
-            <Box sx={{ mt: 1.5, border: 1, borderColor: 'divider', borderRadius: 3, maxHeight: 440, overflowY: 'auto' }}>
+            <Box sx={{ mt: 1.5, border: 1, borderColor: 'divider', borderRadius: cardRadius, maxHeight: 440, overflowY: 'auto' }}>
               {preview.rows.map((p, i) => {
                 const recipient = p.toAddress !== '' ? (p.alias ? `${p.alias} (${prettyAddress(p.toAddress)})` : prettyAddress(p.toAddress)) : p.row.recipient;
                 const amount = p.item
@@ -220,7 +221,7 @@ export default function AggregateCsvImport({ ctx, full, onAdd }: Props) {
         </Box>
       )}
 
-      <Box sx={{ mt: 3, bgcolor: 'action.hover', borderRadius: 3, px: 2, py: 1.5 }}>
+      <Box sx={{ mt: 3, bgcolor: 'action.hover', borderRadius: cardRadius, px: 2, py: 1.5 }}>
         <Typography sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 0.5 }}>{t('aggregate.csv_format_title')}</Typography>
         {(t('aggregate.csv_format', { returnObjects: true }) as string[]).map((line, i) => (
           <Typography key={i} variant="body2" sx={{ color: 'text.secondary', py: 0.15 }}>{line}</Typography>

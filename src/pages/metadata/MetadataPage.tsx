@@ -8,6 +8,8 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import BackButton from '../../components/BackButton';
+import TabCard from '../../components/TabCard';
+import DataObjectOutlinedIcon from '@mui/icons-material/DataObjectOutlined';
 import ErrorSnackbar from '../../components/ErrorSnackbar';
 import MessageDialog from '../../components/MessageDialog';
 import PasswordDialog from '../../components/PasswordDialog';
@@ -15,7 +17,8 @@ import { useAddressBook } from '../../hooks/useAddressBook';
 import CosignAccountPicker from '../../components/CosignAccountPicker';
 import { useCosignAccounts } from '../../hooks/useCosignAccounts';
 import { quoteAggregate, sendAggregate } from '../../lib/symbol/aggregateApi';
-import { getDefaultFeeSpeed } from '../../lib/symbol/feeSpeed';
+import type { FeeSpeed } from '../../lib/symbol/feeSpeed';
+import FeeSpeedSelect from '../../components/FeeSpeedSelect';
 import { WalletsHelper } from '../../lib/storage';
 import type { Wallet } from '../../lib/storage';
 import {
@@ -38,6 +41,7 @@ import type { MetadataTarget } from '../../lib/symbol/tx';
 import { useAppStore } from '../../store/appStore';
 import { showTxNotice } from '../../store/txNoticeStore';
 import { fieldBoxSx } from '../../components/fieldBox';
+import { cardRadius } from '../../theme/cardRadius';
 
 const TYPES: MetadataTargetType[] = ['account', 'mosaic', 'namespace'];
 
@@ -122,6 +126,7 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
 
   // cost / balance
   const [txFee, setTxFee] = useState<bigint | null>(null);
+  const [feeSpeed, setFeeSpeed] = useState<FeeSpeed>(() => useAppStore.getState().defaultFeeSpeed);
   const [otherQuote, setOtherQuote] = useState<MetadataOtherQuote | null>(null);
   const [xymBalance, setXymBalance] = useState<bigint | null>(null);
 
@@ -283,22 +288,22 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
         return wal ? quoteAggregate(wal.publicKey, wal.address, [{ uid: 'meta', kind: 'metadata', signer: msig, target: metaTarget, key: 0n, oldValue: new Uint8Array(0), newValue: zeros }]) : null;
       }).then((q) => {
         if (cancelled || !q) return;
-        const quote = q.fees[getDefaultFeeSpeed()];
-        setOtherQuote({ fee: quote.fee, lockFee: q.lockFees[getDefaultFeeSpeed()], lockAmount: q.lockAmount, bonded: q.bonded, multiplier: quote.multiplier });
+        const quote = q.fees[feeSpeed];
+        setOtherQuote({ fee: quote.fee, lockFee: q.lockFees[feeSpeed], lockAmount: q.lockAmount, bonded: q.bonded, multiplier: quote.multiplier });
         setTxFee(quote.fee);
       }).catch(() => { /* shown as unavailable */ });
     } else if (ownerMode === 'other') {
       if (other === null) return undefined;
-      quoteMetadataForOther(type, [length], other)
+      quoteMetadataForOther(type, [length], other, feeSpeed)
         .then((q) => { if (!cancelled) { setOtherQuote(q); setTxFee(q.fee); } })
         .catch(() => { /* shown as unavailable */ });
     } else {
-      quoteMetadataFee(type, [length])
+      quoteMetadataFee(type, [length], feeSpeed)
         .then((q) => { if (!cancelled) setTxFee(q.fee); })
         .catch(() => { /* shown as unavailable */ });
     }
     return () => { cancelled = true; };
-  }, [type, valueLength, existingLength, network, ownerMode, other, msig, msigActive]);
+  }, [type, valueLength, existingLength, network, ownerMode, other, msig, msigActive, feeSpeed]);
 
   // The hash lock deposit and its fee are paid from the wallet too, on top of the aggregate's fee.
   const lockTotal = otherQuote === null ? 0n : otherQuote.lockAmount + otherQuote.lockFee;
@@ -336,7 +341,7 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
           publicKey: wallet.publicKey,
           address: wallet.address,
           items: [{ uid: 'meta', kind: 'metadata', signer: msig, target: metadataTarget, key, oldValue, newValue: valueBytes }],
-          feeSpeed: getDefaultFeeSpeed(),
+          feeSpeed,
         });
         notifyDone(sentAgg.hash, sentAgg.bonded);
         onAnother();
@@ -358,6 +363,7 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
           owner: other,
           target: metadataTarget,
           items: [{ key, value: valueBytes }],
+          feeSpeed,
         });
         notifyDone(sent.hash, sent.bonded);
         onAnother();
@@ -370,6 +376,7 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
         address: wallet.address,
         target: metadataTarget,
         items: [{ key, value: valueBytes }],
+        feeSpeed,
       });
       notifyDone(sent.hash, false);
       onAnother();
@@ -438,7 +445,7 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
       <Box sx={rootSx}>
         <BackButton onBack={onBack} back="/metadata" />
         <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 3, md: 5 }, py: 3, boxSizing: 'border-box', textAlign: 'left' }}>
-          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 4, px: 3, py: 1 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 3, py: 1 }}>
             {rows.map((row, i) => (
               <Box key={row.label}>
                 {i > 0 && <Divider />}
@@ -460,7 +467,7 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
           onClose={() => setShowCaution(false)}
         />
 
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{sending ? t('metadata.sending') : t(otherQuote?.bonded ? 'metadata.confirm_ready_other' : 'metadata.confirm_ready')}</Typography>
             <Button
@@ -487,8 +494,8 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
 
   // ============================ form ============================
   const noTarget = !loadingTargets && (ownerMode === 'self' || other !== null) && ((type === 'mosaic' && mosaics.length === 0) || (type === 'namespace' && usableNamespaces.length === 0));
-  return (
-    <Box sx={rootSx}>
+  const formBody = (
+    <Box sx={embedded ? rootSx : { display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
         <Alert severity="info" sx={{ mb: 2 }}>{t(ownerMode === 'other' ? 'metadata.caution_other' : 'metadata.caution_owner')}</Alert>
 
@@ -705,6 +712,7 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
         )}
 
         <Box sx={{ mt: 1, ...fieldBoxSx }}>
+          <FeeSpeedSelect value={feeSpeed} onChange={setFeeSpeed} label={t('metadata.tx_fee')} />
           <Typography variant="body2" sx={{ fontWeight: 'bold', wordBreak: 'break-all' }}>{t('metadata.tx_fee')}: {feeText}</Typography>
           {otherQuote?.bonded && (
             <>
@@ -715,21 +723,21 @@ export function MetadataEditor({ embedded = false, lockedType, initialTargetId, 
           <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>{t(otherQuote?.bonded ? 'metadata.cost_hint_other' : 'metadata.cost_hint')}</Typography>
           {balanceShort && <Alert severity="warning" sx={{ mt: 1.5 }}>{t('metadata.xym_short_warning')}</Alert>}
         </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+          <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5, minWidth: 220 }}>
+            {t('metadata.go_confirm')}
+          </Button>
+        </Box>
       </Box>
-
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Button
-          variant="contained"
-          color="primary"
-          size="large"
-          fullWidth
-          disabled={!canContinue}
-          onClick={() => { setStep('confirm'); setShowCaution(true); }}
-          sx={{ py: 1.5 }}
-        >
-          {t('metadata.go_confirm')}
-        </Button>
-      </Box>
+    </Box>
+  );
+  // 画面として開いたとき（ポップアップの中ではないとき）は、IROME模様と重ならないよう、白いカードの中に入れる。
+  if (embedded) return formBody;
+  return (
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <TabCard value="metadata" tabs={[{ value: 'metadata', label: t('home.nav_metadata'), icon: <DataObjectOutlinedIcon sx={{ fontSize: 14 }} /> }]}>
+        {formBody}
+      </TabCard>
     </Box>
   );
 }

@@ -23,6 +23,8 @@ import { useAppStore } from '../../store/appStore';
 import { ConfirmRows, classifyNemError, nemXem } from './parts';
 import { showTxNotice } from '../../store/txNoticeStore';
 import { holderRuleBadgeKey, pollApproximateKey, pollCountingKey, pollMosaicLabelKey, pollTypeLabelKey } from '../voting/votingText';
+import { cardRadius } from '../../theme/cardRadius';
+import { SectionCard } from '../multisig/parts';
 
 type Step = 'view' | 'confirm';
 
@@ -199,7 +201,7 @@ export default function NemVotingDetail() {
           {!poll.multiple && <Alert severity="warning" sx={{ mt: 2 }}>{t('nemvoting.single_warning')}</Alert>}
         </Box>
         <MessageDialog open={showCaution} title={t('nemvoting.confirm_title')} texts={t('nemvoting.confirm_dialog_message', { returnObjects: true }) as string[]} onClose={() => setShowCaution(false)} />
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{sending ? t('nemvoting.sending') : t('nemvoting.confirm_ready')}</Typography>
             <Button variant="contained" color="primary" size="large" fullWidth disabled={sending} onClick={() => setShowPasswordDialog(true)} startIcon={<LockOutlinedIcon />} sx={{ py: 1.5 }}>
@@ -222,6 +224,7 @@ export default function NemVotingDetail() {
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <BackButton onBack={onBack} back="/voting" />
       <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left', maxWidth: 900 }}>
+        <SectionCard>
         <Typography sx={{ fontSize: '1.4rem', fontWeight: 'bold', wordBreak: 'break-word', mb: 1 }}>{poll.title}</Typography>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1.5 }}>
           <Chip size="small" color={ended ? 'default' : 'success'} label={ended ? t('nemvoting.status_ended') : t('nemvoting.status_active')} />
@@ -246,6 +249,7 @@ export default function NemVotingDetail() {
         {poll.description.trim() !== '' && (
           <Typography sx={{ mt: 2, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{poll.description}</Typography>
         )}
+        </SectionCard>
 
         <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
           {!poll.valid && <Alert severity="error">{t('nemvoting.unverified_warning')}</Alert>}
@@ -274,7 +278,7 @@ export default function NemVotingDetail() {
               </Box>
             );
             return (
-              <Box key={option} sx={{ bgcolor: 'background.paper', border: 1, borderColor: checked ? 'primary.main' : 'divider', borderRadius: 3, px: 2, py: 1.25 }}>
+              <Box key={option} sx={{ bgcolor: 'background.paper', border: 1, borderColor: checked ? 'primary.main' : 'divider', borderRadius: cardRadius, px: 2, py: 1.25 }}>
                 {showControls ? (
                   <FormControlLabel
                     sx={{ m: 0, width: '100%', alignItems: 'center' }}
@@ -295,6 +299,7 @@ export default function NemVotingDetail() {
           })}
         </Box>
 
+        <SectionCard sx={{ mt: 2 }}>
         {resultsFailed && (
           <Box sx={{ mt: 2, textAlign: 'center' }}>
             <Typography sx={{ color: 'text.secondary', mb: 1 }}>{t('nemvoting.results_failed')}</Typography>
@@ -319,12 +324,13 @@ export default function NemVotingDetail() {
         <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 2, wordBreak: 'break-all' }}>
           {t('nemvoting.poll_address')}: <Link href={nemExplorerAccountUrl(poll.address)} target="_blank" rel="noopener">{poll.address}</Link>
         </Typography>
+        </SectionCard>
       </Box>
 
       {showControls && (
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
+        <Box sx={{ px: 3, py: 2 }}>
           {balanceShort && <Typography variant="body2" sx={{ color: 'warning.main', fontWeight: 'bold', mb: 1 }}>{t('nemvoting.xem_short_warning')}</Typography>}
-          <Button variant="contained" color="primary" size="large" fullWidth disabled={!canVote} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5 }}>
+          <Button variant="contained" color="primary" size="large" fullWidth disabled={!canVote} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5, maxWidth: 420, mx: 'auto', display: 'flex' }}>
             {selected.length > 0 ? t('nemvoting.go_confirm_fee', { fee: nemXem(totalFee) }) : t('nemvoting.select_option')}
           </Button>
         </Box>

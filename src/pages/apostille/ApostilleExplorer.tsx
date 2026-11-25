@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { apostilleDriver } from '../../lib/apostilleChain';
 import type { ApostilleExplorerRow } from '../../lib/nem/apostilleExplorer';
 import { useAppStore } from '../../store/appStore';
+import { cardRadius } from '../../theme/cardRadius';
 
 const ROWS_PER_PAGE = 10;
 const mono = { fontFamily: 'monospace', fontSize: 12.5 } as const;
@@ -124,7 +125,7 @@ export default function ApostilleExplorer() {
           ))}
         </Box>
       ) : (
-        <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
+        <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, bgcolor: 'background.paper' }}>
           {loading && <LinearProgress />}
           <Table size="small" sx={{ '& td, & th': { py: 1.25 }, '& th': { color: 'text.secondary', fontWeight: 'bold', whiteSpace: 'nowrap' } }}>
             <TableHead>

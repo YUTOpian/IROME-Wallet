@@ -5,6 +5,7 @@ import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import UndoIcon from '@mui/icons-material/Undo';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { CardFrame } from '../../components/TabCard';
 import BackButton from '../../components/BackButton';
 import type { ConvertEmbed } from '../multisig/MultisigConvert';
 import MessageDialog from '../../components/MessageDialog';
@@ -174,6 +175,7 @@ function NemMultisigConvert({ onSent, account, embedded, onDone }: SentProps & C
   return (
     <Box sx={{ minHeight: embedded ? undefined : '100vh', display: 'flex', flexDirection: 'column' }}>
       {!embedded && <BackButton onBack={() => navigate('/multisig')} />}
+      <CardFrame plain={embedded}>
       <Box sx={{ flexGrow: 1, width: '100%', px: embedded ? 0 : { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
         {loading && <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>}
         {blocked && <Alert severity="warning" sx={{ mb: 2 }}>{t(`multisig.${blocked}`)}</Alert>}
@@ -262,13 +264,14 @@ function NemMultisigConvert({ onSent, account, embedded, onDone }: SentProps & C
           <Typography variant="body2">{t('nemmultisig.fee_row')}: {nemXem(fee)}</Typography>
           {balanceShort && <Alert severity="warning" sx={{ mt: 1.5 }}>{t('nemmultisig.xem_short_warning')}</Alert>}
         </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+          <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={onGoConfirm} sx={{ py: 1.5, minWidth: 220 }}>
+        {resolving ? t('nemmultisig.checking') : t('multisig.go_confirm')}
+      </Button>
+        </Box>
       </Box>
+      </CardFrame>
 
-      <Box sx={embedded ? { py: 2 } : { position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Button variant="contained" color="primary" size="large" fullWidth disabled={!canContinue} onClick={onGoConfirm} sx={{ py: 1.5 }}>
-          {resolving ? t('nemmultisig.checking') : t('multisig.go_confirm')}
-        </Button>
-      </Box>
       <MessageDialog open={showWarning} title={t('multisig.convert_title')} texts={t('nemmultisig.convert_warning', { returnObjects: true }) as string[]} onClose={() => setShowWarning(false)} />
     </Box>
   );

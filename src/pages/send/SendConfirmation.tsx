@@ -32,6 +32,7 @@ import { nemSendFee } from '../../lib/nem/tx';
 import { useAppStore } from '../../store/appStore';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import QrCode2OutlinedIcon from '@mui/icons-material/QrCode2Outlined';
+import { cardRadius } from '../../theme/cardRadius';
 
 // Maps the node's transaction-status codes (and local failures) to a message key + params.
 function classifySendError(error: unknown): { kind: string; detail: string } {
@@ -386,7 +387,7 @@ export default function SendConfirmation() {
         {destTrust === 'black' && (
           <Alert severity="error" sx={{ mb: 2 }}>{t('addressbook.recipient_blacklisted', { name: destContact ? displayName(destContact) : '' })}</Alert>
         )}
-        <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 4, px: 3, py: 1 }}>
+        <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 3, py: 1 }}>
           {rows.map((row, i) => (
             <Box key={row.label}>
               {i > 0 && <Divider />}
@@ -409,7 +410,7 @@ export default function SendConfirmation() {
       />
 
       {/* Action area: full width, with the call to action as a proper large button. */}
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+      <Box sx={{ px: 3, py: 2.5 }}>
         <Box sx={{ maxWidth: 560, mx: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
           {encryptBlocked && <Alert severity="warning" sx={{ width: '100%' }}>{t(sssEncryptBlocked ? 'sss.no_encrypt' : 'ledger.no_encrypt')}</Alert>}
           <Typography>{sending ? (ledgerWallet ? t('ledger.confirm_on_device') : sssWallet ? t('sss.confirm_in_extension') : t('send.sending')) : t('send.confirmation_ready')}</Typography>

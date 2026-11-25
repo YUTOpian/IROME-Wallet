@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { lazy, Suspense, useEffect, useState, useCallback } from 'react';
-import { Alert, Box, Button, ButtonBase, Card, Chip, IconButton, Tooltip, Typography, CircularProgress, Divider, Snackbar } from '@mui/material';
+import { Alert, Box, Button, ButtonBase, Card, Chip, IconButton, Tab, Tabs, Tooltip, Typography, CircularProgress, Divider, Snackbar } from '@mui/material';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
@@ -14,7 +14,6 @@ import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import CardRibbon from '../../components/CardRibbon';
 import { Environment } from '../../lib/environment';
 import MosaicsPanel from './MosaicsPanel';
 import InvoicePanel from './InvoicePanel';
@@ -36,6 +35,7 @@ import NemSetup from './NemSetup';
 import WatchAddressEmpty from './WatchAddressEmpty';
 import { useNoKey, useWatchOnly } from '../../hooks/useWatchOnly';
 import { getBalanceCardMosaic, getBalanceHidden, getHomeCache, setBalanceCardMosaic, setBalanceHidden, setHomeCache } from '../../lib/homeCache';
+import { cardRadius } from '../../theme/cardRadius';
 
 export default function Home() {
   const { t } = useTranslation();
@@ -191,18 +191,10 @@ export default function Home() {
     setHomePanel(target);
   };
 
-  // One tappable ribbon of the row that heads the sections. The expanded one is shown in its own
-  // colour, every other one is grey. Only the colour changes - the ribbon never moves.
-  const ribbonButton = (target: Exclude<HomePanel, null>, text: string, color: string, icon: ReactNode) => (
-    <ButtonBase onClick={() => onToggle(target)} aria-expanded={panel === target} sx={{ borderRadius: 999 }}>
-      <CardRibbon text={text} bgcolor={panel === target ? color : 'grey.500'} icon={icon} sx={{ m: 0, transition: 'background-color 0.2s' }} />
-    </ButtonBase>
-  );
-
   // スマホ（iOS / Android）: リボンの横並びは窓が狭く、ごちゃごちゃして分かりにくいので、タイル（2列）にする。
   // タイルを押すとその画面に切り替わり、画面の上の「戻る」でタイルに戻る。PCは今までのリボンのまま。
   const mobile = Environment.isMobile();
-  const tileDefs: { key: Exclude<HomePanel, null>; text: string; color: string; iconColor?: string; icon: ReactNode; hidden?: boolean }[] = [
+  const tileDefs: { key: Exclude<HomePanel, null>; text: string; color: string; iconColor?: string; icon: ReactElement; hidden?: boolean }[] = [
     { key: 'mosaics', text: t('home.mosaics_ribbon'), color: 'nemOrange', iconColor: 'onGradient', icon: <TokenOutlinedIcon /> },
     { key: 'history', text: t('home.transaction_ribbon'), color: 'nemBlue', icon: <ReceiptLongOutlinedIcon /> },
     { key: 'send', text: t('home.send'), color: 'nemGreen', icon: <SendOutlinedIcon />, hidden: watchOnly },
@@ -210,7 +202,7 @@ export default function Home() {
     { key: 'apostille', text: t('home.apostille_ribbon'), color: 'nemOrange', iconColor: 'onGradient', icon: <VerifiedOutlinedIcon /> },
     { key: 'network', text: t('home.network_ribbon'), color: 'nemGreen', icon: <PublicIcon /> },
   ];
-  const tileSx = { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minHeight: 104, px: 0.5, py: 1.5, borderRadius: 3, border: 1, borderColor: 'divider', bgcolor: 'action.hover', textAlign: 'center', width: '100%' } as const;
+  const tileSx = { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minHeight: 104, px: 0.5, py: 1.5, borderRadius: cardRadius, border: 1, borderColor: 'divider', bgcolor: 'action.hover', textAlign: 'center', width: '100%' } as const;
   const tileCircle = (color: string, iconColor: string | undefined, icon: ReactNode) => (
     <Box sx={{ width: 48, height: 48, borderRadius: '50%', bgcolor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: (th) => (iconColor === 'onGradient' ? th.irome.onGradient : th.palette.mode === 'dark' ? th.irome.ink : '#FFFFFF'), '& svg': { fontSize: 26 } }}>
       {icon}
@@ -324,17 +316,17 @@ export default function Home() {
               </Box>
             )
           ) : (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, px: 2, pt: 2, pb: 1.5 }}>
-              {ribbonButton('mosaics', t('home.mosaics_ribbon'), 'nemOrange', <TokenOutlinedIcon sx={{ fontSize: 14, color: (t) => t.irome.onGradient }} />)}
-              {ribbonButton('history', t('home.transaction_ribbon'), 'nemBlue', <ReceiptLongOutlinedIcon sx={{ fontSize: 14 }} />)}
-              {!watchOnly && ribbonButton('send', t('home.send'), 'nemGreen', <SendOutlinedIcon sx={{ fontSize: 14 }} />)}
-              {ribbonButton('invoice', t('home.invoice_ribbon'), 'ribbonBlue', <QrCode2Icon sx={{ fontSize: 14 }} />)}
-              {ribbonButton('apostille', t('home.apostille_ribbon'), 'nemOrange', <VerifiedOutlinedIcon sx={{ fontSize: 14, color: (t) => t.irome.onGradient }} />)}
-              {ribbonButton('network', t('home.network_ribbon'), 'nemGreen', <PublicIcon sx={{ fontSize: 14 }} />)}
+            // PC: 下線のタブ（押すとその画面が開き、開いているタブをもう一度押すと閉じる）。
+            <Box sx={{ display: 'flex', alignItems: 'center', px: { xs: 1, md: 3 }, pt: 0.5 }}>
+              <Tabs value={panel ?? false} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{ minWidth: 0, flex: 1 }}>
+                {tileDefs.filter((d) => !d.hidden).map((d) => (
+                  <Tab key={d.key} value={d.key} label={d.text} icon={d.icon} iconPosition="start" onClick={() => onToggle(d.key)} />
+                ))}
+              </Tabs>
               {/* QRコードのインポート: an icon at the right end of the row; opens a popup (署名・連署のQR、アドレス・請求書のQR). Symbol only. */}
               {chain === 'symbol' && !noKey && (
                 <Tooltip title={t('home.import_qr_ribbon')}>
-                  <IconButton size="small" aria-label={t('home.import_qr_ribbon')} onClick={() => setShowImportQr(true)} sx={{ ml: 'auto' }}>
+                  <IconButton size="small" aria-label={t('home.import_qr_ribbon')} onClick={() => setShowImportQr(true)} sx={{ ml: 1, flexShrink: 0 }}>
                     <QrCodeScannerIcon />
                   </IconButton>
                 </Tooltip>

@@ -16,6 +16,7 @@ import { prettyNemAddress } from '../../lib/nem/crypto';
 import { buildNemInvoiceQr } from '../../lib/nem/qr';
 import { nemMessageByteLength } from '../../lib/nem/tx';
 import { useAppStore } from '../../store/appStore';
+import { cardRadius } from '../../theme/cardRadius';
 
 // Most mosaics one invoice can carry from this form (the QR gets denser with each).
 const MAX_INVOICE_MOSAICS = 5;
@@ -268,7 +269,7 @@ export default function NemInvoiceCard({ address }: Props) {
           <Box sx={{ position: { md: 'sticky' }, top: { md: 16 }, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             {qr !== '' && !tooLarge ? (
               <>
-                <Box sx={{ bgcolor: '#fff', p: 2, borderRadius: 3, lineHeight: 0, border: 1, borderColor: 'divider' }}>
+                <Box sx={{ bgcolor: '#fff', p: 2, borderRadius: cardRadius, lineHeight: 0, border: 1, borderColor: 'divider' }}>
                   <QRCodeSVG value={qr} size={QR_SIZE} level="L" />
                 </Box>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1, mt: 1.5 }}>
@@ -288,7 +289,7 @@ export default function NemInvoiceCard({ address }: Props) {
                 {hasMosaics && <Typography sx={{ color: 'warning.main', fontSize: 12, mt: 0.75, textAlign: 'center' }}>{t('invoice.nem_mosaic_note')}</Typography>}
               </>
             ) : (
-              <Box sx={{ width: QR_SIZE + 32, maxWidth: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', px: 3, boxSizing: 'border-box', border: '2px dashed', borderColor: tooLarge ? 'error.main' : 'divider', borderRadius: 3, color: tooLarge ? 'error.main' : 'text.secondary', fontSize: 13 }}>
+              <Box sx={{ width: QR_SIZE + 32, maxWidth: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', px: 3, boxSizing: 'border-box', border: '2px dashed', borderColor: tooLarge ? 'error.main' : 'divider', borderRadius: cardRadius, color: tooLarge ? 'error.main' : 'text.secondary', fontSize: 13 }}>
                 {tooLarge ? t('invoice.qr_too_large') : t('invoice.qr_placeholder')}
               </Box>
             )}

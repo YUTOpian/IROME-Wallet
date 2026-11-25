@@ -1082,9 +1082,9 @@ export async function fetchMosaicRentalFee(): Promise<bigint> {
 }
 
 /** Transaction fee (atomic XYM) of the mosaic-creation aggregate at the standard level. */
-export async function quoteMosaicCreationFee(metadataValueLengths: number[] = []): Promise<FeeQuote> {
+export async function quoteMosaicCreationFee(metadataValueLengths: number[] = [], speed: FeeSpeed = getDefaultFeeSpeed()): Promise<FeeQuote> {
   const metadataSize = metadataValueLengths.reduce((sum, len) => sum + metadataEmbeddedSize('mosaic', len), 0);
-  return (await quoteFeesForSize(MOSAIC_CREATION_SIZE + metadataSize))[getDefaultFeeSpeed()];
+  return (await quoteFeesForSize(MOSAIC_CREATION_SIZE + metadataSize))[speed];
 }
 
 export interface CreateMosaicInput {
@@ -1096,6 +1096,7 @@ export interface CreateMosaicInput {
   flags: number;
   durationBlocks: bigint; // 0n = never expires
   metadata?: MetadataItem[]; // optional entries set on the new mosaic in the same transaction
+  feeSpeed?: FeeSpeed; // default: the app's default level
 }
 
 export async function createMosaic(input: CreateMosaicInput): Promise<{ hash: string; mosaicId: string }> {
@@ -1111,7 +1112,7 @@ export async function createMosaic(input: CreateMosaicInput): Promise<{ hash: st
     flags: input.flags,
     duration: input.durationBlocks,
     supply: input.supply,
-    feeMultiplier: multipliers[getDefaultFeeSpeed()],
+    feeMultiplier: multipliers[input.feeSpeed ?? getDefaultFeeSpeed()],
     deadline,
     metadata: input.metadata,
   };
@@ -1241,12 +1242,12 @@ export async function fetchNamespaceRentalFees(): Promise<NamespaceRentalFees | 
 }
 
 /** Transaction fee (atomic XYM) of registering a namespace called `name`, at the standard level. */
-export async function quoteNamespaceRegistrationFee(name: string, metadataValueLengths: number[] = []): Promise<FeeQuote> {
-  if (metadataValueLengths.length === 0) return (await quoteFeesForSize(namespaceRegistrationSize(name)))[getDefaultFeeSpeed()];
+export async function quoteNamespaceRegistrationFee(name: string, metadataValueLengths: number[] = [], speed: FeeSpeed = getDefaultFeeSpeed()): Promise<FeeQuote> {
+  if (metadataValueLengths.length === 0) return (await quoteFeesForSize(namespaceRegistrationSize(name)))[speed];
   // With metadata the registration travels inside an aggregate together with the entries.
   const size = AGGREGATE_BASE_SIZE + namespaceRegistrationEmbeddedSize(name)
     + metadataValueLengths.reduce((sum, len) => sum + metadataEmbeddedSize('namespace', len), 0);
-  return (await quoteFeesForSize(size))[getDefaultFeeSpeed()];
+  return (await quoteFeesForSize(size))[speed];
 }
 
 export interface RegisterNamespaceInput {
@@ -1257,6 +1258,7 @@ export interface RegisterNamespaceInput {
   parentId?: string; // set for a child namespace
   durationBlocks?: bigint; // root namespaces only
   metadata?: MetadataItem[]; // optional entries set on the new namespace in the same transaction
+  feeSpeed?: FeeSpeed; // default: the app's default level
 }
 
 export async function registerNamespace(input: RegisterNamespaceInput): Promise<{ hash: string; namespaceId: string }> {
@@ -1270,7 +1272,7 @@ export async function registerNamespace(input: RegisterNamespaceInput): Promise<
     name: input.name,
     parentId: input.parentId,
     duration: input.durationBlocks,
-    feeMultiplier: multipliers[getDefaultFeeSpeed()],
+    feeMultiplier: multipliers[input.feeSpeed ?? getDefaultFeeSpeed()],
     deadline,
     metadata: input.metadata,
   };
@@ -1356,8 +1358,8 @@ export async function fetchMetadataValue(ref: MetadataTargetRef, key: bigint): P
 }
 
 /** Transaction fee (atomic XYM) of setting the given values on one target, at the standard level. */
-export async function quoteMetadataFee(type: MetadataTargetType, valueLengths: number[]): Promise<FeeQuote> {
-  return (await quoteFeesForSize(metadataAggregateSize(type, valueLengths)))[getDefaultFeeSpeed()];
+export async function quoteMetadataFee(type: MetadataTargetType, valueLengths: number[], speed: FeeSpeed = getDefaultFeeSpeed()): Promise<FeeQuote> {
+  return (await quoteFeesForSize(metadataAggregateSize(type, valueLengths)))[speed];
 }
 
 export interface SetMetadataInput {
@@ -1366,6 +1368,7 @@ export interface SetMetadataInput {
   address: string; // the owner's address
   target: MetadataTarget;
   items: MetadataItem[];
+  feeSpeed?: FeeSpeed; // default: the app's default level
 }
 
 /** Sets (or overwrites) metadata on the owner's own account, mosaic or namespace. */
@@ -1390,7 +1393,7 @@ export async function setMetadata(input: SetMetadataInput): Promise<{ hash: stri
     ownerAddress: input.address,
     networkByte: cfg.networkByte,
     changes,
-    feeMultiplier: multipliers[getDefaultFeeSpeed()],
+    feeMultiplier: multipliers[input.feeSpeed ?? getDefaultFeeSpeed()],
     deadline,
   };
   const signed = await signMaybeSss(input.privateKey, input.publicKey, cfg.networkByte, () => signMetadata(input.privateKey, cfg.generationHash, signParams));

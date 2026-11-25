@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { downloadCanvasPng } from '../lib/qrImage';
 import { saveTextFile } from '../lib/saveTextFile';
 import { IROME_QR_MAX_LENGTH } from '../lib/symbol/iromeQr';
+import { cardRadius } from '../theme/cardRadius';
 
 interface Props {
   text: string; // what the QR code holds (also shown, and copied, as text)
@@ -56,7 +57,7 @@ export default function QrTextPanel({ text, note, file, qrSize = 240, imageButto
       {hasQr ? (
         <>
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1.5 }}>
-            <Box sx={{ bgcolor: '#fff', p: 1.5, borderRadius: 2, lineHeight: 0 }}>
+            <Box sx={{ bgcolor: '#fff', p: 1.5, borderRadius: cardRadius, lineHeight: 0 }}>
               <QRCodeSVG value={text} size={qrSize} level="L" />
             </Box>
           </Box>
@@ -72,7 +73,7 @@ export default function QrTextPanel({ text, note, file, qrSize = 240, imageButto
       ) : (
         <Typography sx={{ color: 'text.secondary', fontSize: 12, mb: 1.5 }}>{t('signqr.qr_too_long')}</Typography>
       )}
-      <Box sx={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all', maxHeight: 120, overflowY: 'auto', p: 1, borderRadius: 2, bgcolor: 'action.hover', userSelect: 'all' }}>
+      <Box sx={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all', maxHeight: 120, overflowY: 'auto', p: 1, borderRadius: cardRadius, bgcolor: 'action.hover', userSelect: 'all' }}>
         {text}
       </Box>
       <Button size="small" sx={{ mt: 1 }} onClick={onCopy}>{copied ? t('txuri.copied') : t('signqr.copy_text')}</Button>

@@ -8,6 +8,7 @@ import { getNetworkConfig } from '../../lib/symbol/network';
 import { serializeUnsignedTransfer } from '../../lib/symbol/tx';
 import { buildTransactionUri, TRANSFER_TX_TYPE, TX_URI_QR_MAX_LENGTH } from '../../lib/symbol/txUri';
 import type { MosaicAmount } from '../../lib/symbol/tx';
+import { cardRadius } from '../../theme/cardRadius';
 
 interface Props {
   recipient: string; // base32 address
@@ -85,14 +86,14 @@ export default function TransactionUriCard({ recipient, mosaics, message, maxFee
         {uri !== '' && (
           <>
             <Box
-              sx={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all', maxHeight: 120, overflowY: 'auto', p: 1, borderRadius: 2, bgcolor: 'action.hover', userSelect: 'all' }}
+              sx={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all', maxHeight: 120, overflowY: 'auto', p: 1, borderRadius: cardRadius, bgcolor: 'action.hover', userSelect: 'all' }}
             >
               {uri}
             </Box>
             <Button size="small" sx={{ mt: 1 }} onClick={onCopy}>{copied ? t('txuri.copied') : t('txuri.copy')}</Button>
             {uri.length <= TX_URI_QR_MAX_LENGTH ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5 }}>
-                <Box sx={{ bgcolor: '#fff', p: 1.5, borderRadius: 2, lineHeight: 0 }}>
+                <Box sx={{ bgcolor: '#fff', p: 1.5, borderRadius: cardRadius, lineHeight: 0 }}>
                   <QRCodeSVG value={uri} size={220} level="L" />
                 </Box>
               </Box>

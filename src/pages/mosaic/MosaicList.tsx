@@ -2,7 +2,7 @@ import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogTitle, FormControlLabel, IconButton, LinearProgress,
-  Link as MuiLink, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, Tabs, Tooltip,
+  Link as MuiLink, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, Tooltip,
   Typography, useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -11,6 +11,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import DataObjectOutlinedIcon from '@mui/icons-material/DataObjectOutlined';
 import LinkIcon from '@mui/icons-material/Link';
 import CloseIcon from '@mui/icons-material/Close';
+import TabCard from '../../components/TabCard';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +30,7 @@ import MosaicCreate from './MosaicCreate';
 import MosaicSupply from './MosaicSupply';
 import { isSupplyMutableMine } from '../../lib/symbol/mosaicSupply';
 import { groupDigits } from './mosaicFlags';
+import { cardRadius } from '../../theme/cardRadius';
 
 type SortKey = 'id' | 'name' | 'supply' | 'balance';
 
@@ -170,22 +172,18 @@ export default function MosaicList({ initialTab = 'held' }: { initialTab?: Mosai
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pt: 2, boxSizing: 'border-box' }}>
-        <Tabs
-          value={tab}
-          variant={compact ? 'fullWidth' : 'standard'}
-          onChange={(_, v: MosaicTab) => setTab(v)}
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab value="held" label={t('mosaic.tab_held')} />
-          {!watchOnly && <Tab value="create" label={t('mosaic.tab_create')} icon={<AddCircleIcon fontSize="small" />} iconPosition="start" />}
-        </Tabs>
-      </Box>
-
+      <TabCard
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { value: 'held', label: t('mosaic.tab_held') },
+          { value: 'create', label: t('mosaic.tab_create'), icon: <AddCircleIcon fontSize="small" />, hidden: watchOnly },
+        ]}
+      >
       {tab === 'create' && !watchOnly ? (
         <MosaicCreate embedded onShowList={showHeld} onSetMetadata={(id) => setMetadataDialog({ id })} />
       ) : (
-      <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pb: 4, boxSizing: 'border-box' }}>
+      <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pb: 3, boxSizing: 'border-box' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', columnGap: 2, rowGap: 0.5, mt: 1.5, mb: 1 }}>
           {!watchOnly && <Button size="small" startIcon={<DataObjectOutlinedIcon />} onClick={() => setMetadataDialog({})}>{t('mosaic.add_metadata')}</Button>}
           <FormControlLabel
@@ -237,7 +235,7 @@ export default function MosaicList({ initialTab = 'held' }: { initialTab?: Mosai
             ))}
           </Box>
         ) : (
-          <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
+          <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, bgcolor: 'background.paper' }}>
             {loading && <LinearProgress />}
             <Table size="small" sx={{ '& td, & th': { py: 1.25, whiteSpace: 'nowrap' }, '& th': { color: 'text.secondary', fontWeight: 'bold' } }}>
               <TableHead>
@@ -276,6 +274,7 @@ export default function MosaicList({ initialTab = 'held' }: { initialTab?: Mosai
         )}
       </Box>
       )}
+      </TabCard>
 
       {/* The namespace link / unlink for one mosaic is done right here too. */}
       <AliasLinkDialog

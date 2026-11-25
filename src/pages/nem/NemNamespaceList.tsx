@@ -1,11 +1,12 @@
 import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogTitle, FormControlLabel, IconButton, LinearProgress, Link as MuiLink, Tab,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, Tabs, Tooltip, Typography, useMediaQuery,
+  Alert, Box, Button, Card, Checkbox, Chip, CircularProgress, Dialog, DialogTitle, FormControlLabel, IconButton, LinearProgress, Link as MuiLink,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, Tooltip, Typography, useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
+import TabCard from '../../components/TabCard';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import CloseIcon from '@mui/icons-material/Close';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -18,6 +19,7 @@ import { useNoKey } from '../../hooks/useWatchOnly';
 import NemNamespaceRegister from './NemNamespaceRegister';
 import NemNamespaceRenew from './NemNamespaceRenew';
 import { renewableNemNamespaces } from '../../lib/nem/namespaceRenew';
+import { cardRadius } from '../../theme/cardRadius';
 
 type SortKey = 'name' | 'expiry';
 export type NemNamespaceTab = 'held' | 'create_root' | 'create_child';
@@ -131,24 +133,19 @@ export default function NemNamespaceList({ initialTab = 'held' }: { initialTab?:
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pt: 2, boxSizing: 'border-box' }}>
-        <Tabs
-          value={watchOnly ? 'held' : tab}
-          variant={compact ? 'scrollable' : 'standard'}
-          allowScrollButtonsMobile
-          onChange={(_, v: NemNamespaceTab) => setTab(v)}
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab value="held" label={t('namespace.tab_held')} />
-          {!watchOnly && <Tab value="create_root" label={t('namespace.tab_create_root')} icon={<AddCircleIcon fontSize="small" />} iconPosition="start" />}
-          {!watchOnly && <Tab value="create_child" label={t('namespace.tab_create_child')} icon={<AddCircleIcon fontSize="small" />} iconPosition="start" />}
-        </Tabs>
-      </Box>
-
+      <TabCard
+        value={watchOnly ? 'held' : tab}
+        onChange={setTab}
+        tabs={[
+          { value: 'held', label: t('namespace.tab_held') },
+          { value: 'create_root', label: t('namespace.tab_create_root'), icon: <AddCircleIcon fontSize="small" />, hidden: watchOnly },
+          { value: 'create_child', label: t('namespace.tab_create_child'), icon: <AddCircleIcon fontSize="small" />, hidden: watchOnly },
+        ]}
+      >
       {creating ? (
         <NemNamespaceRegister key={tab} embedded fixedKind={tab === 'create_child' ? 'child' : 'root'} onShowList={showHeld} />
       ) : (
-        <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pb: 4, boxSizing: 'border-box' }}>
+        <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pb: 3, boxSizing: 'border-box' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 2, rowGap: 0.5, mt: 1.5, mb: 1 }}>
             <Typography variant="caption" sx={{ color: 'text.secondary', flex: 1, minWidth: 220 }}>{t('nemns.list_hint')}</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', columnGap: 2 }}>
@@ -198,7 +195,7 @@ export default function NemNamespaceList({ initialTab = 'held' }: { initialTab?:
               ))}
             </Box>
           ) : (
-            <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
+            <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, bgcolor: 'background.paper' }}>
               {loading && <LinearProgress />}
               <Table size="small" sx={{ '& td, & th': { py: 1.25, whiteSpace: 'nowrap' }, '& th': { color: 'text.secondary', fontWeight: 'bold' } }}>
                 <TableHead>
@@ -226,6 +223,7 @@ export default function NemNamespaceList({ initialTab = 'held' }: { initialTab?:
           )}
         </Box>
       )}
+      </TabCard>
 
       {/* ネームスペースの更新: ポップアップ（送信すると閉じて、一覧を読み込み直す） */}
       <Dialog open={renewName !== null} onClose={() => setRenewName(null)} fullWidth maxWidth="sm" scroll="paper" fullScreen={compact}>

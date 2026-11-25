@@ -13,6 +13,7 @@ import { useAppStore } from '../../store/appStore';
 import { saveFile } from '../../lib/paperWalletExport';
 import MessageDialog from '../../components/MessageDialog';
 import type { UpdateTarget } from './ApostilleCreate';
+import { cardRadius } from '../../theme/cardRadius';
 
 interface Props {
   /** Bumped when a new apostille was made, so the list reloads. */
@@ -76,7 +77,7 @@ export default function ApostilleHistory({ version, onUpdate, canUpdate = true }
       {shown.map((r) => {
         const isSigned = r.dedicatedAccount !== sink;
         return (
-          <Box key={r.txHash} sx={{ border: 1, borderColor: 'divider', borderRadius: 3, px: 2, py: 1.5, mb: 1.5, bgcolor: 'background.paper' }}>
+          <Box key={r.txHash} sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 2, py: 1.5, mb: 1.5, bgcolor: 'background.paper' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
               <Typography sx={{ fontWeight: 'bold', wordBreak: 'break-all', flexGrow: 1, minWidth: 0 }}>{r.filename}</Typography>
               <Chip size="small" label={isSigned ? t('apostille.type_signed_short') : t('apostille.type_public_short')} color={isSigned ? 'primary' : 'default'} />

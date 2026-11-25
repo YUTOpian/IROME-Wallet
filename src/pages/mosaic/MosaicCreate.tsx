@@ -17,7 +17,8 @@ import { quoteAggregate, sendAggregate } from '../../lib/symbol/aggregateApi';
 import type { AggregateQuote } from '../../lib/symbol/aggregateApi';
 import type { AggregateItem } from '../../lib/symbol/aggregate';
 import { aggregateMosaicId } from '../../lib/symbol/aggregate';
-import { getDefaultFeeSpeed } from '../../lib/symbol/feeSpeed';
+import type { FeeSpeed } from '../../lib/symbol/feeSpeed';
+import FeeSpeedSelect from '../../components/FeeSpeedSelect';
 import { showTxNotice } from '../../store/txNoticeStore';
 import { WalletsHelper } from '../../lib/storage';
 import {
@@ -35,6 +36,7 @@ import {
 import { useAppStore } from '../../store/appStore';
 import { MOSAIC_FLAG_LABELS, groupDigits } from './mosaicFlags';
 import { fieldBoxSx } from '../../components/fieldBox';
+import { cardRadius } from '../../theme/cardRadius';
 
 const MAX_DAYS = 3650; // the network's longest mosaic duration
 
@@ -101,6 +103,7 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
   // cost / balance
   const [rental, setRental] = useState<Loadable>('loading');
   const [txFee, setTxFee] = useState<Loadable>('loading');
+  const [feeSpeed, setFeeSpeed] = useState<FeeSpeed>(() => useAppStore.getState().defaultFeeSpeed);
   const [xymBalance, setXymBalance] = useState<bigint | null>(null);
 
   // confirm / done
@@ -167,17 +170,17 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
         .then((q) => {
           if (cancelled || !q) return;
           setAggQuote(q);
-          setTxFee(q.fees[getDefaultFeeSpeed()].fee + q.lockFees[getDefaultFeeSpeed()]);
+          setTxFee(q.fees[feeSpeed].fee + q.lockFees[feeSpeed]);
         })
         .catch(() => { if (!cancelled) setTxFee(null); });
     } else {
-      quoteMosaicCreationFee(metadataLengthsKey === '' ? [] : metadataLengthsKey.split(',').map(Number))
+      quoteMosaicCreationFee(metadataLengthsKey === '' ? [] : metadataLengthsKey.split(',').map(Number), feeSpeed)
         .then((q) => { if (!cancelled) setTxFee(q.fee); })
         .catch(() => { if (!cancelled) setTxFee(null); });
     }
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metadataLengthsKey, network, signer, divisibility, flags]);
+  }, [metadataLengthsKey, network, signer, divisibility, flags, feeSpeed]);
 
   const cost: Cost = rental === 'loading' || txFee === 'loading' ? 'loading' : rental === null || txFee === null ? null : { rental, fee: txFee };
 
@@ -226,7 +229,7 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
         const nonce = newMosaicNonce();
         const sentAgg = await sendAggregate({
           privateKey, keyless: wallet.sss ? { kind: 'sss' } : undefined, publicKey: wallet.publicKey, address: wallet.address,
-          items: multisigItems(nonce, supplyAtomic), feeSpeed: getDefaultFeeSpeed(),
+          items: multisigItems(nonce, supplyAtomic), feeSpeed,
         });
         showTxNotice({ lines: t('mosaic.done_message', { returnObjects: true }) as string[], explorerUrl: explorerTxUrl(sentAgg.hash), explorerLabel: t('mosaic.view_explorer') });
         onSent();
@@ -241,6 +244,7 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
         flags,
         durationBlocks,
         metadata: draftsToItems(metadataDrafts),
+        feeSpeed,
       });
       showTxNotice({ lines: t('mosaic.done_message', { returnObjects: true }) as string[], explorerUrl: explorerTxUrl(created.hash), explorerLabel: t('mosaic.view_explorer') });
       onSent();
@@ -298,7 +302,7 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
       <Box sx={rootSx}>
         <BackButton onBack={onBack} back="/mosaic/create" />
         <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 3, md: 5 }, py: 3, boxSizing: 'border-box', textAlign: 'left' }}>
-          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 4, px: 3, py: 1 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 3, py: 1 }}>
             {rows.map((row, i) => (
               <Box key={row.label}>
                 {i > 0 && <Divider />}
@@ -321,7 +325,7 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
           onClose={() => setShowCaution(false)}
         />
 
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{creating ? t('mosaic.creating') : t('mosaic.confirm_ready')}</Typography>
             <Button
@@ -421,6 +425,7 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
 
         <Box sx={{ mt: 3, ...fieldBoxSx }}>
           <Typography sx={{ fontWeight: 'bold', mb: 1 }}>{t('mosaic.cost_title')}</Typography>
+          <FeeSpeedSelect value={feeSpeed} onChange={setFeeSpeed} label={t('mosaic.tx_fee')} />
           {[
             { label: t('mosaic.rental_fee'), value: costText((c) => c.rental) },
             { label: t('mosaic.tx_fee'), value: costText((c) => c.fee) },
@@ -431,22 +436,11 @@ function MosaicCreate({ embedded = false, onShowList, onSent }: MosaicCreateProp
           <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 1 }}>{t('mosaic.cost_hint')}</Typography>
           {balanceShort && <Alert severity="warning" sx={{ mt: 1.5 }}>{t('mosaic.xym_short_warning')}</Alert>}
         </Box>
-      </Box>
-
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Box>
-          <Button
-            variant="contained"
-            color="primary"
-            size="large"
-            fullWidth
-            disabled={!canContinue}
-            onClick={() => { setStep('confirm'); setShowCaution(true); }}
-            sx={{ py: 1.5 }}
-          >
-            {t('mosaic.go_confirm')}
-          </Button>
-        </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => { setStep('confirm'); setShowCaution(true); }} sx={{ py: 1.5, minWidth: 220 }}>
+              {t('mosaic.go_confirm')}
+            </Button>
+          </Box>
       </Box>
     </Box>
   );

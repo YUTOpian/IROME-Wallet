@@ -5,6 +5,7 @@ import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import UndoIcon from '@mui/icons-material/Undo';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { CardFrame } from '../../components/TabCard';
 import BackButton from '../../components/BackButton';
 import MessageDialog from '../../components/MessageDialog';
 import { WalletsHelper } from '../../lib/storage';
@@ -227,6 +228,7 @@ function MultisigConvert({ onSent, account, embedded, onDone }: SentProps & Conv
   return (
     <Box sx={{ minHeight: embedded ? undefined : '100vh', display: 'flex', flexDirection: 'column' }}>
       {!embedded && <BackButton onBack={() => navigate('/multisig')} />}
+      <CardFrame plain={embedded}>
       <Box sx={{ flexGrow: 1, width: '100%', px: embedded ? 0 : { xs: 2, md: 4 }, py: 2, boxSizing: 'border-box', textAlign: 'left' }}>
         {loading && <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>}
         {blocked && <Alert severity="warning" sx={{ mb: 2 }}>{t(`multisig.${blocked}`)}</Alert>}
@@ -319,14 +321,14 @@ function MultisigConvert({ onSent, account, embedded, onDone }: SentProps & Conv
           </FormRow>
         </SectionCard>
 
-        <CostBox cost={cost} hasBalanceShort={balanceShort} />
-      </Box>
-
-      <Box sx={embedded ? { py: 2 } : { position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-        <Button variant="contained" color="primary" size="large" fullWidth disabled={!canContinue} onClick={() => setStep('confirm')} sx={{ py: 1.5 }}>
+        <CostBox cost={cost} hasBalanceShort={balanceShort} action={
+          <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => setStep('confirm')} sx={{ py: 1.5, minWidth: 220 }}>
           {t('multisig.go_confirm')}
         </Button>
+        } />
       </Box>
+      </CardFrame>
+
       <MessageDialog
         open={showWarning}
         title={t('multisig.convert_title')}

@@ -28,6 +28,7 @@ import { getNetworkConfig } from '../../lib/symbol/network';
 import type { AliasTarget } from '../../lib/symbol/tx';
 import { useAppStore } from '../../store/appStore';
 import { fieldBoxSx } from '../../components/fieldBox';
+import { cardRadius } from '../../theme/cardRadius';
 
 // Maps the node's status codes (and local failures) to a message key + detail.
 function classifyError(error: unknown): { kind: string; detail: string } {
@@ -205,7 +206,7 @@ function NamespaceAlias({ initialNamespaceId, initialAccountAddr, embedded, onDo
       <Box sx={rootSx}>
         <BackButton onBack={() => setStep('form')} back="/namespace" />
         <Box sx={{ flexGrow: 1, width: '100%', px: { xs: 3, md: 5 }, py: 3, boxSizing: 'border-box', textAlign: 'left' }}>
-          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 4, px: 3, py: 1 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: cardRadius, px: 3, py: 1 }}>
             {rows.map((row, i) => (
               <Box key={row.label}>
                 {i > 0 && <Divider />}
@@ -220,7 +221,7 @@ function NamespaceAlias({ initialNamespaceId, initialAccountAddr, embedded, onDo
           </Box>
         </Box>
 
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
             <Typography>{sending ? t('namespace.alias_sending') : t(`namespace.alias_confirm_ready_${action}`)}</Typography>
             <Button
@@ -312,17 +313,15 @@ function NamespaceAlias({ initialNamespaceId, initialAccountAddr, embedded, onDo
             <Box sx={{ ...fieldBoxSx }}>
               <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{t('mosaic.tx_fee')}: <span style={{ fontWeight: 'normal' }}>{target === null ? '–' : feeText}</span></Typography>
             </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                <Button variant="contained" color="primary" size="large" disabled={!canContinue} onClick={() => setStep('confirm')} sx={{ py: 1.5, minWidth: 220 }}>
+            {t('namespace.alias_go_confirm')}
+          </Button>
+              </Box>
           </>
         )}
       </Box>
 
-      {namespaces !== null && namespaces.length > 0 && selected && (
-        <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', borderTop: '4px solid', borderColor: 'primary.main', px: 3, py: 2 }}>
-          <Button variant="contained" color="primary" size="large" fullWidth disabled={!canContinue} onClick={() => setStep('confirm')} sx={{ py: 1.5 }}>
-            {t('namespace.alias_go_confirm')}
-          </Button>
-        </Box>
-      )}
     </Box>
   );
 }

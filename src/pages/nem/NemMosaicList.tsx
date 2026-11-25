@@ -1,11 +1,12 @@
 import { useLiveRefresh } from '../../hooks/useLiveRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Box, Button, Card, Chip, CircularProgress, Dialog, DialogTitle, IconButton, LinearProgress, Link as MuiLink, Tab, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TableSortLabel, Tabs, Tooltip, Typography, useMediaQuery,
+  Box, Button, Card, Chip, CircularProgress, Dialog, DialogTitle, IconButton, LinearProgress, Link as MuiLink, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, TableSortLabel, Tooltip, Typography, useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
+import TabCard from '../../components/TabCard';
 import CheckIcon from '@mui/icons-material/Check';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
@@ -21,6 +22,7 @@ import { groupDigits } from '../mosaic/mosaicFlags';
 import NemMosaicCreate from './NemMosaicCreate';
 import NemMosaicEdit from './NemMosaicEdit';
 import NemMosaicSupply from './NemMosaicSupply';
+import { cardRadius } from '../../theme/cardRadius';
 
 type SortKey = 'id' | 'supply' | 'balance';
 type MosaicTab = 'held' | 'create';
@@ -172,24 +174,20 @@ export default function NemMosaicList({ initialTab = 'held', initialEditId = nul
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pt: 2, boxSizing: 'border-box' }}>
-        <Tabs
-          value={watchOnly ? 'held' : tab}
-          variant={compact ? 'fullWidth' : 'standard'}
-          onChange={(_, v: MosaicTab) => { setEditId(null); setTab(v); }}
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab value="held" label={t('mosaic.tab_held')} />
-          {!watchOnly && <Tab value="create" label={t('nemmosaic.tab_create')} icon={<AddCircleIcon fontSize="small" />} iconPosition="start" />}
-        </Tabs>
-      </Box>
-
+      <TabCard
+        value={watchOnly ? 'held' : tab}
+        onChange={(v) => { setEditId(null); setTab(v); }}
+        tabs={[
+          { value: 'held', label: t('mosaic.tab_held') },
+          { value: 'create', label: t('nemmosaic.tab_create'), icon: <AddCircleIcon fontSize="small" />, hidden: watchOnly },
+        ]}
+      >
       {creating ? (
         <NemMosaicCreate embedded onShowList={showHeld} onEdit={(id) => { setTab('held'); setEditId(id); }} />
       ) : editing ? (
         <NemMosaicEdit embedded mosaicId={editId} onClose={closeEdit} />
       ) : (
-        <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pb: 4, boxSizing: 'border-box' }}>
+        <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pb: 3, boxSizing: 'border-box' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', columnGap: 2, rowGap: 0.5, mt: 1.5, mb: 1 }}>
             <Tooltip title={t('mosaic.refresh')}>
               <span>
@@ -234,7 +232,7 @@ export default function NemMosaicList({ initialTab = 'held', initialEditId = nul
               ))}
             </Box>
           ) : (
-            <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
+            <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: cardRadius, bgcolor: 'background.paper' }}>
               {loading && <LinearProgress />}
               <Table size="small" sx={{ '& td, & th': { py: 1.25, whiteSpace: 'nowrap' }, '& th': { color: 'text.secondary', fontWeight: 'bold' } }}>
                 <TableHead>
@@ -273,6 +271,7 @@ export default function NemMosaicList({ initialTab = 'held', initialEditId = nul
           )}
         </Box>
       )}
+      </TabCard>
 
       {/* 供給量の変更: ポップアップ（送信すると閉じて、一覧を読み込み直す） */}
       <Dialog open={supplyMosaicId !== null} onClose={() => setSupplyMosaicId(null)} fullWidth maxWidth="sm" scroll="paper" fullScreen={compact}>

@@ -5,6 +5,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useTranslation } from 'react-i18next';
 import { addressForOtherBrowser, detectEmbeddedBrowser, readEmbeddedSignals } from '../lib/embeddedBrowser';
+import { cardRadius } from '../theme/cardRadius';
 
 // 警告の本文（起動時の画面と、あとから開き直すダイアログで共通）。
 function GateBody({ fileProtocol }: { fileProtocol: boolean }) {
@@ -71,7 +72,7 @@ export default function EmbeddedBrowserGate({ children }: { children: ReactNode 
   if (!proceeded) {
     return (
       <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, bgcolor: 'background.default' }}>
-        <Box sx={{ width: '100%', maxWidth: 640, p: { xs: 2, sm: 4 }, borderRadius: 2, bgcolor: 'background.paper', border: 1, borderColor: 'warning.main' }}>
+        <Box sx={{ width: '100%', maxWidth: 640, p: { xs: 2, sm: 4 }, borderRadius: cardRadius, bgcolor: 'background.paper', border: 1, borderColor: 'warning.main' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <WarningAmberIcon color="warning" />
             <Typography variant="h6" component="h1" sx={{ fontWeight: 700 }}>{t('embedded.title')}</Typography>
