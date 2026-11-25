@@ -84,7 +84,7 @@ async function main() {
     const d = (certs[0].notAfter - Date.now()) / DAY;
     ok(d > 18 && d < 21 && certs[0].subject === 'my-test-node', 'expiry and CN read', { d, s: certs[0].subject });
     ok(!JSON.stringify(certs).includes('PRIVATE KEY'), 'no key material in the result');
-    ok(keys({ ...base(), certs }) === 'cert_expiring:warn', 'a 20-day cert is a warning');
+    ok(keys({ ...base({ at: Date.now() }), certs }) === 'cert_expiring:warn', 'a 20-day cert is a warning');
     rmSync(outside, { recursive: true, force: true });
   } else console.log('(openssl not available: certificate parsing tests skipped)');
 
