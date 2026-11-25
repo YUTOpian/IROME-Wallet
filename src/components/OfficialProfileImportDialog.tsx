@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Radio, RadioGroup, Typography } from '@mui/material';
+import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Radio, RadioGroup, Typography } from '@mui/material';
 import TextField from './TextField';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -61,6 +61,8 @@ export default function OfficialProfileImportDialog({ open, onClose, auto }: { o
   const [note, setNote] = useState('');
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  // 「今後は聞かない」のチェック。入れて閉じる（キャンセル・読み込み後など）と、このプロファイルは次から聞かない。
+  const [neverAsk, setNeverAsk] = useState(false);
   // このブラウザ（IROME と同じアドレス）にある、まだ IROME に無い公式ウォレットのプロファイル。
   // IROME から削除したものも、ブラウザに残っていれば、ここにまた出る。
   const [here, setHere] = useState<OfficialFound | null>(null);
@@ -82,7 +84,9 @@ export default function OfficialProfileImportDialog({ open, onClose, auto }: { o
   };
   const close = () => {
     if (busy) return;
+    if (preset && auto && neverAsk) auto.onNever();
     reset();
+    setNeverAsk(false);
     onClose();
   };
 
@@ -298,7 +302,11 @@ export default function OfficialProfileImportDialog({ open, onClose, auto }: { o
       </DialogContent>
       <DialogActions>
         {preset && auto && step === 'open' && (
-          <Button disabled={busy} onClick={() => { auto.onNever(); close(); }} sx={{ mr: 'auto' }}>{t('wallet.official_auto_never')}</Button>
+          <FormControlLabel
+            sx={{ mr: 'auto', ml: 0 }}
+            control={<Checkbox size="small" checked={neverAsk} disabled={busy} onChange={(e) => setNeverAsk(e.target.checked)} />}
+            label={<Typography sx={{ fontSize: 14 }}>{t('wallet.official_auto_never')}</Typography>}
+          />
         )}
         {step !== 'data' && !(preset && step === 'open') && (
           <Button disabled={busy} onClick={() => { setStep(step === 'confirm' ? 'open' : 'data'); setError(''); setOpened(null); }}>{t('wallet.official_back')}</Button>
