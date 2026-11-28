@@ -118,6 +118,8 @@ export interface IromeTokens {
   line: string; // hairlines
   cardShadow: string;
   cardShadowHover: string;
+  // カード・枠の背景。ホームなどウォレットの画面では半透明にして、背景の模様がうっすら透けて見えるようにする（入力欄・ダイアログ・メニューは不透明のまま）。
+  cardBg: string;
   menu: IromeMenuTokens;
   onGradient: string; // text / icons on top of `gradient` (buttons, selected toggles, the active menu entry)
   cardRadius: number; // corner radius of cards and tiles
@@ -417,8 +419,10 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
   const warningMain = cv.warning ?? (dark ? '#F6C177' : '#B9770E');
   const wordmark = cv.wordmark ?? (sd ? SYMBOL_DARK.wordmark : sw ? NEM_WHITE.wordmark : dark ? IROME_LOGO.lime : blossom ? bl.wordmark : irome ? IROME.wordmark : '#4A4150');
 
-  const fieldLine = sd ? SYMBOL_DARK.fieldLine : dark ? 'rgba(234,244,166,0.6)' : `rgba(${inkRgb},0.26)`;
-  const fieldHover = sd ? SYMBOL_DARK.fieldHover : dark ? 'rgba(234,244,166,0.85)' : `rgba(${inkRgb},0.55)`;
+
+  // 入力欄は白ではなく、背景の模様が透ける薄いグレー（枠線なし）にする。カードの白と並んでも浮かない。
+  const fieldFill = dark ? 'rgba(255,255,255,0.08)' : 'rgba(60,40,40,0.075)';
+  const fieldFillHover = dark ? 'rgba(255,255,255,0.12)' : 'rgba(60,40,40,0.10)';
 
   const tokens: IromeTokens = {
     chain,
@@ -445,10 +449,12 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
     accent,
     line,
     cardShadow: dark ? '0 6px 24px rgba(0,0,0,0.28)' : blossom ? `0 8px 24px ${alpha(accent, 0.20)}, 0 2px 6px ${alpha(accent, 0.10)}` : sw ? '0 2px 12px rgba(34,34,34,0.08)' : `0 6px 22px ${alpha(accent, 0.14)}`,
+    // 最初の画面群（新規作成・インポート・オフラインなど）も同じ。自分で「カード・ダイアログの背景色」を決めたときは、その色のまま。
+    cardBg: cv.paper ? (dark ? alpha(paper, 0.82) : paper) : alpha(paper, dark ? 0.7 : 0.6),
     cardShadowHover: dark ? `0 8px 28px ${alpha(accent, 0.28)}` : `0 8px 28px ${alpha(accent, blossom ? 0.34 : 0.26)}`,
     onGradient,
     cardRadius,
-    field: { bg: paper, line: fieldLine, hover: fieldHover, radius: 14 },
+    field: { bg: fieldFill, line: 'transparent', hover: fieldFillHover, radius: 20 },
     images,
     look: undefined as unknown as LookValues, // filled in below, once the theme's palette is known
     menu: dark
@@ -572,11 +578,13 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
           root: {
             border: `1px solid ${line}`,
             borderRadius: tokens.cardRadius,
-            backgroundColor: dark ? alpha(paper, 0.82) : paper,
+            backgroundColor: tokens.cardBg,
             boxShadow: tokens.cardShadow,
           },
         },
       },
+      // 折りたたみ（ノード構築の手順など）の枠も、カードと同じ半透明の背景にする。
+      MuiAccordion: { styleOverrides: { root: { backgroundColor: tokens.cardBg } } },
       // 警告などの枠（Alert）も、ホームのカードと同じ角丸にする。
       MuiAlert: { styleOverrides: { root: { borderRadius: tokens.cardRadius } } },
       MuiAppBar: {
@@ -598,7 +606,7 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
         },
       },
       MuiDialog: {
-        styleOverrides: { paper: { border: `1px solid ${line}`, borderRadius: cv.radius !== undefined ? cv.radius + 4 : 24, backgroundColor: paper } },
+        styleOverrides: { paper: { border: 'none', borderRadius: cv.radius !== undefined ? cv.radius + 4 : 24, backgroundColor: paper } },
       },
       MuiMenu: { styleOverrides: { paper: { border: `1px solid ${line}`, borderRadius: 16 } } },
       MuiTooltip: {
@@ -632,8 +640,11 @@ export function createIromeTheme(requestedMode: ThemeMode, chain: DesignKey = 's
           root: {
             borderRadius: tokens.field.radius,
             backgroundColor: tokens.field.bg,
-            '& .MuiOutlinedInput-notchedOutline': { borderColor: fieldLine },
-            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: fieldHover },
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+            '&:hover': { backgroundColor: fieldFillHover },
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: alpha(accent, 0.7), borderWidth: 1 },
+            '&.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: errorMain },
           },
         },
       },
